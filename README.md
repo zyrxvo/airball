@@ -4,6 +4,7 @@
 **Package Prerequisites**
 - `rebound`
 - `numpy`
+- `scipy`
 - `matplotlib`
 - `jupyter`
 
