@@ -1,5 +1,5 @@
 # Flybys in `REBOUND`
-- A repository on how to implement flybys using [hannorein/rebound](https://github.com/hannorein/rebound)
+- A package for implementing flybys in [hannorein/rebound](https://github.com/hannorein/rebound)
 
 **Package Prerequisites**
 - `rebound`

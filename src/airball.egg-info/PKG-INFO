@@ -1,0 +1,29 @@
+Metadata-Version: 2.1
+Name: airball
+Version: 0.0.1
+Summary: A package for implementing flybys in hannorein/rebound
+Home-page: https://github.com/zyrxvo/airball/
+Author: Garett Brown
+Author-email: gbrown@physics.utoronto.ca
+Project-URL: Bug Tracker, https://github.com/zyrxvo/airball/issues
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: GNU General Public License v3 (GPLv3)
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown
+License-File: LICENSE
+
+# Flybys in `REBOUND`
+- A package for implementing flybys in [hannorein/rebound](https://github.com/hannorein/rebound)
+
+**Package Prerequisites**
+- `rebound`
+- `numpy`
+- `scipy`
+- `matplotlib`
+- `jupyter`
+
+## Examples
+- A Basic Flyby Setup
+- Sampling the effects of a stellar environment
+
