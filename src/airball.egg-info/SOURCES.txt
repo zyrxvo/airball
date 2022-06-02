@@ -1,10 +1,11 @@
 LICENSE
 README.md
 pyproject.toml
-setup.cfg
+setup.py
 src/airball/__init__.py
 src/airball/flybys.py
 src/airball.egg-info/PKG-INFO
 src/airball.egg-info/SOURCES.txt
 src/airball.egg-info/dependency_links.txt
+src/airball.egg-info/requires.txt
 src/airball.egg-info/top_level.txt

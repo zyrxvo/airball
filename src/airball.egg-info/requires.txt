@@ -1,0 +1,4 @@
+rebound>=3.18
+numpy>=1.22.4
+scipy>=1.8.1
+matplotlib>=3.5.2
