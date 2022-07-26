@@ -4,7 +4,7 @@ Version: 0.0.3
 Summary: A package for implementing flybys in hannorein/rebound
 Home-page: https://github.com/zyrxvo/airball/
 Author: Garett Brown
-Author-email: gbrown@physics.utoronto.ca
+Author-email: garett.brown@mail.utoronto.ca
 Project-URL: Bug Tracker, https://github.com/zyrxvo/airball/issues
 Classifier: Programming Language :: Python :: 3
 Classifier: License :: OSI Approved :: GNU General Public License v3 (GPLv3)
@@ -17,11 +17,8 @@ License-File: LICENSE
 - A package for implementing flybys in [hannorein/rebound](https://github.com/hannorein/rebound)
 
 **Package Prerequisites**
-- `rebound`
 - `numpy`
 - `scipy`
-- `matplotlib`
-- `jupyter`
 
 ## Examples
 - A Basic Flyby Setup

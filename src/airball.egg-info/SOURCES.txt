@@ -3,6 +3,7 @@ README.md
 pyproject.toml
 setup.py
 src/airball/__init__.py
+src/airball/environments.py
 src/airball/flybys.py
 src/airball.egg-info/PKG-INFO
 src/airball.egg-info/SOURCES.txt
