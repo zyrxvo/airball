@@ -31,6 +31,7 @@ class StellarEnvironment:
     my_env = airball.StellarEnvironment(stellar_density=100, velocity_dispersion=10, upper_mass_limit=100, name='My Environment')
     my_star = my_env.random_star()
 
+    If a `maximum_impact_parameter` is not given, AIRBALL attempts to estimate a reasonable one.
     There are predefined subclasses for the LocalNeighborhood, a generic OpenCluster, a generic GlobularCluster, and the Milky Way center GalacticBulge and GalacticCore.
   '''
   def __init__(self, stellar_density, velocity_dispersion, upper_mass_limit, maximum_impact_parameter=None, name=None):
@@ -70,19 +71,6 @@ class StellarEnvironment:
     s += "Max Impact Param:    {0:12.4g} AU\n".format(self.maximum_impact_parameter)
     s += "------------------------------------------"
     print(s)
-
-
-  @property
-  def density(self):
-    '''
-      The stellar density of the environment.
-      Defined and returned in units of pc^-3.
-    '''
-    return self._density/_pc3_to_au3
-  
-  @density.setter
-  def density(self, value):
-    self._density = value * _pc3_to_au3
 
   @property
   def median_mass(self):
