@@ -22,7 +22,7 @@ def imf_gen_1(size):
     '''
         Generate stellar mass samples for single star systems between 0.01 and 1.0 Solar Mass.
         
-        Computed using the inverted cummulative probability distribution (CDF) from the initial mass function (IMF) given in equation (17) by Chabrier (2003) https://ui.adsabs.harvard.edu/abs/2003PASP..115..763C/abstract
+        Computed using the inverted cumulative probability distribution (CDF) from the initial mass function (IMF) given in equation (17) by Chabrier (2003) https://ui.adsabs.harvard.edu/abs/2003PASP..115..763C/abstract
 
         Parameters
         ----------
@@ -36,7 +36,7 @@ def imf_gen_10(size):
     '''
         Generate stellar mass samples for single star systems between 0.01 and 10.0 Solar Masses.
         
-        Computed using the inverted cummulative probability distribution (CDF) by smoothly combining the initial mass function (IMF) given in equation (17) by Chabrier (2003) https://ui.adsabs.harvard.edu/abs/2003PASP..115..763C/abstract for stars less than 1.0 Solar Mass with the standard power-law IMF from Salpeter (1955) https://ui.adsabs.harvard.edu/abs/1955ApJ...121..161S/abstract for stars more than 1.0 Solar Mass.
+        Computed using the inverted cumulative probability distribution (CDF) by smoothly combining the initial mass function (IMF) given in equation (17) by Chabrier (2003) https://ui.adsabs.harvard.edu/abs/2003PASP..115..763C/abstract for stars less than 1.0 Solar Mass with the standard power-law IMF from Salpeter (1955) https://ui.adsabs.harvard.edu/abs/1955ApJ...121..161S/abstract for stars more than 1.0 Solar Mass.
 
         Parameters
         ----------
@@ -50,7 +50,7 @@ def imf_gen_100(size):
     '''
         Generate stellar mass samples for single star systems between 0.01 and 100.0 Solar Masses.
         
-        Computed using the inverted cummulative probability distribution (CDF) by smoothly combining the initial mass function (IMF) given in equation (17) by Chabrier (2003) https://ui.adsabs.harvard.edu/abs/2003PASP..115..763C/abstract for stars less than 1.0 Solar Mass with the standard power-law IMF from Salpeter (1955) https://ui.adsabs.harvard.edu/abs/1955ApJ...121..161S/abstract for stars more than 1.0 Solar Mass.
+        Computed using the inverted cumulative probability distribution (CDF) by smoothly combining the initial mass function (IMF) given in equation (17) by Chabrier (2003) https://ui.adsabs.harvard.edu/abs/2003PASP..115..763C/abstract for stars less than 1.0 Solar Mass with the standard power-law IMF from Salpeter (1955) https://ui.adsabs.harvard.edu/abs/1955ApJ...121..161S/abstract for stars more than 1.0 Solar Mass.
 
         Parameters
         ----------
@@ -94,7 +94,7 @@ def cross_section(star_mass, R, v):
         ----------
         star_mass : the mass of flyby star in units of Msun
         R : the maximum interaction radius in units of AU
-        v : the typical velocity from the distrubution in units of AU/Yr
+        v : the typical velocity from the distribution in units of AU/Yr
     '''
     
     G = _twopi**2 # Newton's gravitational constant in units of Msun, AU, and Years
@@ -107,7 +107,7 @@ def encounter_rate(n, vbar, R, star_mass=1):
         
         Parameters
         ----------
-        n : stellar sumber density in units of AU^{-3}
+        n : stellar number density in units of AU^{-3}
         vbar : velocity dispersion in units of km/s
         R : interaction radius in units of AU
         star_mass : mass of a typical flyby star in units of Msun
@@ -150,7 +150,7 @@ def flyby_star(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_ome
     else: raise AssertionError('Specify either an eccentricity or a velocity for the perturbing star.')
     
     #################################################
-    ## Calcuation of Flyby Star Initial Conditions ## 
+    ## Calculation of Flyby Star Initial Conditions ## 
     #################################################
     
     # Calculate the orbital elements of the flyby star.
@@ -164,7 +164,7 @@ def flyby_star(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_ome
     return _rebound.Particle(sim, m=star_mass, a=a, e=e, f=-f, omega=star_omega, Omega=star_Omega, inc=star_inc, hash='flybystar')
 
 
-def flyby(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_omega='uniform', star_Omega='uniform', star_inc='uniform', star_rmax=1e6, showflybysetup=False):
+def flyby(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_omega='uniform', star_Omega='uniform', star_inc='uniform', star_rmax=1e6, showFlybySetup=False):
     '''
         Simulate a stellar flyby to a REBOUND simulation.
         
@@ -183,7 +183,7 @@ def flyby(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_omega='u
         star_Omega : the longitude of the ascending node of the flyby star
         star_inc : the inclination of the flyby star
         star_rmax : the starting distance of the flyby star in units of AU
-        showflybysetup : True or False. Shows a REBOUND OrbitPlot snapshot of the system when the flyby star is at periapsis.
+        showFlybySetup : True or False. Shows a REBOUND OrbitPlot snapshot of the system when the flyby star is at periapsis.
     '''
     
     mu = sim.G * (_numpy.sum([p.m for p in sim.particles]) + star_mass)
@@ -200,7 +200,7 @@ def flyby(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_omega='u
     else: raise AssertionError('Specify either an eccentricity or a velocity for the perturbing star.')
     
     #################################################
-    ## Cacluation of Flyby Star Initial Conditions ## 
+    ## Calculation of Flyby Star Initial Conditions ## 
     #################################################
     
     # Calculate the orbital elements of the flyby star.
@@ -213,7 +213,7 @@ def flyby(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_omega='u
     # # Calculate half of the integration time for the flyby star.
     # E = _numpy.arccosh((_numpy.cos(f)+e)/(1.+e*_numpy.cos(f))) # Compute the eccentric anomaly
     # M = e * _numpy.sinh(E)-E # Compute the mean anomaly
-    # tperi = M/_numpy.sqrt(mu/(-a*a*a)) # Compute the time to pericentre (-a because the semi-major axis is negative)
+    # tperi = M/_numpy.sqrt(mu/(-a*a*a)) # Compute the time to periapsis (-a because the semi-major axis is negative)
 
     #################################################
     
@@ -221,12 +221,12 @@ def flyby(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_omega='u
     sim.move_to_hel() # Move the system into the heliocentric frame of reference.
     sim.add(m=star_mass, a=a, e=e, f=-f, omega=star_omega, Omega=star_Omega, inc=star_inc, hash='flybystar')
     sim.ri_whfast.recalculate_coordinates_this_timestep = 1 # Because a new particle was added, we need to tell REBOUND to recalculate the coordinates.
-    sim.move_to_com() # Move the system back into the centre of mass/momuntum frame for integrating.
+    sim.move_to_com() # Move the system back into the centre of mass/momentum frame for integrating.
 
-    tperi = sim.particles['flybystar'].T # Compute the time to pericentre.
+    tperi = sim.particles['flybystar'].T # Compute the time to periapsis.
     
-    # Integrate the flyby. Start at the current time and go to twice the time to pericentre.
-    if showflybysetup:
+    # Integrate the flyby. Start at the current time and go to twice the time to periapsis.
+    if showFlybySetup:
         t1 = sim.t + tperi
         t2 = sim.t + 2*tperi
         sim.integrate(t1)
@@ -241,7 +241,7 @@ def flyby(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_omega='u
     # Remove the flyby star. 
     sim.remove(hash='flybystar')
     sim.ri_whfast.recalculate_coordinates_this_timestep = 1 # Because a particle was removed, we need to tell REBOUND to recalculate the coordinates.
-    sim.move_to_com() # Readjust the system back into the centre of mass/momuntum frame for integrating.
+    sim.move_to_com() # Readjust the system back into the centre of mass/momentum frame for integrating.
     
 
 
@@ -282,7 +282,7 @@ def energy_change_adiabatic_estimate(sun_mass=1, planet_mass=5e-5, planet_a=30, 
         star_omega : the argument of periapsis of the flyby star
         star_Omega : the longitude of the ascending node of the flyby star
         star_inc : the inclination of the flyby star
-        t0 :  the time of pericentric passage of the planet where t=0 is when the flyby star passes perihelion
+        t0 :  the time of periapsis passage of the planet where t=0 is when the flyby star passes perihelion
     '''
 
     G = 1 # Newton's Gravitational constant in units of Msun, AU, Yr2Pi
@@ -355,3 +355,44 @@ def relative_energy_change(sun_mass, planet_mass, planet_a, planet_e, star_mass,
         star_v : the relative velocity at infinity between the central star and the flyby star (hyperbolic excess velocity) in units of km/s.
     '''
     return energy_change_adiabatic_estimate(sun_mass=sun_mass, planet_mass=planet_mass, planet_a=planet_a, planet_e=planet_e, star_mass=star_mass, star_b=star_b, star_v=star_v)/binary_energy(sun_mass, planet_mass, planet_a)
+
+def eccentricity_change_adiabatic_estimate(sun_mass=1, planet_mass=5e-05, planet_a=30, planet_e=0.001, star_mass=1, star_b=100, star_v=None, star_e=None, star_omega='uniform', star_Omega='uniform', star_inc='uniform', t0=0):
+    G = 1 # Newton's Gravitational constant in units of Msun, AU, Yr2Pi
+    m1, m2, m3 = sun_mass, planet_mass, star_mass # redefine the masses for convenience
+    M12 = m1 + m2 # total mass of the binary system
+    M123 = m1 + m2 + m3 # total mass of all the objects involved
+    
+    if star_e is None and star_v is not None:
+        # If `star_v` is defined convert it to eccentricity.
+        # Assumes that `star_v` is in units of km/s.
+        mu = G*M123
+        es = vinf_and_b_to_e(mu=mu, star_b=star_b, star_vinf=star_v)
+    elif star_e is not None and star_v is None:
+        # Simply use the eccentricity if it is defined.
+        es = star_e
+    elif star_e is not None and star_v is not None: raise AssertionError('Cannot specify an eccentricity and a velocity for the perturbing star.')
+    else: raise AssertionError('Specify either an eccentricity or a velocity for the perturbing star.')
+    
+    a, e = planet_a, planet_e # redefine the orbital elements of the planet for convenience
+    b = a*_numpy.sqrt(1-e**2) # compute the semi-minor axis of the planet
+    n = _numpy.sqrt(G*M12/a**3) # compute the mean motion of the planet
+    
+    # If the orientation of the flyby star is random, then sample from uniform distributions.
+    if star_omega == 'uniform': omega = _numpy.random.uniform(-_numpy.pi, _numpy.pi)
+    else: omega = star_omega
+    if star_Omega == 'uniform': Omega = _numpy.random.uniform(-_numpy.pi, _numpy.pi)
+    else: Omega = star_Omega
+    if star_inc == 'uniform': inc = _numpy.random.uniform(-_numpy.pi, _numpy.pi)
+    else: inc = star_inc
+
+    w, W, i = omega, Omega, inc # redefine the orientation elements of the flyby star for convenience
+    V = star_v * _kms_to_auyr2pi # convert the velocity of the star to standard REBOUND units
+    GM123 = G*M123 
+    q = (- GM123 + _numpy.sqrt( GM123**2. + star_b**2. * V**4.))/V**2. # compute the periapsis of the flyby star
+    
+    prefactor = (-15.0/4.0) * _numpy.sqrt((m3*m3)/(M12*M123)) * ((a/q)**1.5) * ((e * _numpy.sqrt(1-e**2))/((1+es)**1.5))
+    t1 = _numpy.sin(i) * _numpy.sin(i) * _numpy.sin(2.0*W) * (_numpy.arccos(-1.0/es) + _numpy.sqrt(es*es - 1.0))
+    t2 = (1.0/3.0) * (1.0 + _numpy.cos(i)*_numpy.cos(i)) * _numpy.cos(2.0*w) * _numpy.sin(2.0*W)
+    t3 = 2.0 * _numpy.cos(i) * _numpy.sin(2.0*w) * _numpy.cos(2.0*W) * ((es*es - 1.0)**1.5)/(es*es)
+    
+    return prefactor * (t1 + t2 + t3)
