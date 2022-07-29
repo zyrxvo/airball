@@ -356,7 +356,27 @@ def relative_energy_change(sun_mass, planet_mass, planet_a, planet_e, star_mass,
     '''
     return energy_change_adiabatic_estimate(sun_mass=sun_mass, planet_mass=planet_mass, planet_a=planet_a, planet_e=planet_e, star_mass=star_mass, star_b=star_b, star_v=star_v)/binary_energy(sun_mass, planet_mass, planet_a)
 
-def eccentricity_change_adiabatic_estimate(sun_mass=1, planet_mass=5e-05, planet_a=30, planet_e=0.001, star_mass=1, star_b=100, star_v=None, star_e=None, star_omega='uniform', star_Omega='uniform', star_inc='uniform', t0=0):
+def eccentricity_change_adiabatic_estimate(sun_mass=1, planet_mass=5e-05, planet_a=30, planet_e=0.001, star_mass=1, star_b=100, star_v=None, star_e=None, star_omega='uniform', star_Omega='uniform', star_inc='uniform'):
+    '''
+        An analytical estimate for the change in eccentricity of an eccentric binary system due to a flyby star.
+        
+        From the conclusions of Heggie & Rasio (1996) Equation (A3) from Spurzem et al. (2009) https://ui.adsabs.harvard.edu/abs/2009ApJ...697..458S/abstract. 
+        The orbital element angles of the flyby star are determined with respect to the plane defined by the binary orbit. In REBOUND this is the same as when the inclination of the planet is zero.
+        
+        Parameters
+        ----------
+        sun_mass : the mass of the central star in units of Msun
+        planet_mass : the mass of the planet (binary object) in units of Msun
+        planet_a : the semi-major axis of the planet in units of AU
+        planet_e : the eccentricity of the planet
+        star_mass : the mass of the flyby star in units of Msun
+        star_b :  impact parameter of the flyby star in units of AU
+        star_v : the relative velocity at infinity between the central star and the flyby star (hyperbolic excess velocity) in units of km/s. Only specify star_v OR star_e, not both.
+        star_e : the eccentricity of the flyby star (e > 1). Only specify star_e OR star_v, not both.
+        star_omega : the argument of periapsis of the flyby star
+        star_Omega : the longitude of the ascending node of the flyby star
+        star_inc : the inclination of the flyby star
+    '''
     G = 1 # Newton's Gravitational constant in units of Msun, AU, Yr2Pi
     m1, m2, m3 = sun_mass, planet_mass, star_mass # redefine the masses for convenience
     M12 = m1 + m2 # total mass of the binary system
