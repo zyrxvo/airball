@@ -164,7 +164,7 @@ def flyby_star(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_ome
     return _rebound.Particle(sim, m=star_mass, a=a, e=e, f=-f, omega=star_omega, Omega=star_Omega, inc=star_inc, hash='flybystar')
 
 
-def flyby(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_omega='uniform', star_Omega='uniform', star_inc='uniform', star_rmax=1e6, showFlybySetup=False):
+def flyby(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_omega='uniform', star_Omega='uniform', star_inc='uniform', star_rmax=1e6, showFlybySetup=False, returnOneOrbitSlice=False, axOrbitSlice=None, removeFlybyStar=True, closeEncounterEstimate=False):
     '''
         Simulate a stellar flyby to a REBOUND simulation.
         
@@ -225,6 +225,7 @@ def flyby(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_omega='u
 
     tperi = sim.particles['flybystar'].T # Compute the time to periapsis.
     
+    de = None
     # Integrate the flyby. Start at the current time and go to twice the time to periapsis.
     if showFlybySetup:
         t1 = sim.t + tperi
@@ -233,16 +234,36 @@ def flyby(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_omega='u
         print('During the Flyby')
         sim.move_to_hel()
         _rebound.OrbitPlot(sim, color=True, slices=True, periastron=True);
+        if returnOneOrbitSlice and axOrbitSlice is not None:
+            _rebound.plotting.OrbitPlotOneSlice(sim, axOrbitSlice, color=True, orbit_type='trail')
+        sim.move_to_com()
+        sim.integrate(t2)
+    elif returnOneOrbitSlice and axOrbitSlice is not None:
+        t1 = sim.t + tperi
+        t2 = sim.t + 2*tperi
+        sim.integrate(t1)
+        sim.move_to_hel()
+        _rebound.plotting.OrbitPlotOneSlice(sim, axOrbitSlice, color=True, orbit_type='trail')
+        sim.move_to_com()
+        sim.integrate(t2)
+    elif closeEncounterEstimate:
+        t1 = sim.t + tperi
+        t2 = sim.t + 2*tperi
+        sim.integrate(t1)
+        de = energy_change_close_encounters_sim(sim)
         sim.move_to_com()
         sim.integrate(t2)
     else:
         sim.integrate(sim.t + 2.*tperi)
     
-    # Remove the flyby star. 
-    sim.remove(hash='flybystar')
-    sim.ri_whfast.recalculate_coordinates_this_timestep = 1 # Because a particle was removed, we need to tell REBOUND to recalculate the coordinates.
-    sim.move_to_com() # Readjust the system back into the centre of mass/momentum frame for integrating.
+    if removeFlybyStar:
+        # Remove the flyby star. 
+        sim.remove(hash='flybystar')
+        sim.ri_whfast.recalculate_coordinates_this_timestep = 1 # Because a particle was removed, we need to tell REBOUND to recalculate the coordinates.
+        sim.move_to_com() # Readjust the system back into the centre of mass/momentum frame for integrating.
     
+    if closeEncounterEstimate and de is not None:
+        return de
 
 
 
@@ -252,7 +273,7 @@ def flyby(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_omega='u
 
 def binary_energy(sun_mass, planet_mass, planet_a):
     '''
-        The energy of a binary system.
+        The energy of a binary system, -(G*M*m)/(2*a).
         
         Parameters
         ----------
@@ -263,7 +284,7 @@ def binary_energy(sun_mass, planet_mass, planet_a):
     G = 1.
     return -G * sun_mass * planet_mass / (2.*planet_a)
     
-def energy_change_adiabatic_estimate(sun_mass=1, planet_mass=5e-5, planet_a=30, planet_e=1e-3, star_mass=1, star_b=100, star_v=None,  star_e=None, star_omega='uniform', star_Omega='uniform', star_inc='uniform', t0=0):
+def energy_change_adiabatic_estimate(sun_mass=1, planet_mass=5e-5, planet_a=30, planet_e=1e-3, star_mass=1, star_b=100, star_v=None,  star_e=None, star_omega='uniform', star_Omega='uniform', star_inc='uniform', t0=0, averaged=True):
     '''
         An analytical estimate for the change in energy of a binary system due to a flyby star.
         
@@ -317,7 +338,7 @@ def energy_change_adiabatic_estimate(sun_mass=1, planet_mass=5e-5, planet_a=30, 
     V = star_v * _kms_to_auyr2pi # convert the velocity of the star to standard REBOUND units
     GM123 = G*M123 
     q = (- GM123 + _numpy.sqrt( GM123**2. + star_b**2. * V**4.))/V**2. # compute the periapsis of the flyby star
-    
+
     # Calculate the following convenient functions of the planet's eccentricity and Bessel functions of the first kind of order n.
     e1 = _jv(-1,e) - 2*e*_j0(e) + 2*e*_jv(2,0) - _jv(3,e)
     e2 = _jv(-1,e) - _jv(3,e)
@@ -327,18 +348,19 @@ def energy_change_adiabatic_estimate(sun_mass=1, planet_mass=5e-5, planet_a=30, 
     k = _numpy.sqrt((2*M12*q**3)/(M123*a**3))
     
     # Calculate convenient functions of the flyby star's eccentricity.
-    f1 = ((es + 1)**(3./4.)) / ((2.**(3./4.)) * (es**2.))
-    f2 = (_numpy.sqrt((es**2.) - 1) - _numpy.arccos(1./es)) / ((es - 1.)**(3./2.))
+    f1 = ((es + 1.0)**(0.75)) / ((2.0**(0.75)) * (es*es))
+    f2 = (3.0/(2.0*_numpy.sqrt(2.0))) * (_numpy.sqrt((es*es) - 1.0) - _numpy.arccos(1.0/es)) / ((es - 1.0)**(1.5))
     
     # Compute the prefactor and terms of the calculation done by Roy & Haddow (2003)
-    prefactor = -((G*m1*m2*m3*_numpy.sqrt(_numpy.pi))/(8*M12*q**3.)) * f1 * k**(5./2.) * _numpy.exp((-k/_numpy.sqrt(2.))*f2)
-    term1 = e1*a**2. * ( _numpy.sin(2*w + n*t0)*_numpy.cos(2*i - 1)- _numpy.sin(2*w + n*t0)*_numpy.cos(2*i)*_numpy.cos(2*W) - 3*_numpy.sin(n*t0 + 2*w)*_numpy.cos(2*W) - 4*_numpy.sin(2*W)*_numpy.cos(2*w + n*t0)*_numpy.cos(i) )
-    term2 = e2*b**2. * ( _numpy.sin(2*w + n*t0)*(1-_numpy.cos(2*i)) - _numpy.sin(2*w + n*t0)*_numpy.cos(2*i)*_numpy.cos(2*W) - 3*_numpy.sin(n*t0 +2*w)*_numpy.cos(2*W) - 4*_numpy.cos(n*t0 + 2*w)*_numpy.sin(2*W)*_numpy.cos(i) )
-    term3 = e4*a*b * (-2*_numpy.cos(2*i)*_numpy.cos(2*w + n*t0)*_numpy.sin(2*W) - 6*_numpy.cos(2*w + n*t0)*_numpy.sin(2*W) - 8*_numpy.cos(2*W)*_numpy.sin(2*w + n*t0)*_numpy.cos(i) )
+    prefactor = (-_numpy.sqrt(_numpy.pi)/8.0) * ((G*m1*m2*m3)/M12) * ((a*a)/(q*q*q)) * f1 * k**(2.5) * _numpy.exp((-2.0*k/3.0)*f2)
+    term1 = e1 * ( _numpy.sin(2.0*w + n*t0)*_numpy.cos(2.0*i - 1.0)- _numpy.sin(2.0*w + n*t0)*_numpy.cos(2.0*i)*_numpy.cos(2.0*W) - 3.0*_numpy.sin(n*t0 + 2.0*w)*_numpy.cos(2.0*W) - 4.0*_numpy.sin(2.0*W)*_numpy.cos(2.0*w + n*t0)*_numpy.cos(i) )
+    term2 = e2 * (1.0 - e*e) * ( _numpy.sin(2.0*w + n*t0)*(1.0-_numpy.cos(2.0*i)) - _numpy.sin(2.0*w + n*t0)*_numpy.cos(2.0*i)*_numpy.cos(2.0*W) - 3.0*_numpy.sin(n*t0 +2.0*w)*_numpy.cos(2.0*W) - 4.0*_numpy.cos(n*t0 + 2.0*w)*_numpy.sin(2.0*W)*_numpy.cos(i) )
+    term3 = e4 * _numpy.sqrt(1.0 - e*e) * (-2.0*_numpy.cos(2.0*i)*_numpy.cos(2.0*w + n*t0)*_numpy.sin(2.0*W) - 6.0*_numpy.cos(2.0*w + n*t0)*_numpy.sin(2.0*W) - 8.0*_numpy.cos(2.0*W)*_numpy.sin(2.0*w + n*t0)*_numpy.cos(i) )
     
-    return prefactor * ( term1 + term2 + term3)
+    if averaged: return prefactor
+    else: return prefactor * ( term1 + term2 + term3)
 
-def relative_energy_change(sun_mass, planet_mass, planet_a, planet_e, star_mass, star_b, star_v):
+def relative_energy_change(sun_mass, planet_mass, planet_a, planet_e, star_mass, star_b, star_v, star_e=None, star_omega='uniform', star_Omega='uniform', star_inc='uniform', t0=0, averaged=False):
     '''
         An analytical estimate for the relative change in energy of a binary system due to a flyby star.
         
@@ -354,9 +376,9 @@ def relative_energy_change(sun_mass, planet_mass, planet_a, planet_e, star_mass,
         star_b :  impact parameter of the flyby star in units of AU
         star_v : the relative velocity at infinity between the central star and the flyby star (hyperbolic excess velocity) in units of km/s.
     '''
-    return energy_change_adiabatic_estimate(sun_mass=sun_mass, planet_mass=planet_mass, planet_a=planet_a, planet_e=planet_e, star_mass=star_mass, star_b=star_b, star_v=star_v)/binary_energy(sun_mass, planet_mass, planet_a)
+    return energy_change_adiabatic_estimate(sun_mass=sun_mass, planet_mass=planet_mass, planet_a=planet_a, planet_e=planet_e, star_mass=star_mass, star_b=star_b, star_v=star_v, star_e=star_e, star_omega=star_omega, star_Omega=star_Omega, star_inc=star_inc, t0=t0, averaged=averaged)/binary_energy(sun_mass, planet_mass, planet_a)
 
-def eccentricity_change_adiabatic_estimate(sun_mass=1, planet_mass=5e-05, planet_a=30, planet_e=0.001, star_mass=1, star_b=100, star_v=None, star_e=None, star_omega='uniform', star_Omega='uniform', star_inc='uniform'):
+def eccentricity_change_adiabatic_estimate(sun_mass=1, planet_mass=5e-05, planet_a=30, planet_e=0.001, star_mass=1, star_b=100, star_v=None, star_e=None, star_omega='uniform', star_Omega='uniform', star_inc='uniform', averaged=False):
     '''
         An analytical estimate for the change in eccentricity of an eccentric binary system due to a flyby star.
         
@@ -410,9 +432,48 @@ def eccentricity_change_adiabatic_estimate(sun_mass=1, planet_mass=5e-05, planet
     GM123 = G*M123 
     q = (- GM123 + _numpy.sqrt( GM123**2. + star_b**2. * V**4.))/V**2. # compute the periapsis of the flyby star
     
-    prefactor = (-15.0/4.0) * _numpy.sqrt((m3*m3)/(M12*M123)) * ((a/q)**1.5) * ((e * _numpy.sqrt(1-e**2))/((1+es)**1.5))
-    t1 = _numpy.sin(i) * _numpy.sin(i) * _numpy.sin(2.0*W) * (_numpy.arccos(-1.0/es) + _numpy.sqrt(es*es - 1.0))
+    prefactor = (-15.0/4.0) * m3 / _numpy.sqrt(M12*M123) * ((a/q)**1.5) * ((e * _numpy.sqrt(1.0 - e*e))/((1.0 + es)**1.5))
+    t1 = _numpy.sin(i) * _numpy.sin(i) * _numpy.sin(2.0*W) * ( _numpy.arccos(-1.0/es) + _numpy.sqrt(es*es - 1.0) )
     t2 = (1.0/3.0) * (1.0 + _numpy.cos(i)*_numpy.cos(i)) * _numpy.cos(2.0*w) * _numpy.sin(2.0*W)
     t3 = 2.0 * _numpy.cos(i) * _numpy.sin(2.0*w) * _numpy.cos(2.0*W) * ((es*es - 1.0)**1.5)/(es*es)
     
-    return prefactor * (t1 + t2 + t3)
+    if averaged: return prefactor * ( ( _numpy.arccos(-1.0/es) + _numpy.sqrt(es*es - 1.0) ) + (2.0/3.0) + (2.0 * ((es*es - 1.0)**1.5)/(es*es)) )
+    else: return prefactor * (t1 + t2 + t3)
+
+def energy_change_close_encounters_sim(sim):
+    '''
+        An analytical estimate for the change in energy of a binary system due to a flyby star.
+        
+        From the conclusions of Roy & Haddow (2003) https://ui.adsabs.harvard.edu/abs/2003CeMDA..87..411R/abstract and Heggie (2006) https://ui.adsabs.harvard.edu/abs/2006fbp..book...20H/abstract. The orbital element angles of the flyby star are determined with respect to the plane defined by the binary orbit. In REBOUND this is the same as when the inclination of the planet is zero.
+        
+        Parameters
+        ----------
+        sim : three-body REBOUND sim
+    '''
+    sim.move_to_hel()
+    p = sim.particles
+
+    G = sim.G # Newton's Gravitational constant in units of Msun, AU, Yr2Pi
+    m1, m2, m3 = p[0].m, p[1].m, p[2].m # redefine the masses for convenience
+    M12 = m1 + m2 # total mass of the binary system
+    M23 = m2 + m3 # total mass of the binary system
+    M123 = m1 + m2 + m3 # total mass of all the objects involved
+
+    V = p[2].v # velocity of the star
+    es = p[2].e
+    GM123 = G*M123
+    b = -p[2].a * _numpy.sqrt(es*es - 1.0)
+    q = (- GM123 + _numpy.sqrt( GM123**2. + b**2. * V**4.))/V**2. # compute the periapsis of the flyby star
+
+    x,y,z = p[2].xyz
+    vx,vy,vz = p[1].vxyz
+
+    cosϕ = 1.0/_numpy.sqrt(1.0 + ((q**2.0)*(V**4.0))/(M23**2.0))
+    
+    prefactor = (-2.0 * m1 * m2 * m3)/(M12 * M23) * V * cosϕ
+    t1 = -(x*vx + y*vy + z*vz)
+    t2 = (m3 * V * cosϕ)/M23
+    
+    sim.move_to_hel()
+    
+    return prefactor * (t1 + t2)
