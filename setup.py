@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="airball",
-    version="0.1.0",
+    version="0.1.1",
     author="Garett Brown",
     author_email="garett.brown@mail.utoronto.ca",
     description="A package for implementing flybys in hannorein/rebound",
@@ -23,8 +23,5 @@ setuptools.setup(
     package_dir={"": "src"},
     packages=setuptools.find_packages(where="src"),
     python_requires=">=3.6",
-    install_requires=[
-        "numpy>=1.22.4",
-        "scipy>=1.8.1"
-    ]
+    install_requires=["numpy", "scipy"]
 )
