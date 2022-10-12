@@ -65,8 +65,8 @@ class StellarEnvironment:
     s = self.name
     s += "\n------------------------------------------\n"
     s += "Stellar Density:     {0:12.4g} pc^-3\n".format(self._density/_pc3_to_au3)
-    s += "Velocity Dispersion: {0:12.4g} km/s\n".format(self.velocity)
-    s += "Mass Range:          0.01 - {0:5.4g} Msun\n".format(self.mass_limit)
+    s += "Velocity Scale:      {0:12.4g} km/s\n".format(self.velocity)
+    s += "Mass Range:             0.01 -{0:3.4g} Msun\n".format(self.mass_limit)
     s += "Median Mass:         {0:12.4g} Msun\n".format(self.median_mass)
     s += "Max Impact Param:    {0:12.4g} AU\n".format(self.maximum_impact_parameter)
     s += "------------------------------------------"
@@ -103,6 +103,19 @@ class StellarEnvironment:
   
 
 class LocalNeighborhood(StellarEnvironment):
+  '''
+    This is a AIRBALL StellarEnvironment subclass for the Local Neighborhood.
+    It encapsulates the relevant data for a static stellar environment representing the local neighborhood of the solar system.
+
+    The stellar density is 0.14 pc^-3 defined by Bovy (2017).
+    The velocity scale is 26 km/s, defined by Bailer-Jones et al. (2018) so that 90% of stars have v < 100 km/s.
+    The mass limit is defined to between 0.01-10 solar masses using Chabrier (2003) for single stars when m < 1 and Salpeter (1955) for stars m ≥ 1.
+
+    # Example
+    my_local = airball.LocalNeighborhood()
+    my_10stars = my_local.random_star(size=10)
+    # returns a (3,10) numpy array with the masses, impact parameters, and velocities of the stars.
+  '''
   _maximum_impact_parameter = 10000 # AU
   name = 'Local Neighborhood'
   short_name = 'Local'
@@ -114,6 +127,19 @@ class LocalNeighborhood(StellarEnvironment):
     self._median_mass = None
 
 class OpenCluster(StellarEnvironment):
+  '''
+    This is a AIRBALL StellarEnvironment subclass for a generic Open Cluster.
+    It encapsulates the relevant data for a static stellar environment representing a generic open cluster.
+
+    The stellar density is 100 pc^-3 informed by Adams (2010).
+    The velocity scale is 1 km/s informed by Adams (2010) and Malmberg et al. (2011).
+    The mass limit is defined to between 0.01-100 solar masses using Chabrier (2003) for single stars when m < 1 and Salpeter (1955) for stars m ≥ 1.
+
+    # Example
+    my_open = airball.OpenCluster()
+    my_10stars = my_open.random_star(size=10)
+    # returns a (3,10) numpy array with the masses, impact parameters, and velocities of the stars.
+  '''
   _maximum_impact_parameter = 1000 # AU
   name = 'Open Cluster'
   short_name = 'Open'
