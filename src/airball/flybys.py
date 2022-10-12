@@ -85,6 +85,20 @@ def vinf_and_b_to_e(mu, star_b, star_vinf):
     numerator = star_b * v**2.
     return _numpy.sqrt(1 + (numerator/mu)**2.)
 
+def _determine_eccentricity(sim, star_mass, star_b, star_v=None, star_e=None):
+    # Calculate the eccentricity of the flyby star.
+    mu = sim.G * (_numpy.sum([p.m for p in sim.particles]) + star_mass)
+    if star_e is not None and star_v is not None: raise AssertionError('Overdetermined. Cannot specify an eccentricity and a velocity for the perturbing star.')
+    elif star_e is not None and star_v is None:
+        # Simply use the eccentricity if it is defined.
+        return star_e
+    elif star_e is None and star_v is not None:
+        # If `star_v` is defined convert it to eccentricity.
+        # Assumes that `star_v` is in units of km/s.
+        sun_mass = sim.particles[0].m
+        planet_mass = sim.particles[1].m
+        return vinf_and_b_to_e(mu=mu, star_b=star_b, star_vinf=star_v)
+    else: raise AssertionError('Undetermined. Specify either an eccentricity or a velocity for the perturbing star.')
 
 def cross_section(star_mass, R, v):
     '''
@@ -121,7 +135,7 @@ def encounter_rate(n, vbar, R, star_mass=1):
 #################### Flyby Functions #######################
 ############################################################
 
-def flyby_star(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_omega='uniform', star_Omega='uniform', star_inc='uniform', star_rmax=1e6):
+def flyby_star(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_omega='uniform', star_Omega='uniform', star_inc='uniform', star_rmax=2.5e5):
     '''
         Return a REBOUND Particle for a flyby star given a REBOUND Simulation and flyby parameters.
         
@@ -137,24 +151,14 @@ def flyby_star(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_ome
         star_inc : the inclination of the flyby star
         star_rmax : the starting distance of the flyby star in units of AU
     '''
-    
-    mu = sim.G * (_numpy.sum([p.m for p in sim.particles]) + star_mass)
-    if star_e is None and star_v is not None:
-        # If `star_v` is defined convert it to eccentricity.
-        # Assumes that `star_v` is in units of km/s.
-        e = vinf_and_b_to_e(mu=mu, star_b=star_b, star_vinf=star_v)
-    elif star_e is not None and star_v is None:
-        # Simply use the eccentricity if it is defined.
-        e = star_e
-    elif star_e is not None and star_v is not None: raise AssertionError('Cannot specify an eccentricity and a velocity for the perturbing star.')
-    else: raise AssertionError('Specify either an eccentricity or a velocity for the perturbing star.')
-    
+
     #################################################
     ## Calculation of Flyby Star Initial Conditions ## 
     #################################################
-    
+
     # Calculate the orbital elements of the flyby star.
     rmax = star_rmax # This is the starting distance of the flyby star in AU
+    e = _determine_eccentricity(sim, star_mass, star_b, star_v=star_v, star_e=star_e)
     a = -star_b/_numpy.sqrt(e**2. - 1.) # Compute the semi-major axis of the flyby star
     l = -a*(e*e-1.) # Compute the semi-latus rectum of the hyperbolic orbit (-a because the semi-major axis is negative)
     f = _numpy.arccos((l/rmax-1.)/e) # Compute the true anomaly
@@ -163,8 +167,7 @@ def flyby_star(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_ome
 
     return _rebound.Particle(sim, m=star_mass, a=a, e=e, f=-f, omega=star_omega, Omega=star_Omega, inc=star_inc, hash='flybystar')
 
-
-def flyby(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_omega='uniform', star_Omega='uniform', star_inc='uniform', star_rmax=1e6, showFlybySetup=False, returnOneOrbitSlice=False, axOrbitSlice=None, removeFlybyStar=True, closeEncounterEstimate=False):
+def flyby(sim, star_mass=0.3, star_b=1000, star_v=40,  star_e=None, star_omega='uniform', star_Omega='uniform', star_inc='uniform', star_rmax=2.5e5, hybrid=True, crossOverFactor=30):
     '''
         Simulate a stellar flyby to a REBOUND simulation.
         
@@ -183,37 +186,20 @@ def flyby(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_omega='u
         star_Omega : the longitude of the ascending node of the flyby star
         star_inc : the inclination of the flyby star
         star_rmax : the starting distance of the flyby star in units of AU
-        showFlybySetup : True or False. Shows a REBOUND OrbitPlot snapshot of the system when the flyby star is at periapsis.
+        hybrid: True/False, use IAS15 (instead of WHFast) for the closest approach if star_b < planet_a * crossOverFactor
+        crossOverFactor: the value for when to switch integrators if hybrid=True
     '''
-    
-    mu = sim.G * (_numpy.sum([p.m for p in sim.particles]) + star_mass)
-    if star_e is None and star_v is not None:
-        # If `star_v` is defined convert it to eccentricity.
-        # Assumes that `star_v` is in units of km/s.
-        sun_mass = sim.particles[0].m
-        planet_mass = sim.particles[1].m
-        e = vinf_and_b_to_e(mu=mu, star_b=star_b, star_vinf=star_v)
-    elif star_e is not None and star_v is None:
-        # Simply use the eccentricity if it is defined.
-        e = star_e
-    elif star_e is not None and star_v is not None: raise AssertionError('Cannot specify an eccentricity and a velocity for the perturbing star.')
-    else: raise AssertionError('Specify either an eccentricity or a velocity for the perturbing star.')
-    
-    #################################################
+
+    ##################################################
     ## Calculation of Flyby Star Initial Conditions ## 
-    #################################################
-    
+    ##################################################
+
     # Calculate the orbital elements of the flyby star.
     rmax = star_rmax # This is the starting distance of the flyby star in AU
+    e = _determine_eccentricity(sim, star_mass, star_b, star_v=star_v, star_e=star_e)
     a = -star_b/_numpy.sqrt(e**2. - 1.) # Compute the semi-major axis of the flyby star
     l = -a*(e*e-1.) # Compute the semi-latus rectum of the hyperbolic orbit (-a because the semi-major axis is negative)
     f = _numpy.arccos((l/rmax-1.)/e) # Compute the true anomaly
-    mu = sim.G * _numpy.sum([p_j.m for p_j in sim.particles])
-    
-    # # Calculate half of the integration time for the flyby star.
-    # E = _numpy.arccosh((_numpy.cos(f)+e)/(1.+e*_numpy.cos(f))) # Compute the eccentric anomaly
-    # M = e * _numpy.sinh(E)-E # Compute the mean anomaly
-    # tperi = M/_numpy.sqrt(mu/(-a*a*a)) # Compute the time to periapsis (-a because the semi-major axis is negative)
 
     #################################################
     
@@ -223,47 +209,185 @@ def flyby(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_omega='u
     sim.ri_whfast.recalculate_coordinates_this_timestep = 1 # Because a new particle was added, we need to tell REBOUND to recalculate the coordinates.
     sim.move_to_com() # Move the system back into the centre of mass/momentum frame for integrating.
 
-    tperi = sim.particles['flybystar'].T # Compute the time to periapsis.
+    tperi = sim.particles['flybystar'].T # Compute the time to periapsis for the flyby star.
     
     de = None
     # Integrate the flyby. Start at the current time and go to twice the time to periapsis.
-    if showFlybySetup:
-        t1 = sim.t + tperi
-        t2 = sim.t + 2*tperi
-        sim.integrate(t1)
-        print('During the Flyby')
-        sim.move_to_hel()
-        _rebound.OrbitPlot(sim, color=True, slices=True, periastron=True);
-        if returnOneOrbitSlice and axOrbitSlice is not None:
-            _rebound.plotting.OrbitPlotOneSlice(sim, axOrbitSlice, color=True, orbit_type='trail')
-        sim.move_to_com()
-        sim.integrate(t2)
-    elif returnOneOrbitSlice and axOrbitSlice is not None:
-        t1 = sim.t + tperi
-        t2 = sim.t + 2*tperi
-        sim.integrate(t1)
-        sim.move_to_hel()
-        _rebound.plotting.OrbitPlotOneSlice(sim, axOrbitSlice, color=True, orbit_type='trail')
-        sim.move_to_com()
-        sim.integrate(t2)
-    elif closeEncounterEstimate:
-        t1 = sim.t + tperi
-        t2 = sim.t + 2*tperi
-        sim.integrate(t1)
-        de = energy_change_close_encounters_sim(sim)
-        sim.move_to_com()
-        sim.integrate(t2)
+    if hybrid:
+        rCrossOver = crossOverFactor*sim.particles[1].a # This is distance to switch integrators
+        
+        if star_b < rCrossOver:
+            a = -star_b/_numpy.sqrt(e**2. - 1.) # Compute the semi-major axis of the flyby star
+            l = -a*(e*e-1.) # Compute the semi-latus rectum of the hyperbolic orbit (-a because the semi-major axis is negative)
+            f = _numpy.arccos((l/rCrossOver-1.)/e) # Compute the true anomaly
+            mu = sim.G * _numpy.sum([p_j.m for p_j in sim.particles])
+
+            # Calculate half of the integration time for the flyby star.
+            E = _numpy.arccosh((_numpy.cos(f)+e)/(1.+e*_numpy.cos(f))) # Compute the eccentric anomaly
+            M = e * _numpy.sinh(E)-E # Compute the mean anomaly
+            tIAS15 = M/_numpy.sqrt(mu/(-a*a*a)) # Compute the time to periapsis (-a because the semi-major axis is negative)
+
+            t1 = sim.t + tperi - tIAS15
+            t2 = sim.t + tperi
+            t3 = sim.t + tperi + tIAS15
+            t4 = sim.t + 2*tperi
+            
+            dt = 0.01 * sim.particles[1].P
+            # print(f'\n::Initial::\ndt: {sim.dt:6.2f}\na: {sim.particles[1].a:6.2f}\ne: {sim.particles[1].e:6.2f}')
+
+            sim.integrate(t1, exact_finish_time=0)
+            sim.ri_whfast.recalculate_coordinates_this_timestep = 1
+            sim.integrator_synchronize()
+
+            sim.integrator = 'ias15'
+            sim.integrate(t2)
+
+            # de = airball.energy_change_close_encounters_sim(sim)
+            sim.move_to_com()
+
+            sim.integrate(t3)
+            
+            sim.integrator = 'whfast'
+            sim.ri_whfast.safe_mode = 0
+            sim.ri_whfast.recalculate_coordinates_this_timestep = 1
+            sim.integrator_synchronize()
+            if sim.particles[1].P > 0: sim.dt = 0.01*sim.particles[1].P
+            else: sim.dt = dt
+            
+            sim.integrate(t4, exact_finish_time=0)
+        else:
+            t1 = sim.t + tperi
+            t2 = sim.t + 2*tperi
+
+            sim.integrate(t1, exact_finish_time=0)
+            sim.ri_whfast.recalculate_coordinates_this_timestep = 1
+            sim.integrator_synchronize()
+            # de = airball.energy_change_close_encounters_sim(sim)
+            sim.move_to_com()
+            sim.integrate(t2, exact_finish_time=0)
+            sim.ri_whfast.recalculate_coordinates_this_timestep = 1
+            sim.integrator_synchronize()
     else:
-        sim.integrate(sim.t + 2.*tperi)
+        t1 = sim.t + tperi
+        t2 = sim.t + 2*tperi
+        sim.integrate(t1, exact_finish_time=0)
+        sim.ri_whfast.recalculate_coordinates_this_timestep = 1
+        sim.integrator_synchronize()
+        # de = airball.energy_change_close_encounters_sim(sim)
+        sim.move_to_com()
+        sim.integrate(t2, exact_finish_time=0)
+        sim.ri_whfast.recalculate_coordinates_this_timestep = 1
+        sim.integrator_synchronize()
     
-    if removeFlybyStar:
-        # Remove the flyby star. 
-        sim.remove(hash='flybystar')
-        sim.ri_whfast.recalculate_coordinates_this_timestep = 1 # Because a particle was removed, we need to tell REBOUND to recalculate the coordinates.
-        sim.move_to_com() # Readjust the system back into the centre of mass/momentum frame for integrating.
+    # Remove the flyby star. 
+    sim.remove(hash='flybystar')
+    sim.ri_whfast.recalculate_coordinates_this_timestep = 1 # Because a particle was removed, we need to tell REBOUND to recalculate the coordinates and to synchronize.
+    sim.integrator_synchronize()
+    sim.move_to_com() # Readjust the system back into the centre of mass/momentum frame for integrating.
     
-    if closeEncounterEstimate and de is not None:
-        return de
+    return de
+
+
+# def flyby(sim, star_mass=1, star_b=100, star_v=None,  star_e=None, star_omega='uniform', star_Omega='uniform', star_inc='uniform', star_rmax=1e6, showFlybySetup=False, returnOneOrbitSlice=False, axOrbitSlice=None, removeFlybyStar=True, closeEncounterEstimate=False):
+#     '''
+#         Simulate a stellar flyby to a REBOUND simulation.
+        
+#         Because REBOUND Simulations are C structs underneath the Python, this function passes the simulation by reference. 
+#         Any changes made inside this function to the REBOUND simulation are permanent.
+#         This function assumes that you are using a WHFAST integrator with REBOUND.
+        
+#         Parameters
+#         ----------
+#         sim : the REBOUND Simulation (star and planets) that will experience the flyby star
+#         star_mass : the mass of the flyby star in units of Msun
+#         star_b : impact parameter of the flyby star in units of AU
+#         star_v : the relative velocity at infinity between the central star and the flyby star (hyperbolic excess velocity) in units of km/s. Only specify star_v OR star_e, not both.
+#         star_e : the eccentricity of the flyby star (e > 1). Only specify star_e OR star_v, not both.
+#         star_omega : the argument of periapsis of the flyby star
+#         star_Omega : the longitude of the ascending node of the flyby star
+#         star_inc : the inclination of the flyby star
+#         star_rmax : the starting distance of the flyby star in units of AU
+#         showFlybySetup : True or False. Shows a REBOUND OrbitPlot snapshot of the system when the flyby star is at periapsis.
+#     '''
+    
+#     mu = sim.G * (_numpy.sum([p.m for p in sim.particles]) + star_mass)
+#     if star_e is None and star_v is not None:
+#         # If `star_v` is defined convert it to eccentricity.
+#         # Assumes that `star_v` is in units of km/s.
+#         sun_mass = sim.particles[0].m
+#         planet_mass = sim.particles[1].m
+#         e = vinf_and_b_to_e(mu=mu, star_b=star_b, star_vinf=star_v)
+#     elif star_e is not None and star_v is None:
+#         # Simply use the eccentricity if it is defined.
+#         e = star_e
+#     elif star_e is not None and star_v is not None: raise AssertionError('Cannot specify an eccentricity and a velocity for the perturbing star.')
+#     else: raise AssertionError('Specify either an eccentricity or a velocity for the perturbing star.')
+    
+#     #################################################
+#     ## Calculation of Flyby Star Initial Conditions ## 
+#     #################################################
+    
+#     # Calculate the orbital elements of the flyby star.
+#     rmax = star_rmax # This is the starting distance of the flyby star in AU
+#     a = -star_b/_numpy.sqrt(e**2. - 1.) # Compute the semi-major axis of the flyby star
+#     l = -a*(e*e-1.) # Compute the semi-latus rectum of the hyperbolic orbit (-a because the semi-major axis is negative)
+#     f = _numpy.arccos((l/rmax-1.)/e) # Compute the true anomaly
+#     mu = sim.G * _numpy.sum([p_j.m for p_j in sim.particles])
+    
+#     # # Calculate half of the integration time for the flyby star.
+#     # E = _numpy.arccosh((_numpy.cos(f)+e)/(1.+e*_numpy.cos(f))) # Compute the eccentric anomaly
+#     # M = e * _numpy.sinh(E)-E # Compute the mean anomaly
+#     # tperi = M/_numpy.sqrt(mu/(-a*a*a)) # Compute the time to periapsis (-a because the semi-major axis is negative)
+
+#     #################################################
+    
+#     # Add the flyby star to the simulation. 
+#     sim.move_to_hel() # Move the system into the heliocentric frame of reference.
+#     sim.add(m=star_mass, a=a, e=e, f=-f, omega=star_omega, Omega=star_Omega, inc=star_inc, hash='flybystar')
+#     sim.ri_whfast.recalculate_coordinates_this_timestep = 1 # Because a new particle was added, we need to tell REBOUND to recalculate the coordinates.
+#     sim.move_to_com() # Move the system back into the centre of mass/momentum frame for integrating.
+
+#     tperi = sim.particles['flybystar'].T # Compute the time to periapsis.
+    
+#     de = None
+#     # Integrate the flyby. Start at the current time and go to twice the time to periapsis.
+#     if showFlybySetup:
+#         t1 = sim.t + tperi
+#         t2 = sim.t + 2*tperi
+#         sim.integrate(t1)
+#         print('During the Flyby')
+#         sim.move_to_hel()
+#         _rebound.OrbitPlot(sim, color=True, slices=True, periastron=True);
+#         if returnOneOrbitSlice and axOrbitSlice is not None:
+#             _rebound.plotting.OrbitPlotOneSlice(sim, axOrbitSlice, color=True, orbit_type='trail')
+#         sim.move_to_com()
+#         sim.integrate(t2)
+#     elif returnOneOrbitSlice and axOrbitSlice is not None:
+#         t1 = sim.t + tperi
+#         t2 = sim.t + 2*tperi
+#         sim.integrate(t1)
+#         sim.move_to_hel()
+#         _rebound.plotting.OrbitPlotOneSlice(sim, axOrbitSlice, color=True, orbit_type='trail')
+#         sim.move_to_com()
+#         sim.integrate(t2)
+#     elif closeEncounterEstimate:
+#         t1 = sim.t + tperi
+#         t2 = sim.t + 2*tperi
+#         sim.integrate(t1)
+#         de = energy_change_close_encounters_sim(sim)
+#         sim.move_to_com()
+#         sim.integrate(t2)
+#     else:
+#         sim.integrate(sim.t + 2.*tperi)
+    
+#     if removeFlybyStar:
+#         # Remove the flyby star. 
+#         sim.remove(hash='flybystar')
+#         sim.ri_whfast.recalculate_coordinates_this_timestep = 1 # Because a particle was removed, we need to tell REBOUND to recalculate the coordinates.
+#         sim.move_to_com() # Readjust the system back into the centre of mass/momentum frame for integrating.
+    
+#     if closeEncounterEstimate and de is not None:
+#         return de
 
 
 
@@ -450,13 +574,14 @@ def energy_change_close_encounters_sim(sim):
         ----------
         sim : three-body REBOUND sim
     '''
-    sim.move_to_hel()
-    p = sim.particles
+    s = sim.copy()
+    s.move_to_hel()
+    p = s.particles
 
-    G = sim.G # Newton's Gravitational constant in units of Msun, AU, Yr2Pi
+    G = s.G # Newton's Gravitational constant in units of Msun, AU, Yr2Pi
     m1, m2, m3 = p[0].m, p[1].m, p[2].m # redefine the masses for convenience
     M12 = m1 + m2 # total mass of the binary system
-    M23 = m2 + m3 # total mass of the binary system
+    M23 = m2 + m3 # total mass of the second and third bodies
     M123 = m1 + m2 + m3 # total mass of all the objects involved
 
     V = p[2].v # velocity of the star
