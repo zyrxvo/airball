@@ -209,7 +209,7 @@ def flyby(sim, star_mass=0.3, star_b=1000, star_v=40,  star_e=None, star_omega='
     sim.ri_whfast.recalculate_coordinates_this_timestep = 1 # Because a new particle was added, we need to tell REBOUND to recalculate the coordinates.
     sim.move_to_com() # Move the system back into the centre of mass/momentum frame for integrating.
 
-    tperi = sim.particles['flybystar'].T # Compute the time to periapsis for the flyby star.
+    tperi = sim.particles['flybystar'].T - sim.t # Compute the time to periapsis for the flyby star from the current time.
     
     de = None
     # Integrate the flyby. Start at the current time and go to twice the time to periapsis.
