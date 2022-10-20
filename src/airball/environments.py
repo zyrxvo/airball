@@ -44,7 +44,7 @@ class StellarEnvironment:
     if name is not None: self.name = name
     else: name = 'Stellar Environment'
 
-  def random_star(self, maximum_impact_parameter=None, size=1):
+  def random_star(self, maximum_impact_parameter=None, include_orientation=False, size=1):
     '''
       Computes a random star from a stellar environment.
       Returns: Mass (Msun), Impact Parameter (AU), Velocity (km/s)
@@ -55,8 +55,15 @@ class StellarEnvironment:
     v = _maxwell.rvs(scale=_scale(self.velocity), size=size) # Velocity of the star at infinity.
     b = max_impact * _numpy.sqrt(_uniform.rvs(size=size)) # Impact parameter of the star.
     m = _IMF(self.mass_limit, size=size) # Mass of the star.
-    if size > 1: return _numpy.array([m,b,v])
-    else: return _numpy.array([m[0], b[0], v[0]])
+    if include_orientation:
+      inc = 2.0*_numpy.pi * _uniform.rvs(size=size) - _numpy.pi
+      ϖ = 2.0*_numpy.pi * _uniform.rvs(size=size) - _numpy.pi
+      Ω = 2.0*_numpy.pi * _uniform.rvs(size=size) - _numpy.pi
+      if size > 1: return _numpy.array([m,b,v,inc,ϖ,Ω])
+      else: return _numpy.array([m[0], b[0], v[0], inc[0], ϖ[0], Ω[0]])
+    else:
+      if size > 1: return _numpy.array([m,b,v])
+      else: return _numpy.array([m[0], b[0], v[0]])
 
   def stats(self):
     ''' 
