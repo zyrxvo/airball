@@ -240,6 +240,7 @@ def flyby(sim, star_mass=0.3, star_b=1000, star_v=40,  star_e=None, star_omega='
             sim.integrator_synchronize()
 
             sim.integrator = 'ias15'
+            sim.gravity = 'basic'
             sim.integrate(t2)
 
             # de = airball.energy_change_close_encounters_sim(sim)
