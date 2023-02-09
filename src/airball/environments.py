@@ -4,8 +4,8 @@ from scipy.stats import maxwell as _maxwell
 from scipy.optimize import fminbound as _fminbound
 
 from .flybys import *
+from .tools import *
 
-_pc3_to_au3 = ((_numpy.pi**3)/272097792000000000) # 1 parsec^-3 to AU^-3
 
 def _scale(sigma):
   '''
@@ -35,7 +35,7 @@ class StellarEnvironment:
     There are predefined subclasses for the LocalNeighborhood, a generic OpenCluster, a generic GlobularCluster, and the Milky Way center GalacticBulge and GalacticCore.
   '''
   def __init__(self, stellar_density, velocity_dispersion, upper_mass_limit, maximum_impact_parameter=None, name=None):
-    self._density = stellar_density * _pc3_to_au3 # AU^{-3}
+    self._density = stellar_density * convert_pc3_to_au3 # AU^{-3}
     self.velocity = velocity_dispersion # km/s
     assert upper_mass_limit <= 100, 'The upper mass limit is too high.'
     self.mass_limit = upper_mass_limit # Msun
@@ -59,10 +59,10 @@ class StellarEnvironment:
       inc = 2.0*_numpy.pi * _uniform.rvs(size=size) - _numpy.pi
       ϖ = 2.0*_numpy.pi * _uniform.rvs(size=size) - _numpy.pi
       Ω = 2.0*_numpy.pi * _uniform.rvs(size=size) - _numpy.pi
-      if size > 1: return _numpy.array([m,b,v,inc,ϖ,Ω])
+      if size > 1: return _numpy.array([m,b,v,inc,ϖ,Ω]).T
       else: return _numpy.array([m[0], b[0], v[0], inc[0], ϖ[0], Ω[0]])
     else:
-      if size > 1: return _numpy.array([m,b,v])
+      if size > 1: return _numpy.array([m,b,v]).T
       else: return _numpy.array([m[0], b[0], v[0]])
 
   def stats(self):
@@ -71,11 +71,12 @@ class StellarEnvironment:
     '''
     s = self.name
     s += "\n------------------------------------------\n"
-    s += "Stellar Density:     {0:12.4g} pc^-3\n".format(self._density/_pc3_to_au3)
+    s += "Stellar Density:     {0:12.4g} pc^-3\n".format(self._density * convert_au3_to_pc3)
     s += "Velocity Scale:      {0:12.4g} km/s\n".format(self.velocity)
     s += "Mass Range:             0.01 -{0:3.4g} Msun\n".format(self.mass_limit)
     s += "Median Mass:         {0:12.4g} Msun\n".format(self.median_mass)
     s += "Max Impact Param:    {0:12.4g} AU\n".format(self.maximum_impact_parameter)
+    s += "Encounter Rate:      {0:12.4g} Myr/flyby\n".format((1.0/self.encounter_rate())/1e6)
     s += "------------------------------------------"
     print(s)
 
@@ -107,7 +108,47 @@ class StellarEnvironment:
   @maximum_impact_parameter.setter
   def maximum_impact_parameter(self, value):
     self._maximum_impact_parameter = value
+
+  @property
+  def density(self):
+    '''
+      The number density of the environment in units of pc^{-3}.
+    '''
+    return self._density * convert_au3_to_pc3
   
+  @density.setter
+  def density(self, value):
+    '''
+      The number density of the environment in units of pc^{-3}.
+    '''
+    self._density = value * convert_pc3_to_au3
+
+  @property
+  def velocity_dispersion(self):
+    '''
+      Return the velocity dispersion of the environment in units of km/s.
+    '''
+    return self.velocity
+  
+  @density.setter
+  def density(self, value):
+    self._density = value * convert_pc3_to_au3
+
+  def encounter_rate(self):
+    '''
+        Compute the expected flyby encounter rate Γ = ⟨nσv⟩ for the stellar environment in units of flybys per year.
+        The inverse of the encouter rate will give the average number of years until a flyby.
+
+        n : stellar number density in units of AU^{-3}
+        σ : interaction cross section in units of AU^2
+        v : velocity dispersion in units of km/s
+
+        The interaction cross section σ = πb^2 considers gravitational focussing b = q√[1 + (2GM)/(q v∞^2)] and considers
+        - the median mass of the environment
+        - the maximum impact parameter
+        - the relative velocity at infinity derived from the velocity dispersion
+    '''
+    return encounter_rate(self._density, self.velocity, self._maximum_impact_parameter, star_mass=self._median_mass)
 
 class LocalNeighborhood(StellarEnvironment):
   '''
@@ -127,11 +168,13 @@ class LocalNeighborhood(StellarEnvironment):
   name = 'Local Neighborhood'
   short_name = 'Local'
 
-  def __init__(self):
-    self._density = 0.14 * _pc3_to_au3 # AU^{-3}
+  def __init__(self, maximum_impact_parameter=None):
+    self._density = 0.14 * convert_pc3_to_au3 # AU^{-3}
     self.velocity = 26 # km/s
     self.mass_limit = 10 # Msun
     self._median_mass = None
+    if maximum_impact_parameter is not None:
+      self.maximum_impact_parameter = maximum_impact_parameter
 
 class OpenCluster(StellarEnvironment):
   '''
@@ -152,7 +195,7 @@ class OpenCluster(StellarEnvironment):
   short_name = 'Open'
   
   def __init__(self):
-    self._density = 100 * _pc3_to_au3 # AU^{-3}
+    self._density = 100 * convert_pc3_to_au3 # AU^{-3}
     self.velocity = 1 # km/s
     self.mass_limit = 100 # Msun
     self._median_mass = None
@@ -163,7 +206,7 @@ class GlobularCluster(StellarEnvironment):
   short_name = 'Globular'
   
   def __init__(self):
-    self._density = 1000 * _pc3_to_au3 # AU^{-3}
+    self._density = 1000 * convert_pc3_to_au3 # AU^{-3}
     self.velocity = 10 # km/s
     self.mass_limit = 1 # Msun
     self._median_mass = None
@@ -174,7 +217,7 @@ class GalacticBulge(StellarEnvironment):
   short_name = 'Bulge'
   
   def __init__(self):
-    self._density = 50 * _pc3_to_au3 # AU^{-3}
+    self._density = 50 * convert_pc3_to_au3 # AU^{-3}
     self.velocity = 120 # km/s
     self.mass_limit = 10 # Msun
     self._median_mass = None
@@ -185,7 +228,7 @@ class GalacticCore(StellarEnvironment):
   short_name = 'Core'
   
   def __init__(self):
-    self._density = 10000 * _pc3_to_au3 # AU^{-3}
+    self._density = 10000 * convert_pc3_to_au3 # AU^{-3}
     self.velocity = 170 # km/s
     self.mass_limit = 10 # Msun
     self._median_mass = None
