@@ -4,6 +4,7 @@ from scipy.stats import maxwell as _maxwell
 from scipy.optimize import fminbound as _fminbound
 
 from .flybys import *
+from .analytic import *
 from .tools import *
 
 
