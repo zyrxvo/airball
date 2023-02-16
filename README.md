@@ -2,8 +2,11 @@
 - A package for implementing flybys in [hannorein/rebound](https://github.com/hannorein/rebound)
 
 **Package Prerequisites**
+- `rebound`
 - `numpy`
 - `scipy`
+- `joblib`
+- `astropy`
 
 ## Examples
 - A Basic Flyby Setup
