@@ -3,8 +3,8 @@ import numpy as _numpy
 
 from scipy.special import erfinv as _erfinv
 from scipy.stats import uniform as _uniform
-# import astropy.constants as const
-# import astropy.units as u
+import astropy.constants as const
+import astropy.units as u
 
 ################################
 ###### Useful Constants ########
@@ -122,12 +122,12 @@ def cross_section(star_mass, R, v):
         R : the maximum interaction radius in units of AU
         v : the typical velocity from the distribution in units of AU/Yr
     '''
-    
-    G = twopi**2 # Newton's gravitational constant in units of Msun, AU, and Years
-    sun_mass = 1 # mass of the Sun in units of Msun
+    UNIT_SYSTEM = [u.AU, u.yr, u.solMass]
+    G = const.G.decompose(UNIT_SYSTEM) # Newton's gravitational constant in units of Msun, AU, and Years
+    sun_mass = 1 * u.solMass # mass of the Sun in units of Msun
     return (_numpy.pi * R**2) * (1 + 2*G*(sun_mass + star_mass)/(R * v**2))
 
-def encounter_rate(n, vbar, R, star_mass=1):
+def encounter_rate(n, vbar, R, star_mass=(1 * u.solMass)):
     '''
         The expected flyby encounter rate within an stellar environment
         
@@ -148,7 +148,8 @@ def isList(l):
     else: return False
 
 
-
+def isQuantity(var):
+    return isinstance(var, u.quantity.Quantity)
 
 # UNIT_SYSTEM = [u.AU, u.yr, u.solMass]
 # G_REBOUND = const.G.decompose(UNIT_SYSTEM).value

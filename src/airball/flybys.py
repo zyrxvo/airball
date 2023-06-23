@@ -93,56 +93,67 @@ def flyby(sim, star=None, m=0.3, b=1000, v=40,  e=None, omega='uniform', Omega='
 
     tperi = sim.particles['flybystar'].T - sim.t # Compute the time to periapsis for the flyby star from the current time.
     
-    de = None
-    # Integrate the flyby. Start at the current time and go to twice the time to periapsis.
-    if hybrid:
-        rCrossOver = crossOverFactor*sim.particles[1].a # This is distance to switch integrators
-        
-        if b < rCrossOver:
-            a = -b/_numpy.sqrt(e**2. - 1.) # Compute the semi-major axis of the flyby star
-            l = -a*(e*e-1.) # Compute the semi-latus rectum of the hyperbolic orbit (-a because the semi-major axis is negative)
-            f = _numpy.arccos((l/rCrossOver-1.)/e) # Compute the true anomaly
-            mu = sim.G * _numpy.sum([p_j.m for p_j in sim.particles])
-
-            # Calculate half of the integration time for the flyby star.
-            E = _numpy.arccosh((_numpy.cos(f)+e)/(1.+e*_numpy.cos(f))) # Compute the eccentric anomaly
-            M = e * _numpy.sinh(E)-E # Compute the mean anomaly
-            tIAS15 = M/_numpy.sqrt(mu/(-a*a*a)) # Compute the time to periapsis (-a because the semi-major axis is negative)
-
-            t1 = sim.t + tperi - tIAS15
-            t2 = sim.t + tperi
-            t3 = sim.t + tperi + tIAS15
-            t4 = sim.t + 2*tperi
-
-            dt = sim.dt
-            dt_frac = sim.dt/sim.particles[1].P
-            # print(f'\n::Initial::\ndt: {sim.dt:6.2f}\na: {sim.particles[1].a:6.2f}\ne: {sim.particles[1].e:6.2f}')
-
-            sim.integrate(t1, exact_finish_time=0)
-            sim.ri_whfast.recalculate_coordinates_this_timestep = 1
-            sim.integrator_synchronize()
-
-            sim.integrator = 'ias15'
-            sim.gravity = 'basic'
-            sim.integrate(t2)
-
-            # de = airball.energy_change_close_encounters_sim(sim)
-            sim.move_to_com()
-
-            sim.integrate(t3)
+    # Try to integrate the flyby. Start at the current time and go to twice the time to periapsis.
+    try:
+        if hybrid:
+            rCrossOver = crossOverFactor*sim.particles[1].a # This is distance to switch integrators
             
-            sim.integrator = 'whfast'
-            sim.ri_whfast.safe_mode = 0
-            sim.ri_whfast.recalculate_coordinates_this_timestep = 1
-            sim.integrator_synchronize()
-            if sim.particles[1].P > 0: sim.dt = dt_frac*sim.particles[1].P
-            else: sim.dt = dt
-            
-            sim.integrate(t4, exact_finish_time=0)
+            if b < rCrossOver:
+                a = -b/_numpy.sqrt(e**2. - 1.) # Compute the semi-major axis of the flyby star
+                l = -a*(e*e-1.) # Compute the semi-latus rectum of the hyperbolic orbit (-a because the semi-major axis is negative)
+                f = _numpy.arccos((l/rCrossOver-1.)/e) # Compute the true anomaly
+                mu = sim.G * _numpy.sum([p_j.m for p_j in sim.particles])
+
+                # Calculate half of the integration time for the flyby star.
+                E = _numpy.arccosh((_numpy.cos(f)+e)/(1.+e*_numpy.cos(f))) # Compute the eccentric anomaly
+                M = e * _numpy.sinh(E)-E # Compute the mean anomaly
+                tIAS15 = M/_numpy.sqrt(mu/(-a*a*a)) # Compute the time to periapsis (-a because the semi-major axis is negative)
+
+                t1 = sim.t + tperi - tIAS15
+                t2 = sim.t + tperi
+                t3 = sim.t + tperi + tIAS15
+                t4 = sim.t + 2*tperi
+
+                dt = sim.dt
+                dt_frac = sim.dt/sim.particles[1].P
+                # print(f'\n::Initial::\ndt: {sim.dt:6.2f}\na: {sim.particles[1].a:6.2f}\ne: {sim.particles[1].e:6.2f}')
+
+                sim.integrate(t1, exact_finish_time=0)
+                sim.ri_whfast.recalculate_coordinates_this_timestep = 1
+                sim.integrator_synchronize()
+
+                sim.integrator = 'ias15'
+                sim.gravity = 'basic'
+                sim.integrate(t2)
+
+                # de = airball.energy_change_close_encounters_sim(sim)
+                sim.move_to_com()
+
+                sim.integrate(t3)
+                
+                sim.integrator = 'whfast'
+                sim.ri_whfast.safe_mode = 0
+                sim.ri_whfast.recalculate_coordinates_this_timestep = 1
+                sim.integrator_synchronize()
+                if sim.particles[1].P > 0: sim.dt = dt_frac*sim.particles[1].P
+                else: sim.dt = dt
+                
+                sim.integrate(t4, exact_finish_time=0)
+            else:
+                t1 = sim.t + tperi
+                t2 = sim.t + 2*tperi
+
+                sim.integrate(t1, exact_finish_time=0)
+                sim.ri_whfast.recalculate_coordinates_this_timestep = 1
+                sim.integrator_synchronize()
+                # de = airball.energy_change_close_encounters_sim(sim)
+                sim.move_to_com()
+                sim.integrate(t2, exact_finish_time=0)
+                sim.ri_whfast.recalculate_coordinates_this_timestep = 1
+                sim.integrator_synchronize()
         else:
             t1 = sim.t + tperi
             t2 = sim.t + 2*tperi
-
             sim.integrate(t1, exact_finish_time=0)
             sim.ri_whfast.recalculate_coordinates_this_timestep = 1
             sim.integrator_synchronize()
@@ -151,25 +162,16 @@ def flyby(sim, star=None, m=0.3, b=1000, v=40,  e=None, omega='uniform', Omega='
             sim.integrate(t2, exact_finish_time=0)
             sim.ri_whfast.recalculate_coordinates_this_timestep = 1
             sim.integrator_synchronize()
-    else:
-        t1 = sim.t + tperi
-        t2 = sim.t + 2*tperi
-        sim.integrate(t1, exact_finish_time=0)
-        sim.ri_whfast.recalculate_coordinates_this_timestep = 1
+        
+        # Remove the flyby star. 
+        sim.remove(hash='flybystar')
+        sim.ri_whfast.recalculate_coordinates_this_timestep = 1 # Because a particle was removed, we need to tell REBOUND to recalculate the coordinates and to synchronize.
         sim.integrator_synchronize()
-        # de = airball.energy_change_close_encounters_sim(sim)
-        sim.move_to_com()
-        sim.integrate(t2, exact_finish_time=0)
-        sim.ri_whfast.recalculate_coordinates_this_timestep = 1
-        sim.integrator_synchronize()
-    
-    # Remove the flyby star. 
-    sim.remove(hash='flybystar')
-    sim.ri_whfast.recalculate_coordinates_this_timestep = 1 # Because a particle was removed, we need to tell REBOUND to recalculate the coordinates and to synchronize.
-    sim.integrator_synchronize()
-    sim.move_to_com() # Readjust the system back into the centre of mass/momentum frame for integrating.
-    
-    return sim
+        sim.move_to_com() # Readjust the system back into the centre of mass/momentum frame for integrating.
+        
+        return sim
+    except:
+        return sim
 
 
 def flybys(sims, **kwargs):
@@ -177,72 +179,88 @@ def flybys(sims, **kwargs):
         Run serial flybys in parallel.
     '''
     Nruns = len(sims)
+    
+    try: inds = kwargs['inds']
+    except KeyError: inds = _numpy.arange(Nruns)
 
     try: stars = kwargs['stars']
-    except: stars = Nruns * [None]
+    except KeyError: stars = Nruns * [None]
+
     try:
         m = kwargs['m']
         if not isList(m): m = Nruns * [m]
         else: assert len(m) == Nruns
     except AssertionError: raise Exception('List arguments must be same length.')
     except KeyError: m = Nruns * [None]
+
     try:
         b = kwargs['b']
         if not isList(b): b = Nruns * [b]
         assert len(b) == Nruns
     except AssertionError: raise Exception('List arguments must be same length.')
     except KeyError: b = Nruns * [None]
+
     try: 
         v = kwargs['v']
         if not isList(v): v = Nruns * [v]
         else: assert len(v) == Nruns
     except AssertionError: raise Exception('List arguments must be same length.')
     except KeyError: v = Nruns * [None]
+
     try: 
         e = kwargs['e']
         if not isList(e): e = Nruns * [e]
         else: assert len(e) == Nruns
     except AssertionError: raise Exception('List arguments must be same length.')
     except KeyError: e = Nruns * [None]
+
     try: 
         omega = kwargs['omega']
         if not isList(omega): omega = Nruns * [omega]
         else: assert len(omega) == Nruns
     except AssertionError: raise Exception('List arguments must be same length.')
     except KeyError: omega = Nruns * ['uniform']
+
     try: 
         Omega = kwargs['Omega']
         if not isList(Omega): Omega = Nruns * [Omega]
         else: assert len(Omega) == Nruns
     except AssertionError: raise Exception('List arguments must be same length.')
     except KeyError: Omega = Nruns * ['uniform']
+
     try: 
         inc = kwargs['inc']
         if not isList(inc): inc = Nruns * [inc]
         else: assert len(inc) == Nruns
     except AssertionError: raise Exception('List arguments must be same length.')
     except KeyError: inc = Nruns * ['uniform']
+
     try: 
         rmax = kwargs['rmax']
         if not isList(rmax): rmax = Nruns * [rmax]
         else: assert len(rmax) == Nruns
     except AssertionError: raise Exception('List arguments must be same length.')
     except KeyError: rmax = Nruns * [2.5e5]
+
     try: hybrid = kwargs['hybrid']
     except KeyError: hybrid = True
+
     try: crossOverFactor = kwargs['crossOverFactor']
     except KeyError: crossOverFactor = 30
+
     try: overwrite = kwargs['overwrite']
     except KeyError: overwrite = False
+
     try: n_jobs = kwargs['n_jobs']
     except KeyError: n_jobs = -1
+
     try: verbose = kwargs['verbose']
     except KeyError: verbose = 0
 
     sim_results = _joblib.Parallel(n_jobs=n_jobs, verbose=verbose, require='sharedmem')(
     _joblib.delayed(flyby)(
-        sim=sims[i], star=stars[i], m=m[i], b=b[i], v=v[i], e=e[i], omega=omega[i], Omega=Omega[i], inc=inc[i], rmax=rmax[i], hybrid=hybrid, crossOverFactor=crossOverFactor, overwrite=overwrite) 
-    for i in range(Nruns))
+        sim=sims[int(i)], star=stars[i], m=m[i], b=b[i], v=v[i], e=e[i], omega=omega[i], Omega=Omega[i], inc=inc[i], rmax=rmax[i], hybrid=hybrid, crossOverFactor=crossOverFactor, overwrite=overwrite) 
+    for i in inds)
     
     return sim_results
 
