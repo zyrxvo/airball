@@ -826,7 +826,7 @@ class StellarEnvironment:
     Ω = 2.0*_numpy.pi * _uniform.rvs(size=size) - _numpy.pi if include_orientation else zeros
 
     if size > 1: return Stars(m=m, b=b, v=v, inc=inc, omega=ω, Omega=Ω)
-    else: return Star(m[0], b[0], v[0], inc[0], ω[0], Ω[0])
+    else: return Star(m, b[0], v[0], inc[0], ω[0], Ω[0])
 
   def stats(self):
     ''' 
@@ -875,7 +875,7 @@ class StellarEnvironment:
       _f = lambda b: _numpy.log10(_numpy.abs(1e-16 - _numpy.abs(relative_energy_change(sim, Star(self.upper_mass_limit, b, _numpy.sqrt(2.0)*_scale(self.velocity_dispersion))))))
       bs = _numpy.logspace(1, 6, 1000)
       b0 = bs[_numpy.argmin(_f(bs))]
-      self._maximum_impact_parameter = _fminbound(_f, b0/5, 5*b0) * u.au
+      self._maximum_impact_parameter = _fminbound(_f, b0/5, 5*b0) * units.au
     return self._maximum_impact_parameter.to(self.units.units['length'])
   
   @maximum_impact_parameter.setter
@@ -1021,30 +1021,30 @@ class OpenCluster(StellarEnvironment):
   '''
   short_name = 'Open'
   
-  def __init__(self, maximum_impact_parameter=None, UNIT_SYSTEM=None):
-    super().__init__(stellar_density = 100 * StellarEnvironment._star_unit * u.pc**-3, velocity_dispersion = 1 * u.km/u.s, lower_mass_limit=0.08 * u.solMass, upper_mass_limit = 100 * u.solMass, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, name = 'Open Cluster')
-    self._maximum_impact_parameter = 1000 * u.au
+  def __init__(self, maximum_impact_parameter=None, UNIT_SYSTEM=[]):
+    super().__init__(stellar_density = 100 * units.stars * units.pc**-3, velocity_dispersion = 1 * units.km/units.s, lower_mass_limit=0.08 * units.solMass, upper_mass_limit = 100 * units.solMass, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, name = 'Open Cluster')
+    self._maximum_impact_parameter = 1000 * units.au
 
 class GlobularCluster(StellarEnvironment):
   short_name = 'Globular'
   
-  def __init__(self, maximum_impact_parameter=None, UNIT_SYSTEM=None):
-    super().__init__(stellar_density = 1000 * StellarEnvironment._star_unit * u.pc**-3, velocity_dispersion = 10 * u.km/u.s, upper_mass_limit = 1 * u.solMass, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, name = 'Globular Cluster')
-    self._maximum_impact_parameter = 5000 * u.au
+  def __init__(self, maximum_impact_parameter=None, UNIT_SYSTEM=[]):
+    super().__init__(stellar_density = 1000 * units.stars * units.pc**-3, velocity_dispersion = 10 * units.km/units.s, lower_mass_limit=0.08 * units.solMass, upper_mass_limit = 1 * units.solMass, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, name = 'Globular Cluster')
+    self._maximum_impact_parameter = 5000 * units.au
 
 class GalacticBulge(StellarEnvironment):
   short_name = 'Bulge'
   
-  def __init__(self, maximum_impact_parameter=None, UNIT_SYSTEM=None):
-    super().__init__(stellar_density = 50 * StellarEnvironment._star_unit * u.pc**-3, velocity_dispersion = 120 * u.km/u.s, upper_mass_limit = 10 * u.solMass, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, name = 'Milky Way Bulge')
-    self._maximum_impact_parameter = 50000 * u.au
+  def __init__(self, maximum_impact_parameter=None, UNIT_SYSTEM=[]):
+    super().__init__(stellar_density = 50 * units.stars * units.pc**-3, velocity_dispersion = 120 * units.km/units.s, lower_mass_limit=0.08 * units.solMass, upper_mass_limit = 10 * units.solMass, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, name = 'Milky Way Bulge')
+    self._maximum_impact_parameter = 50000 * units.au
 
 class GalacticCore(StellarEnvironment):
   short_name = 'Core'
   
-  def __init__(self, maximum_impact_parameter=None, UNIT_SYSTEM=None):
-    super().__init__(stellar_density = 10000 * StellarEnvironment._star_unit * u.pc**-3, velocity_dispersion = 170 * u.km/u.s, upper_mass_limit = 10 * u.solMass, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, name = 'Milky Way Core')
-    self._maximum_impact_parameter = 50000 * u.au
+  def __init__(self, maximum_impact_parameter=None, UNIT_SYSTEM=[]):
+    super().__init__(stellar_density = 10000 * units.stars * units.pc**-3, velocity_dispersion = 170 * units.km/units.s, lower_mass_limit=0.08 * units.solMass, upper_mass_limit = 10 * units.solMass, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, name = 'Milky Way Core')
+    self._maximum_impact_parameter = 50000 * units.au
 
 
 ################################
