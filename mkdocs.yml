@@ -5,12 +5,11 @@ edit_uri: ""
 nav:
   - "Home": index.md
   - "Examples": 
-    -examples.md
-    - "Notebooks":
-      - examples/Basics.ipynb
-      - examples/IMF.ipynb
-      - examples/Stellar_Environments.ipynb
-      - examples/Adiabatic.ipynb
+    - examples.md
+    - examples/Basics.ipynb
+    - examples/IMF.ipynb
+    - examples/Stellar_Environments.ipynb
+    - examples/Adiabatic.ipynb
 
 theme:
   name: material
