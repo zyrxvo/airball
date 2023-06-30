@@ -42,7 +42,3 @@ extra:
 plugins:
   - search
   - mkdocs-jupyter
-  - mkdocs-video:
-      css_style:
-        width: "48vw"
-        height: "27vw"
