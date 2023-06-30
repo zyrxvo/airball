@@ -1,72 +1,55 @@
 from lib2to3.pytree import convert
 import numpy as _numpy
 import rebound as _rebound
-
-from scipy.special import erfinv as _erfinv
-from scipy.stats import uniform as _uniform
 import astropy.constants as const
 from . import units
 
-################################
-###### Useful Constants ########
-################################
-
 twopi = 2.*_numpy.pi
-# yr2pi = u.def_unit('yrtwopi', u.yr/twopi, format={'latex': r'(yr/2\pi)'})
 
-# convert_kms_to_auyr2pi = 0.03357365989646266 # 1 km/s to AU/Yr2Pi
-# convert_kms_to_auyr = 0.2109495265696987 # 1 km/s to AU/Yr
-# convert_auyr2pi_to_kms = 1.0/convert_kms_to_auyr2pi
+class UnitSystem():
 
-# convert_pc3_to_au3 = ((_numpy.pi**3)/272097792000000000) # 1 parsec^-3 to AU^-3
-# convert_au3_to_pc3 = 1.0/convert_pc3_to_au3
+  def __init__(self, UNIT_SYSTEM=[]) -> None:
+    self._units = {'length': units.au, 'time': units.Myr, 'mass': units.solMass, 'angle': units.rad, 'velocity': units.km/units.s, 'object': units.stars, 'density': units.stars/units.pc**3}
+    self.UNIT_SYSTEM = UNIT_SYSTEM
+    pass
 
-############################################################
-### Stellar Mass generators using Initial Mass Functions ###
-############################################################
+  @property
+  def units(self):
+    return self._units
 
-# def imf_gen_1(size):
-#     '''
-#         Generate stellar mass samples for single star systems between 0.01 and 1.0 Solar Mass.
-        
-#         Computed using the inverted cumulative probability distribution (CDF) from the initial mass function (IMF) given in equation (17) by Chabrier (2003) https://ui.adsabs.harvard.edu/abs/2003PASP..115..763C/abstract
+  @property
+  def UNIT_SYSTEM(self):
+    return self._UNIT_SYSTEM
 
-#         Parameters
-#         ----------
-#         size: the number of samples to draw.
-#     '''
-#     n = int(size)
-#     u = _uniform.rvs(size=n)
-#     return 0.08*_numpy.exp(2.246879476250902 * _erfinv(-0.8094067254228074 + 1.6975098420629455*u))
+  @UNIT_SYSTEM.setter
+  def UNIT_SYSTEM(self, UNIT_SYSTEM):
+    if UNIT_SYSTEM != []:
+      lengthUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(units.m)]
+      self._units['length'] = lengthUnit[0] if lengthUnit != [] else self._units['length']
 
-# def imf_gen_10(size):
-#     '''
-#         Generate stellar mass samples for single star systems between 0.01 and 10.0 Solar Masses.
-        
-#         Computed using the inverted cumulative probability distribution (CDF) by smoothly combining the initial mass function (IMF) given in equation (17) by Chabrier (2003) https://ui.adsabs.harvard.edu/abs/2003PASP..115..763C/abstract for stars less than 1.0 Solar Mass with the standard power-law IMF from Salpeter (1955) https://ui.adsabs.harvard.edu/abs/1955ApJ...121..161S/abstract for stars more than 1.0 Solar Mass.
+      timeUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(units.s)]
+      self._units['time'] = timeUnit[0] if timeUnit != [] else self._units['time']
 
-#         Parameters
-#         ----------
-#         size: the number of samples to draw.
-#     '''
-#     n = int(size)
-#     u = _uniform.rvs(size=n)
-#     return _numpy.where(u > 0.9424222533172513, 0.11575164791201686 / (1.0030379829867349 - u)**(10/13.), 0.08*_numpy.exp(2.246879476250902 * _erfinv(-0.8094067254228074 + 1.801220032833315*u)))
+      velocityUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(units.km/units.s)]
+      if velocityUnit == [] and timeUnit != [] and lengthUnit != []: velocityUnit = [lengthUnit[0]/timeUnit[0]]
+      self._units['velocity'] = velocityUnit[0] if velocityUnit != [] else self._units['velocity']
 
-# def imf_gen_100(size):
-#     '''
-#         Generate stellar mass samples for single star systems between 0.01 and 100.0 Solar Masses.
-        
-#         Computed using the inverted cumulative probability distribution (CDF) by smoothly combining the initial mass function (IMF) given in equation (17) by Chabrier (2003) https://ui.adsabs.harvard.edu/abs/2003PASP..115..763C/abstract for stars less than 1.0 Solar Mass with the standard power-law IMF from Salpeter (1955) https://ui.adsabs.harvard.edu/abs/1955ApJ...121..161S/abstract for stars more than 1.0 Solar Mass.
+      massUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(units.kg)]
+      self._units['mass'] = massUnit[0] if massUnit != [] else self._units['mass']
 
-#         Parameters
-#         ----------
-#         size: the number of samples to draw.
-#     '''
-#     n = int(size)
-#     u = _uniform.rvs(size=n)
-#     return _numpy.where(u > 0.9397105089399359, 0.11549535807627886 / (1.0001518217134586 - u)**(10/13.), 0.08*_numpy.exp(2.246879476250902 * _erfinv(-0.8094067254228074 + 1.8064178551944312*u)))
+      angleUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(units.rad)]
+      self._units['angle'] = angleUnit[0] if angleUnit != [] else self._units['angle']
 
+      objectUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(units.stars)]
+      self._units['object'] = objectUnit[0] if objectUnit != [] else units.stars
+
+      densityUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(units.stars/units.m**3)]
+      densityUnit2 = [this for this in UNIT_SYSTEM if this.is_equivalent(1/units.m**3)]
+      if densityUnit == [] and densityUnit2 != []: densityUnit = [self._object_unit * densityUnit2[0]]
+      elif densityUnit == [] and objectUnit != [] and lengthUnit != []: densityUnit = [self._units['object']/self._units['length']**3]
+      self._units['density'] = densityUnit[0] if densityUnit != [] else self._units['density']
+    
+    self._UNIT_SYSTEM = list(self._units.values())
 
 
 
@@ -131,35 +114,73 @@ def determine_eccentricity(sim, star_mass, star_b, star_v=None, star_e=None):
         return vinf_and_b_to_e(mu=mu, star_b=star_b, star_vinf=star_v)
     else: raise AssertionError('Undetermined. Specify either an eccentricity or a velocity for the perturbing star.')
 
-def cross_section(star_mass, R, v):
+def maxwell_boltzmann_scale_from_dispersion(sigma):
+    '''
+        Converts velocity dispersion (sigma) to scale factor for Maxwell-Boltzmann distributions.
+    '''
+    return _numpy.sqrt((_numpy.pi*_numpy.square(sigma))/(3.0*_numpy.pi - 8.0))
+
+def maxwell_boltzmann_scale_from_mean(mu):
+    '''
+        Converts mean (mu) to scale factor for Maxwell-Boltzmann distributions.
+    '''
+    return _numpy.sqrt(_numpy.pi/2.0) * (mu / 2.0)
+
+def maxwell_boltzmann_mean_from_dispersion(sigma):
+    '''
+        Converts velocity dispersion (sigma) to mean (mu) for Maxwell-Boltzmann distributions.
+    '''
+    scale = maxwell_boltzmann_scale_from_dispersion(sigma)
+    return (2.0 * scale) * _numpy.sqrt(2.0/_numpy.pi)
+
+def maxwell_boltzmann_mode_from_dispersion(sigma):
+    '''
+        Converts velocity dispersion (sigma) to mode (most common or typical value) for Maxwell-Boltzmann distributions.
+    '''
+    scale = maxwell_boltzmann_scale_from_dispersion(sigma)
+    return scale * _numpy.sqrt(2.0)
+
+def cross_section(M, R, v, unit_set=UnitSystem()):
     '''
         The cross-section with gravitational focusing.
         
         Parameters
         ----------
-        star_mass : the mass of flyby star in units of Msun
-        R : the maximum interaction radius in units of AU
-        v : the typical velocity from the distribution in units of AU/Yr
+        M : the mass of flyby star (default units: solMass)
+        R : the maximum interaction radius (default units: AU)
+        v : the typical velocity from the distribution (default units: km/s)
     '''
-    G = const.G.decompose([units.AU, units.yr, units.solMass]) # Newton's gravitational constant in units of Msun, AU, and Years (G ~ 4π^2).
-    sun_mass = 1 * units.solMass # mass of the Sun in units of Msun
-    return (_numpy.pi * R**2) * (1 + 2*G*(sun_mass + star_mass)/(R * v**2))
 
-def encounter_rate(n, vbar, R, star_mass=(1 * units.solMass)):
+    # Newton's gravitational constant in units of Msun, AU, and Years/2pi (G ~ 1).
+    G = const.G.decompose(unit_set.UNIT_SYSTEM) 
+    sun_mass = 1 * units.solMass # mass of the Sun in units of Msun
+
+    v = verify_unit(v, unit_set.units['velocity'])
+    R = verify_unit(R, unit_set.units['length'])
+    M = verify_unit(M, unit_set.units['mass'])
+
+    return (_numpy.pi * R**2) * (1 + 2*G*(sun_mass + M)/(R * v**2))
+
+def encounter_rate(n, v, R, M=(1 * units.solMass), unit_set=UnitSystem()):
     '''
         The expected flyby encounter rate within an stellar environment
         
         Parameters
         ----------
-        n : stellar number density in units of AU^{-3}
-        vbar : velocity dispersion in units of km/s
-        R : interaction radius in units of AU
-        star_mass : mass of a typical flyby star in units of Msun
+        n : stellar number density (default units: pc^{-3})
+        v : average velocity  (default units: km/s)
+        R : interaction radius (default units: AU)
+        M : mass of a typical flyby star (default units: solMass)
     '''
-    # vv = vbar*convert_kms_to_auyr # Convert from km/s to AU/yr
-    # Include factor of sqrt(2) in cross-section to account for relative velocities at infinity.
-    return n * vbar * cross_section(star_mass, R, _numpy.sqrt(2.)*vbar)
+    n = verify_unit(n, unit_set.units['density'])
+    v = verify_unit(v, unit_set.units['velocity'])
+    R = verify_unit(R, unit_set.units['length'])
+    M = verify_unit(M, unit_set.units['mass'])
+    
+    return n * v * cross_section(M, R, v, unit_set)
 
+def verify_unit(value, unit):
+    return value.to(unit) if isQuantity(value) else value * unit
 
 def isList(l):
     '''Determines if an object is a list or numpy array. Used for flyby parallelization.'''
