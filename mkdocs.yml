@@ -4,7 +4,8 @@ repo_name: zyrxvo/airball
 edit_uri: ""
 nav:
   - "Home": index.md
-  - "Examples": docs/examples.md
+  - "Examples": 
+    -examples.md
     - "Notebooks":
       - examples/Basics.ipynb
       - examples/IMF.ipynb
