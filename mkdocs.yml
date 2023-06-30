@@ -4,11 +4,12 @@ repo_name: zyrxvo/airball
 edit_uri: ""
 nav:
   - Home: index.md
-  - Examples: examples.md
-    - Basics: examples/Basics.ipynb
-    - IMF: examples/IMF.ipynb
-    - Stellar Environments: examples/Stellar_Environments.ipynb
-    - Adiabatic Tests: examples/Adiabatic.ipynb
+  - Examples: 
+    - Examples: examples.md
+    - Basics: ../examples/Basics.ipynb
+    - IMF: ../examples/IMF.ipynb
+    - Stellar Environments: ../examples/Stellar_Environments.ipynb
+    - Adiabatic Tests: ../examples/Adiabatic.ipynb
 
 theme:
   name: material
