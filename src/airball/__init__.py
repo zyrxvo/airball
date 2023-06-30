@@ -6,4 +6,9 @@ from .flybys import *
 from .environments import *
 from .tools import *
 from .analytic import *
-__version__ = '0.3.0'
+from .imf import IMF
+from . import imf
+from .stars import Star,Stars
+from . import stars
+
+__version__ = 'v0.4.1'
