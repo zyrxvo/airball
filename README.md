@@ -1,15 +1,53 @@
-# Flybys in `REBOUND`
-- A package for implementing flybys in [hannorein/rebound](https://github.com/hannorein/rebound)
+# Welcome to AIRBALL
 
-**Package Prerequisites**
+AIRBALL is a package for running and managing flybys using [REBOUND](https://github.com/hannorein/rebound). It is an extension to REBOUND, the popular N-body integrator.
+
+*AIRBALL is currently in alpha testing. The APIs are subject to change without warning or backwards compatibility. Feedback and feature requests are very welcome.*
+
+## Features
+
+* Logic for handling the geometry of adding, running, and removing a flyby object in a REBOUND simulation.
+* Stellar environments for generating and managing randomly generated stars from different stellar environments throughout thr galaxy. 
+* Initial mass functions for quickly generating samples from probability distributions. 
+* Astropy.units integration to help you manage the mess of units and scales.
+* Interactive examples for teaching and exploring AIRBALL’s functionality. 
+
+## Installation
+
+AIRBALL is installable via `pip` with one simple command
+
+```zsh
+pip install airball
+
+```
+
+The following packages should automatically be installed along with AIRBALL:
+
 - `rebound`
 - `numpy`
 - `scipy`
 - `joblib`
 - `astropy`
 
-## Examples
-- A Basic Flyby Setup
-- Sampling the effects of a stellar environment
+## Contributors
 
-<img src="https://github.com/zyrxvo/airball/raw/main/docs/examples/images/hyperbolic_trajectories.png" alt="Hyperbolic trajectories with different impact parameters" height="400" width="450">
+* Garett Brown, University of Toronto, <garett.brown@mail.utoronto.ca>
+* Hanno Rein, University of Toronto, <hanno@hanno-rein.de>
+* [@hasaanzain](https://github.com/hasaanzain)
+* Linda He, Ivy Shi, and others. 
+
+AIRBALL is open source and you are invited to contribute to this project! 
+
+## Acknowledgments
+
+If you use this code or parts of this code for results presented in a scientific publication, we would greatly appreciate a citation.
+
+## License
+
+AIRBALL is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+AIRBALL is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with airball.  If not, see <http://www.gnu.org/licenses/>.
+
+<img src="https://github.com/zyrxvo/airball/raw/main/docs/examples/images/hyperbolic_trajectories.png" alt="Hyperbolic trajectories with different impact parameters" height="396" width="426">

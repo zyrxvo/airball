@@ -3,13 +3,13 @@ repo_url: https://github.com/zyrxvo/airball
 repo_name: zyrxvo/airball
 edit_uri: ""
 nav:
-  - 'Home': index.md
-  - 'Examples': 
-    - 'Examples': example.md
-    - 'Basics': examples/Basics.ipynb
-    - 'IMF': examples/IMF.ipynb
-    - 'Stellar Environments': examples/Stellar_Environments.ipynb
-    - 'Adiabatic Tests': examples/Adiabatic.ipynb
+  - 'home': index.md
+  - 'examples': 
+    - 'overview': example.md
+    - 'basics': examples/Basics.ipynb
+    - 'imf': examples/IMF.ipynb
+    - 'stellar-environments': examples/Stellar_Environments.ipynb
+    - 'adiabatic-tests': examples/Adiabatic.ipynb
 
 theme:
   name: material

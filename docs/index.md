@@ -1,6 +1,8 @@
-# Welcome to airball
+# Welcome to AIRBALL
 
-airball is a extension to REBOUND, the popular N-body integrator, for running and managing stellar flybys.  
+AIRBALL is a package for running and managing flybys using [REBOUND](https://github.com/hannorein/rebound). It is an extension to REBOUND, the popular N-body integrator.
+
+*AIRBALL is currently in alpha testing. The APIs are subject to change without warning or backwards compatibility. Feedback and feature requests are very welcome.*
 
 ## Features
 
@@ -8,15 +10,33 @@ airball is a extension to REBOUND, the popular N-body integrator, for running an
 * Stellar environments for generating and managing randomly generated stars from different stellar environments throughout thr galaxy. 
 * Initial mass functions for quickly generating samples from probability distributions. 
 * Astropy.units integration to help you manage the mess of units and scales.
-* Interactive examples for teaching and exploring airball's functionality. 
+* Interactive examples for teaching and exploring AIRBALL’s functionality. 
+
+## Installation
+
+AIRBALL is installable via `pip` with one simple command
+
+```zsh
+pip install airball
+
+```
+
+The following packages should automatically be installed along with AIRBALL:
+
+- `rebound`
+- `numpy`
+- `scipy`
+- `joblib`
+- `astropy`
 
 ## Contributors
 
 * Garett Brown, University of Toronto, <garett.brown@mail.utoronto.ca>
-* @hasaanzain
 * Hanno Rein, University of Toronto, <hanno@hanno-rein.de>
+* [@hasaanzain](https://github.com/hasaanzain)
+* Linda He, Ivy Shi, and others. 
 
-airball is open source and you are invited to contribute to this project! 
+AIRBALL is open source and you are invited to contribute to this project! 
 
 ## Acknowledgments
 
@@ -24,8 +44,8 @@ If you use this code or parts of this code for results presented in a scientific
 
 ## License
 
-airball is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+AIRBALL is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
-airball is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+AIRBALL is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with airball.  If not, see <http://www.gnu.org/licenses/>.
