@@ -50,4 +50,6 @@ AIRBALL is distributed in the hope that it will be useful, but WITHOUT ANY WARRA
 
 You should have received a copy of the GNU General Public License along with airball.  If not, see <http://www.gnu.org/licenses/>.
 
+---
+
 <img src="https://github.com/zyrxvo/airball/raw/main/docs/examples/images/hyperbolic_trajectories.png" alt="Hyperbolic trajectories with different impact parameters" height="396" width="426">
