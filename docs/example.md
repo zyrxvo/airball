@@ -5,7 +5,7 @@ Examples are the easiest way to learn how to use AIRBALL. This page contains a l
     You can find the source code for all examples in the `docs/examples/` directory. 
 
 ## Available Examples
-- [Basic flyby setups](examples/basics/)
-- [Initial Mass Functions (IMFs)](examples/imf/)
-- [Sampling the effects of different stellar environments](examples/stellar-environments/)
-- [Adiabatic tests to verify the flyby results are accurate](examples/adiabatic/)
+- [Basic flyby setups](basics/)
+- [Initial Mass Functions (IMFs)](imf/)
+- [Sampling the effects of different stellar environments](stellar-environments/)
+- [Adiabatic tests to verify the flyby results are accurate](adiabatic-tests/)
