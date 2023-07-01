@@ -3,10 +3,7 @@
 __pycache__/
 
 # Example Data
-examples/stellar_environments/*.npy
-examples/*.png
-examples/Details.ipynb
-examples/multi.py
+example-data/
 
 # Distribution / packaging
 bin/
