@@ -5,7 +5,7 @@ edit_uri: ""
 nav:
   - 'Home': index.md
   - 'Examples': 
-    - 'Overview': example.md
+    - 'Overview': examples.md
     - 'Basics': examples/basics.ipynb
     - 'IMF': examples/imf.ipynb
     - 'Stellar Environments': examples/stellar-environments.ipynb
