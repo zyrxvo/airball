@@ -2,12 +2,8 @@ import numpy as _numpy
 from scipy.stats import uniform as _uniform
 from .tools import *
 
-try:
-    # Required for Python>=3.9
-    from collections.abc import MutableMapping
-except:
-    from collections import MutableMapping
-
+try: from collections.abc import MutableMapping # Required for Python>=3.9
+except: from collections import MutableMapping
 
 class Star:
   '''

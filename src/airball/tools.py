@@ -45,8 +45,13 @@ class UnitSystem():
 
       densityUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(units.stars/units.m**3)]
       densityUnit2 = [this for this in UNIT_SYSTEM if this.is_equivalent(1/units.m**3)]
-      if densityUnit == [] and densityUnit2 != []: densityUnit = [self._object_unit * densityUnit2[0]]
-      elif densityUnit == [] and objectUnit != [] and lengthUnit != []: densityUnit = [self._units['object']/self._units['length']**3]
+      if densityUnit == [] and densityUnit2 != []: 
+        densityUnit = [self._units['object'] * densityUnit2[0]]
+      elif densityUnit == [] and objectUnit != [] and lengthUnit != []: 
+        densityUnit = [self._units['object']/self._units['length']**3]
+      elif densityUnit == [] and densityUnit2 == [] and objectUnit != []:
+         densityLength = [this for this in self._units['density'].bases if this.is_equivalent(units.m)][0]
+         densityUnit = [self._units['object']/densityLength**3]
       self._units['density'] = densityUnit[0] if densityUnit != [] else self._units['density']
     
     self._UNIT_SYSTEM = list(self._units.values())
@@ -176,7 +181,7 @@ def encounter_rate(n, v, R, M=(1 * units.solMass), unit_set=UnitSystem()):
     v = verify_unit(v, unit_set.units['velocity'])
     R = verify_unit(R, unit_set.units['length'])
     M = verify_unit(M, unit_set.units['mass'])
-    
+
     return n * v * cross_section(M, R, v, unit_set)
 
 def verify_unit(value, unit):

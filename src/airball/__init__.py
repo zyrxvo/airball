@@ -11,4 +11,4 @@ from . import imf
 from .stars import Star,Stars
 from . import stars
 
-__version__ = 'v0.4.3'
+__version__ = 'v0.4.4'
