@@ -33,7 +33,7 @@ The following packages should automatically be installed along with AIRBALL:
 
 * Garett Brown, University of Toronto, <garett.brown@mail.utoronto.ca>
 * Hanno Rein, University of Toronto, <hanno@hanno-rein.de>
-* [@hasaanzain](https://github.com/hasaanzain)
+* Hasaan Mohsin, University of Toronto, <hasaan.mohsin@mail.utoronto.ca>
 * Linda He, Ivy Shi, and others. 
 
 AIRBALL is open source and you are invited to contribute to this project! 

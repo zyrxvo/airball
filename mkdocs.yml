@@ -13,6 +13,8 @@ nav:
 
 theme:
   name: material
+  logo: images/airball.png
+  favicon: images/favicon.ico
   features:
     - navigation.tabs
     - toc.integrate
