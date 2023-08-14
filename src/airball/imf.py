@@ -1,6 +1,6 @@
 import numpy as _numpy
 from scipy.integrate import quad as _quad
-from . import units
+from . import units as u
 from .tools import *
 
 
@@ -45,10 +45,10 @@ class IMF():
   - seed: Value to seed the random number generator with (optional, int, or None to turn off).
   """
 
-  def __init__(self, min_mass, max_mass, mass_function=None, unit=units.solMass, number_samples=100, seed=None):
+  def __init__(self, min_mass, max_mass, mass_function=None, unit=u.solMass, number_samples=100, seed=None):
     self._number_samples = int(number_samples)
     self._seed = seed
-    self.unit = unit if isUnit(unit) else units.solMass
+    self.unit = unit if isUnit(unit) else u.solMass
 
     # Convert min_mass and max_mass to specified unit if they are Quantity objects, otherwise assume they are already in the correct unit
     self._min_mass = min_mass.to(self.unit) if isQuantity(min_mass) else min_mass * self.unit
