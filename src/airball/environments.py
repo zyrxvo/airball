@@ -4,7 +4,7 @@ from scipy.stats import uniform as _uniform
 from scipy.stats import maxwell as _maxwell
 from scipy.optimize import fminbound as _fminbound
 
-from . import units
+from . import units as u
 from .imf import *
 from .stars import *
 from .analytic import *
@@ -25,18 +25,18 @@ class StellarEnvironment:
   def __init__(self, stellar_density, velocity_dispersion, lower_mass_limit, upper_mass_limit, mass_function=None, maximum_impact_parameter=None, name=None, UNIT_SYSTEM=[], object_name=None):
 
     # Check to see if an stars object unit is defined in the given UNIT_SYSTEM and if the user defined a different name for the objects.
-    objectUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(units.stars)]
-    if objectUnit == [] and object_name is not None: UNIT_SYSTEM.append(units.def_unit(object_name, units.stars))
-    self.units = UnitSystem(UNIT_SYSTEM)
+    objectUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(u.stars)]
+    if objectUnit == [] and object_name is not None: UNIT_SYSTEM.append(u.def_unit(object_name, u.stars))
+    self.units = UnitSet(UNIT_SYSTEM)
 
     self.density = stellar_density
     self.velocity_dispersion = velocity_dispersion
-    self.maximum_impact_parameter = maximum_impact_parameter
 
-    self._upper_mass_limit = upper_mass_limit.to(self.units.units['mass']) if isQuantity(upper_mass_limit) else upper_mass_limit * self.units.units['mass']
-    self._lower_mass_limit = lower_mass_limit.to(self.units.units['mass']) if isQuantity(lower_mass_limit) else lower_mass_limit * self.units.units['mass']
-    self._IMF = IMF(min_mass=self._lower_mass_limit, max_mass=self._upper_mass_limit, mass_function=mass_function, unit=self.units.units['mass'])
+    self._upper_mass_limit = upper_mass_limit.to(self.units['mass']) if isQuantity(upper_mass_limit) else upper_mass_limit * self.units['mass']
+    self._lower_mass_limit = lower_mass_limit.to(self.units['mass']) if isQuantity(lower_mass_limit) else lower_mass_limit * self.units['mass']
+    self._IMF = IMF(min_mass=self._lower_mass_limit, max_mass=self._upper_mass_limit, mass_function=mass_function, unit=self.units['mass'])
     self._median_mass = self.IMF.median_mass
+    self.maximum_impact_parameter = maximum_impact_parameter
 
     self.name = name if name is not None else 'Stellar Environment'
 
@@ -79,7 +79,7 @@ class StellarEnvironment:
 
   @property
   def object_unit(self):
-    return self.units.units['object']
+    return self.units['object']
   
   @property
   def UNIT_SYSTEM(self):
@@ -94,28 +94,28 @@ class StellarEnvironment:
     '''
       The median mass of the environment's IMF
     '''
-    return self.IMF.median_mass.to(self.units.units['mass'])
+    return self.IMF.median_mass.to(self.units['mass'])
 
   @property
   def maximum_impact_parameter(self):
     '''
-      Compute an estimate for the largest impact parameter to affect a Sun-Neptune system.
+      The largest impact parameter to affect a stellar system in the environment.
     '''
-    # TODO: Update with UNITS
-    if self._maximum_impact_parameter is None:
-      sim = _rebound.Simulation()
-      sim.add(m=1.0)
-      sim.add(m=5.2e-05, a=30.2, e=0.013)
-      _f = lambda b: _numpy.log10(_numpy.abs(1e-16 - _numpy.abs(relative_energy_change(sim, Star(self.upper_mass_limit, b, _numpy.sqrt(2.0)*maxwell_boltzmann_mean_from_dispersion(self.velocity_dispersion))))))
-      bs = _numpy.logspace(1, 6, 1000)
-      b0 = bs[_numpy.argmin(_f(bs))]
-      self._maximum_impact_parameter = _fminbound(_f, b0/5, 5*b0) * units.au
-    return self._maximum_impact_parameter.to(self.units.units['length'])
+    return self._maximum_impact_parameter.to(self.units['length'])
   
   @maximum_impact_parameter.setter
   def maximum_impact_parameter(self, value):
     if value is not None:
-      self._maximum_impact_parameter = value.to(self.units.units['length']) if isQuantity(value) else value * self.units.units['length']
+      self._maximum_impact_parameter = value.to(self.units['length']) if isQuantity(value) else value * self.units['length']
+    else: 
+      # TODO: Convert from fminbound to interpolation
+      sim = _rebound.Simulation()
+      sim.add(m=1.0)
+      sim.add(m=5.2e-05, a=30.2, e=0.013)
+      _f = lambda b: _numpy.log10(_numpy.abs(1e-16 - _numpy.abs(relative_energy_change(sim, Star(self.upper_mass_limit, b * self.units['length'], _numpy.sqrt(2.0)*maxwell_boltzmann_mean_from_dispersion(self.velocity_dispersion))))))
+      bs = _numpy.logspace(1, 6, 1000)
+      b0 = bs[_numpy.argmin(_f(bs))]
+      self._maximum_impact_parameter = _fminbound(_f, b0/5, 5*b0) * self.units['length']
 
   @property
   def density(self):
@@ -123,7 +123,7 @@ class StellarEnvironment:
       The number density of the environment.
       Default units: pc^{-3}.
     '''
-    return self._density.to(self.units.units['density'])
+    return self._density.to(self.units['density'])
 
   @density.setter
   def density(self, value):
@@ -132,10 +132,10 @@ class StellarEnvironment:
       Default units: pc^{-3}.
     '''
     if isQuantity(value):
-      if value.unit.is_equivalent(units.stars/units.m**3): self._density = value.to(self.units.units['density'])
-      elif value.unit.is_equivalent(1/units.m**3): self._density = (value * self.units.units['object']).to(self.units.units['density'])
+      if value.unit.is_equivalent(u.stars/u.m**3): self._density = value.to(self.units['density'])
+      elif value.unit.is_equivalent(1/u.m**3): self._density = (value * self.units['object']).to(self.units['density'])
       else: raise AssertionError('The given density units are not compatible.')
-    else: self._density = value * self.units.units['density']
+    else: self._density = value * self.units['density']
 
   @property
   def velocity_dispersion(self):
@@ -143,7 +143,7 @@ class StellarEnvironment:
       Return the velocity dispersion of the environment.
       Default units: km/s.
     '''
-    return self._velocity.to(self.units.units['velocity'])
+    return self._velocity.to(self.units['velocity'])
   
   @velocity_dispersion.setter
   def velocity_dispersion(self, value):
@@ -151,7 +151,7 @@ class StellarEnvironment:
       The velocity dispersion of the environment.
       Default units: km/s.
     '''
-    self._velocity = value.to(self.units.units['velocity']) if isQuantity(value) else value * self.units.units['velocity']
+    self._velocity = value.to(self.units['velocity']) if isQuantity(value) else value * self.units['velocity']
   
   @property
   def velocity_mean(self):
@@ -159,7 +159,7 @@ class StellarEnvironment:
       Return the velocity dispersion of the environment.
       Default units: km/s.
     '''
-    return maxwell_boltzmann_mean_from_dispersion(self.velocity_dispersion).to(self.units.units['velocity'])
+    return maxwell_boltzmann_mean_from_dispersion(self.velocity_dispersion).to(self.units['velocity'])
   
   @property
   def velocity_mode(self):
@@ -167,7 +167,7 @@ class StellarEnvironment:
       Return the velocity dispersion of the environment.
       Default units: km/s.
     '''
-    return maxwell_boltzmann_mode_from_dispersion(self.velocity_dispersion).to(self.units.units['velocity'])
+    return maxwell_boltzmann_mode_from_dispersion(self.velocity_dispersion).to(self.units['velocity'])
   
   @property
   def velocity_rms(self):
@@ -177,7 +177,7 @@ class StellarEnvironment:
     '''
 
     v = _maxwell.rvs(scale=maxwell_boltzmann_scale_from_dispersion(self.velocity_dispersion), size=int(1e6))
-    return verify_unit(_numpy.sqrt(_numpy.mean(v**2)), self.units.units['velocity'])
+    return verify_unit(_numpy.sqrt(_numpy.mean(v**2)), self.units['velocity'])
 
   @property
   def lower_mass_limit(self):
@@ -185,7 +185,7 @@ class StellarEnvironment:
       Return the lower mass limit of the IMF of the environment.
       Default units: solMass
     '''
-    return self.IMF.min_mass.to(self.units.units['mass'])
+    return self.IMF.min_mass.to(self.units['mass'])
   
   @lower_mass_limit.setter
   def lower_mass_limit(self, value):
@@ -201,7 +201,7 @@ class StellarEnvironment:
       Return the lower mass limit of the IMF of the environment.
       Default units: solMass
     '''
-    return self.IMF.max_mass.to(self.units.units['mass'])
+    return self.IMF.max_mass.to(self.units['mass'])
   
   @upper_mass_limit.setter
   def upper_mass_limit(self, value):
@@ -242,7 +242,7 @@ class StellarEnvironment:
         - the maximum impact parameter
         - the relative velocity at infinity derived from the velocity dispersion
     '''
-    return encounter_rate(self._density, maxwell_boltzmann_mean_from_dispersion(self.velocity_dispersion), self._maximum_impact_parameter, self.median_mass).to(self.units.units['object']/self.units.units['time'])
+    return encounter_rate(self._density, maxwell_boltzmann_mean_from_dispersion(self.velocity_dispersion), self._maximum_impact_parameter, self.median_mass).to(self.units['object']/self.units['time'])
 
 
 
@@ -267,7 +267,7 @@ class LocalNeighborhood(StellarEnvironment):
     '''
     return chabrier_2003_single(1, 0.0567) * (x)**-4.7 if x > 1 else chabrier_2003_single(x, 0.0567)
 
-  def __init__(self, stellar_density = 0.14 * units.stars/units.pc**3, velocity_dispersion = 20.8 * units.km/units.s, lower_mass_limit=0.08 * units.solMass, upper_mass_limit = 8 * units.solMass, maximum_impact_parameter=10000 * units.au, UNIT_SYSTEM=[], mass_function=local_mass_function):
+  def __init__(self, stellar_density = 0.14 * u.stars/u.pc**3, velocity_dispersion = 20.8 * u.km/u.s, lower_mass_limit=0.08 * u.solMass, upper_mass_limit = 8 * u.solMass, maximum_impact_parameter=10000 * u.au, UNIT_SYSTEM=[], mass_function=local_mass_function):
     super().__init__(stellar_density=stellar_density, velocity_dispersion=velocity_dispersion, lower_mass_limit=lower_mass_limit, upper_mass_limit=upper_mass_limit, mass_function=mass_function, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, name = 'Local Neighborhood')
 
 class OpenCluster(StellarEnvironment):
@@ -286,24 +286,24 @@ class OpenCluster(StellarEnvironment):
   '''
   short_name = 'Open'
   
-  def __init__(self, stellar_density = 100 * units.stars * units.pc**-3, velocity_dispersion = 1 * units.km/units.s, lower_mass_limit=0.08 * units.solMass, upper_mass_limit = 100 * units.solMass, maximum_impact_parameter=1000 * units.au, UNIT_SYSTEM=[]):
+  def __init__(self, stellar_density = 100 * u.stars * u.pc**-3, velocity_dispersion = 1 * u.km/u.s, lower_mass_limit=0.08 * u.solMass, upper_mass_limit = 100 * u.solMass, maximum_impact_parameter=1000 * u.au, UNIT_SYSTEM=[]):
     super().__init__(stellar_density=stellar_density, velocity_dispersion=velocity_dispersion, lower_mass_limit=lower_mass_limit, upper_mass_limit=upper_mass_limit, mass_function=None, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, name = 'Open Cluster')
 
 class GlobularCluster(StellarEnvironment):
   short_name = 'Globular'
   
-  def __init__(self, stellar_density = 1000 * units.stars * units.pc**-3, velocity_dispersion = 10 * units.km/units.s, lower_mass_limit=0.08 * units.solMass, upper_mass_limit = 1 * units.solMass, maximum_impact_parameter=5000 * units.au, UNIT_SYSTEM=[]):
+  def __init__(self, stellar_density = 1000 * u.stars * u.pc**-3, velocity_dispersion = 10 * u.km/u.s, lower_mass_limit=0.08 * u.solMass, upper_mass_limit = 1 * u.solMass, maximum_impact_parameter=5000 * u.au, UNIT_SYSTEM=[]):
     super().__init__(stellar_density=stellar_density, velocity_dispersion=velocity_dispersion, lower_mass_limit=lower_mass_limit, upper_mass_limit=upper_mass_limit, mass_function=None, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, name = 'Globular Cluster')
 
 class GalacticBulge(StellarEnvironment):
   short_name = 'Bulge'
   
-  def __init__(self, stellar_density = 50 * units.stars * units.pc**-3, velocity_dispersion = 120 * units.km/units.s, lower_mass_limit=0.08 * units.solMass, upper_mass_limit = 10 * units.solMass, maximum_impact_parameter=50000 * units.au, UNIT_SYSTEM=[]):
+  def __init__(self, stellar_density = 50 * u.stars * u.pc**-3, velocity_dispersion = 120 * u.km/u.s, lower_mass_limit=0.08 * u.solMass, upper_mass_limit = 10 * u.solMass, maximum_impact_parameter=50000 * u.au, UNIT_SYSTEM=[]):
     super().__init__(stellar_density=stellar_density, velocity_dispersion=velocity_dispersion, lower_mass_limit=lower_mass_limit, upper_mass_limit=upper_mass_limit, mass_function=None, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, name = 'Milky Way Bulge')
 
 class GalacticCore(StellarEnvironment):
   short_name = 'Core'
   
-  def __init__(self, stellar_density = 10000 * units.stars * units.pc**-3, velocity_dispersion = 170 * units.km/units.s, lower_mass_limit=0.08 * units.solMass, upper_mass_limit = 10 * units.solMass, maximum_impact_parameter=50000 * units.au, UNIT_SYSTEM=[units.yr]):
+  def __init__(self, stellar_density = 10000 * u.stars * u.pc**-3, velocity_dispersion = 170 * u.km/u.s, lower_mass_limit=0.08 * u.solMass, upper_mass_limit = 10 * u.solMass, maximum_impact_parameter=50000 * u.au, UNIT_SYSTEM=[u.yr]):
     super().__init__(stellar_density=stellar_density, velocity_dispersion=velocity_dispersion, lower_mass_limit=lower_mass_limit, upper_mass_limit=upper_mass_limit, mass_function=None, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, name = 'Milky Way Core')
 
