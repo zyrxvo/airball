@@ -3,13 +3,14 @@ import rebound as _rebound
 from scipy.special import j0 as _j0,jv as _jv
 
 from .tools import *
-from . import units
+from .stars import *
+from . import units as u
 
 ############################################################
 ################## Analytical Estimates ####################
 ############################################################
 
-def binary_energy(sim):#sun_mass, planet_mass, planet_a):
+def binary_energy(sim, particle_index=1):#sun_mass, planet_mass, planet_a):
     '''
         The energy of a binary system, -(G*M*m)/(2*a).
         
@@ -17,12 +18,13 @@ def binary_energy(sim):#sun_mass, planet_mass, planet_a):
         ----------
         sim : REBOUND Simulation
     '''
+    index = int(particle_index)
     unit_set = rebound_units(sim)
     G = (sim.G * unit_set['length']**3 / unit_set['mass'] / unit_set['time']**2)
     p = sim.particles
-    return (-G * p[0].m * unit_set['mass'] * p[1].m * unit_set['mass'] / (2. * p[1].a * unit_set['length'])).decompose(list(unit_set.values()))
+    return (-G * p[0].m * unit_set['mass'] * p[index].m * unit_set['mass'] / (2. * p[index].a * unit_set['length'])).decompose(list(unit_set.values()))
     
-def energy_change_adiabatic_estimate(sim, star, averaged=True):
+def energy_change_adiabatic_estimate(sim, star, averaged=True, particle_index=1, ethreshold=1e-16, mode=0):
     '''
         An analytical estimate for the change in energy of a binary system due to a flyby star.
         
@@ -33,6 +35,7 @@ def energy_change_adiabatic_estimate(sim, star, averaged=True):
         sim : REBOUND Simulation
         star : AIRBALL Star flyby object
     '''
+    index = int(particle_index)
     unit_set = rebound_units(sim)
     t0 = 0*unit_set['time']
     G = (sim.G * unit_set['length']**3 / unit_set['mass'] / unit_set['time']**2)
@@ -41,20 +44,22 @@ def energy_change_adiabatic_estimate(sim, star, averaged=True):
     sim.rotate(_rebound.Rotation.to_new_axes(newz=sim.angular_momentum()))
     
     p = sim.particles
-    m1, m2, m3 = p[0].m * unit_set['mass'], p[1].m * unit_set['mass'], star.mass # redefine the masses for convenience
+    m1, m2, m3 = p[0].m * unit_set['mass'], p[index].m * unit_set['mass'], star.mass # redefine the masses for convenience
     M12 = m1 + m2 # total mass of the binary system
     M123 = m1 + m2 + m3 # total mass of all the objects involved
     
-    mu = G*M123
-    es = vinf_and_b_to_e(mu=mu, star_b=star.b, star_vinf=star.v)
+    mu = G * (sim.calculate_com().m * unit_set['mass'] + m3)
+    es = vinf_and_b_to_e(mu=mu, star_b=star.b, star_v=star.v)
     
-    a, e = p[1].a * unit_set['length'], p[1].e # redefine the orbital elements of the planet for convenience
+    a, e = p[index].a * unit_set['length'], p[index].e # redefine the orbital elements of the planet for convenience
+    # Case: Non-circular Binary
+
     n = _numpy.sqrt(G*M12/a**3) # compute the mean motion of the planet
     
     w, W, i = star.omega, star.Omega, star.inc # redefine the orientation elements of the flyby star for convenience
     V = star.v
-    GM123 = G*M123 
-    q = (- GM123 + _numpy.sqrt( GM123**2. + star.b**2. * V**4.))/V**2. # compute the periapsis of the flyby star
+    # GM123 = G*M123 
+    q = (- mu + _numpy.sqrt( mu**2. + star.b**2. * V**4.))/V**2. # compute the periapsis of the flyby star
 
     # Calculate the following convenient functions of the planet's eccentricity and Bessel functions of the first kind of order n.
     e1 = _jv(-1,e) - 2*e*_j0(e) + 2*e*_jv(2,0) - _jv(3,e)
@@ -66,20 +71,42 @@ def energy_change_adiabatic_estimate(sim, star, averaged=True):
     
     # Calculate convenient functions of the flyby star's eccentricity.
     f1 = ((es + 1.0)**(0.75)) / ((2.0**(0.75)) * (es*es))
-    with units.set_enabled_equivalencies(units.dimensionless_angles()):
+    with u.set_enabled_equivalencies(u.dimensionless_angles()):
         f2 = (3.0/(2.0*_numpy.sqrt(2.0))) * (_numpy.sqrt((es*es) - 1.0) - _numpy.arccos(1.0/es)) / ((es - 1.0)**(1.5))
     
     # Compute the prefactor and terms of the calculation done by Roy & Haddow (2003)
     prefactor = (-_numpy.sqrt(_numpy.pi)/8.0) * ((G*m1*m2*m3)/M12) * ((a*a)/(q*q*q)) * f1 * k**(2.5) * _numpy.exp((-2.0*k/3.0)*f2)
-    with units.set_enabled_equivalencies(units.dimensionless_angles()):
+    with u.set_enabled_equivalencies(u.dimensionless_angles()):
         term1 = e1 * ( _numpy.sin(2.0*w + n*t0)*_numpy.cos(2.0*i - 1.0)- _numpy.sin(2.0*w + n*t0)*_numpy.cos(2.0*i)*_numpy.cos(2.0*W) - 3.0*_numpy.sin(n*t0 + 2.0*w)*_numpy.cos(2.0*W) - 4.0*_numpy.sin(2.0*W)*_numpy.cos(2.0*w + n*t0)*_numpy.cos(i) )
         term2 = e2 * (1.0 - e*e) * ( _numpy.sin(2.0*w + n*t0)*(1.0-_numpy.cos(2.0*i)) - _numpy.sin(2.0*w + n*t0)*_numpy.cos(2.0*i)*_numpy.cos(2.0*W) - 3.0*_numpy.sin(n*t0 +2.0*w)*_numpy.cos(2.0*W) - 4.0*_numpy.cos(n*t0 + 2.0*w)*_numpy.sin(2.0*W)*_numpy.cos(i) )
         term3 = e4 * _numpy.sqrt(1.0 - e*e) * (-2.0*_numpy.cos(2.0*i)*_numpy.cos(2.0*w + n*t0)*_numpy.sin(2.0*W) - 6.0*_numpy.cos(2.0*w + n*t0)*_numpy.sin(2.0*W) - 8.0*_numpy.cos(2.0*W)*_numpy.sin(2.0*w + n*t0)*_numpy.cos(i) )
     
-    if averaged: return (prefactor).decompose(list(unit_set.values()))
-    else: return (prefactor * ( term1 + term2 + term3)).decompose(list(unit_set.values()))
+    noncircular_result = None
+    if averaged: noncircular_result = (prefactor * (e1 + e2 * (1 - e*e) + 2 * e4 * _numpy.sqrt(1 - e*e))).decompose(list(unit_set.values()))
+    else: noncircular_result = (prefactor * ( term1 + term2 + term3)).decompose(list(unit_set.values()))
 
-def relative_energy_change(sim, star, averaged=False):
+    # Case: Circular Binary
+
+    # Compute the prefactor and terms of the calculation done by Roy & Haddow (2003)
+    prefactor = (-_numpy.sqrt(_numpy.pi)/8.0) * ((G*m1*m2*m3)/M12) * ((a*a*a)/(q*q*q*q)) * f1 * k**(3.5) * _numpy.exp((-2.0*k/3.0)*f2) * (m2/M12 - m1/M12)
+    # if m2 < m1: prefactor /= twopi
+    with u.set_enabled_equivalencies(u.dimensionless_angles()):
+        term1 = (1.0 + _numpy.cos(i)) * _numpy.sin(i)**2.0
+        term2 = ( (_numpy.cos(w)**3.0) - 3.0 * (_numpy.sin(w)**2.0) * _numpy.cos(w) ) * _numpy.sin(n*t0)
+        term3 = ( 3.0 * (_numpy.cos(w)**2.0) * _numpy.sin(w) - (_numpy.sin(w)**3.0)) * _numpy.cos(n*t0)
+    
+    circular_result = None
+    if averaged: circular_result = (prefactor / _numpy.pi).decompose(list(unit_set.values()))
+    else: circular_result = (prefactor * term1 * (term2 + term3)).decompose(list(unit_set.values()))
+
+    alpha = _numpy.log10(e)/_numpy.log10(ethreshold)
+    if mode == 1: return circular_result * alpha + noncircular_result * (1-alpha)
+    else:
+        if e < ethreshold: return circular_result
+        else: return noncircular_result
+
+
+def relative_energy_change(sim, star, averaged=False, particle_index=1, ethreshold=1e-16, mode=0):
     '''
         An analytical estimate for the relative change in energy of a binary system due to a flyby star.
         
@@ -90,13 +117,13 @@ def relative_energy_change(sim, star, averaged=False):
         sim : REBOUND Simulation with two bodies, a central star and a planet
         star : AIRBALL Star flyby object
     '''
-    return energy_change_adiabatic_estimate(sim=sim, star=star, averaged=averaged)/binary_energy(sim)
+    return energy_change_adiabatic_estimate(sim=sim, star=star, averaged=averaged, particle_index=particle_index, ethreshold=ethreshold, mode=mode)/binary_energy(sim, particle_index=particle_index)
 
-def eccentricity_change_adiabatic_estimate(sim, star, averaged=False):
+def eccentricity_change_adiabatic_estimate(sim, star, averaged=False, particle_index=1):
     '''
         An analytical estimate for the change in eccentricity of an eccentric binary system due to a flyby star.
         
-        From the conclusions of Heggie & Rasio (1996) Equation (A3) from Spurzem et al. (2009) https://ui.adsabs.harvard.edu/abs/2009ApJ...697..458S/abstract. 
+        From Equation (7) of Heggie & Rasio (1996) Equation (A3) from Spurzem et al. (2009) https://ui.adsabs.harvard.edu/abs/2009ApJ...697..458S/abstract. 
         The orbital element angles of the flyby star are determined with respect to the plane defined by the binary orbit. In REBOUND this is the same as when the inclination of the planet is zero.
         
         Parameters
@@ -105,29 +132,30 @@ def eccentricity_change_adiabatic_estimate(sim, star, averaged=False):
         star : AIRBALL Star flyby object
     '''
 
+    index = int(particle_index)
 
     unit_set = rebound_units(sim)
     t0 = 0*unit_set['time']
     G = (sim.G * unit_set['length']**3 / unit_set['mass'] / unit_set['time']**2)
     
     p = sim.particles
-    m1, m2, m3 = p[0].m * unit_set['mass'], p[1].m * unit_set['mass'], star.mass # redefine the masses for convenience
+    m1, m2, m3 = p[0].m * unit_set['mass'], p[index].m * unit_set['mass'], star.mass # redefine the masses for convenience
     M12 = m1 + m2 # total mass of the binary system
     M123 = m1 + m2 + m3 # total mass of all the objects involved
     
-    mu = G*M123
-    es = vinf_and_b_to_e(mu=mu, star_b=star.b, star_vinf=star.v)
+    mu = G * (sim.calculate_com().m * unit_set['mass'] + m3)
+    es = vinf_and_b_to_e(mu=mu, star_b=star.b, star_v=star.v)
     
-    a, e = p[1].a * unit_set['length'], p[1].e # redefine the orbital elements of the planet for convenience
-    n = _numpy.sqrt(G*M12/a**3) # compute the mean motion of the planet
+    a, e = p[index].a * unit_set['length'], p[index].e # redefine the orbital elements of the planet for convenience
+    # n = _numpy.sqrt(G*M12/a**3) # compute the mean motion of the planet
     
     w, W, i = star.omega, star.Omega, star.inc # redefine the orientation elements of the flyby star for convenience
     V = star.v
-    GM123 = G*M123 
-    q = (- GM123 + _numpy.sqrt( GM123**2. + star.b**2. * V**4.))/V**2. # compute the periapsis of the flyby star
-    
+    # GM123 = G*M123 
+    q = (- mu + _numpy.sqrt( mu**2. + star.b**2. * V**4.))/V**2. # compute the periapsis of the flyby star
+
     prefactor = (-15.0/4.0) * m3 / _numpy.sqrt(M12*M123) * ((a/q)**1.5) * ((e * _numpy.sqrt(1.0 - e*e))/((1.0 + es)**1.5))
-    with units.set_enabled_equivalencies(units.dimensionless_angles()):
+    with u.set_enabled_equivalencies(u.dimensionless_angles()):
         t1 = (_numpy.sin(i) * _numpy.sin(i) * _numpy.sin(2.0*W) * ( _numpy.arccos(-1.0/es) + _numpy.sqrt(es*es - 1.0) )).value
         t2 = ((1.0/3.0) * (1.0 + _numpy.cos(i)*_numpy.cos(i)) * _numpy.cos(2.0*w) * _numpy.sin(2.0*W)).value
         t3 = (2.0 * _numpy.cos(i) * _numpy.sin(2.0*w) * _numpy.cos(2.0*W) * ((es*es - 1.0)**1.5)/(es*es)).value
