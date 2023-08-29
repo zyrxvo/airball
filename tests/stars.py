@@ -46,27 +46,27 @@ def test_initialize_Stars_with_floats_and_size():
     assert np.all(stars.v == np.array([7,7,7]) * u.km/u.s)
 
 def test_initialize_Stars_with_uneven_lists():
-    with pytest.raises(airball.ListLengthException):
+    with pytest.raises(airball.stars.ListLengthException):
         airball.Stars(m=[1], b=[4,5,6], v=[7,8,9])
-    with pytest.raises(airball.ListLengthException):
+    with pytest.raises(airball.stars.ListLengthException):
         airball.Stars(m=[1,2,3], b=[4], v=[7,8,9])
-    with pytest.raises(airball.ListLengthException):
+    with pytest.raises(airball.stars.ListLengthException):
         airball.Stars(m=[1,2,3], b=[4,5,6], v=[7])
 
 def test_initialize_Stars_with_unspecified_parameters():
-    with pytest.raises(airball.UnspecifiedParameterException):
+    with pytest.raises(airball.stars.UnspecifiedParameterException):
         airball.Stars(b=[4,5,6], v=[7,8,9])
-    with pytest.raises(airball.UnspecifiedParameterException):
+    with pytest.raises(airball.stars.UnspecifiedParameterException):
         airball.Stars(m=[1,2,3], v=[7,8,9])
-    with pytest.raises(airball.UnspecifiedParameterException):
+    with pytest.raises(airball.stars.UnspecifiedParameterException):
         airball.Stars(m=[1,2,3], b=[4,5,6])
 
 def test_initialize_Stars_with_floats_and_unspecified_size():
-    with pytest.raises(airball.UnspecifiedParameterException):
+    with pytest.raises(airball.stars.UnspecifiedParameterException):
         airball.Stars(m=1, b=3, v=7)
 
 def test_initialize_Stars_with_lists_and_specified_size():
-    with pytest.raises(airball.OverspecifiedParametersException):
+    with pytest.raises(airball.stars.OverspecifiedParametersException):
         airball.Stars(m=[1,2], v=[7,8,9], size=4)
 
 def test_initialize_Stars_with_custom_object():
@@ -77,7 +77,7 @@ def test_initialize_Stars_with_custom_object():
 
     # Create an instance of the custom object
     my_object = CustomObject([1, 2, 3])
-    with pytest.raises(airball.IncompatibleListException):
+    with pytest.raises(airball.stars.IncompatibleListException):
         airball.Stars(m=my_object, b=[4,5,6], v=[7,8,9])
         airball.Stars(m=[1,2,3], b=my_object, v=[7,8,9])
         airball.Stars(m=[1,2,3], b=[4,5,6], v=my_object)

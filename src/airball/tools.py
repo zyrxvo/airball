@@ -201,6 +201,30 @@ def vinf_and_q_to_e(mu, star_q, star_v):
     star_vinf = verify_unit(star_v, u.km/u.s)
     return 1 + star_q * star_vinf * star_vinf / mu
 
+def vinf_and_q_to_b(mu, star_q, star_v):
+    '''
+        Using the perihelion to convert from the relative velocity at infinity between the two stars to the eccentricity of the flyby star.
+
+        Parameters
+        ----------
+        mu : the total mass of the system (Sun, planets, and flyby star) times the gravitational constant G
+        star_q :  perihelion of the flyby star
+        star_v : the relative velocity at infinity between the central star and the flyby star (hyperbolic excess velocity)
+    '''
+
+    mu = verify_unit(mu, (u.au**3)/(u.yr2pi**2))
+    star_q = verify_unit(star_q, u.au)
+    star_vinf = verify_unit(star_v, u.km/u.s)
+    star_e = 1 + star_q * star_vinf * star_vinf / mu
+    return verify_unit(star_q * _numpy.sqrt((star_e + 1.0)/(star_e - 1.0)), u.au)
+
+def gravitational_mu(sim, star):
+    # Convert the units of the REBOUND Simulation into Astropy Units.
+    units = rebound_units(sim)
+    G = (sim.G * units['length']**3 / units['mass'] / units['time']**2)
+    star_mass = verify_unit(star.mass, units['mass'])
+    return G * (sim.calculate_com().m * units['mass'] + star_mass)
+
 def star_q(sim, star):
     '''
         Using the impact parameter and the relative velocity at infinity between the two stars convert to the perhelion of the flyby star.
