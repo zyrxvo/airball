@@ -1,3 +1,5 @@
+<div style="display: flex; justify-content: center; float: center;"><img src="https://github.com/zyrxvo/airball/raw/main/docs/img/airball.png" aspect=1 alt="AIRBALL Logo, a 3-body problem made to look like the letter A." title="AIRBALL Logo, a 3-body problem made to look like the letter A." height="128" width="128"></div>
+
 # Welcome to AIRBALL
 
 AIRBALL is a package for running and managing flybys using [REBOUND](https://github.com/hannorein/rebound). It is an extension to REBOUND, the popular N-body integrator.
@@ -7,7 +9,7 @@ AIRBALL is a package for running and managing flybys using [REBOUND](https://git
 ## Features
 
 * Logic for handling the geometry of adding, running, and removing a flyby object in a REBOUND simulation.
-* Stellar environments for generating and managing randomly generated stars from different stellar environments throughout thr galaxy. 
+* Stellar environments for generating and managing randomly generated stars from different stellar environments throughout the galaxy. 
 * Initial mass functions for quickly generating samples from probability distributions. 
 * Astropy.units integration to help you manage the mess of units and scales.
 * Interactive examples for teaching and exploring AIRBALL’s functionality. 
@@ -49,7 +51,3 @@ AIRBALL is free software: you can redistribute it and/or modify it under the ter
 AIRBALL is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with airball.  If not, see <http://www.gnu.org/licenses/>.
-
----
-
-<img src="https://github.com/zyrxvo/airball/raw/main/docs/examples/images/hyperbolic_trajectories.png" alt="Hyperbolic trajectories with different impact parameters" height="396" width="426">
