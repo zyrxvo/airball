@@ -380,6 +380,9 @@ def star_q(sim, star):
     return star.b * _numpy.sqrt((star_e - 1.0)/(star_e + 1.0))
 
 def system_mass(sim):
+    '''
+        The total bound mass of the system.
+    '''
     total_mass = 0
     for i,p in enumerate(sim.particles):
         if i == 0: total_mass += p.m
@@ -387,7 +390,7 @@ def system_mass(sim):
         else: pass
     return total_mass      
 
-def determine_eccentricity(sim, star_mass, star_b, star_v=None, star_e=None):
+def determine_eccentricity(sim, star_mass, star_b, star_v):
     '''Calculate the eccentricity of the flyby star. '''
     # Convert the units of the REBOUND Simulation into Astropy Units.
     units = rebound_units(sim)
@@ -397,15 +400,18 @@ def determine_eccentricity(sim, star_mass, star_b, star_v=None, star_e=None):
     star_v = verify_unit(star_v, units['length']/units['time'])
 
     mu = G * (system_mass(sim) * units['mass'] + star_mass)
-    if star_e is not None and star_v is not None: raise AssertionError('Overdetermined. Cannot specify an eccentricity and a velocity for the perturbing star.')
-    elif star_e is not None and star_v is None:
-        # Simply use the eccentricity if it is defined.
-        return star_e
-    elif star_e is None and star_v is not None:
-        # If `star_v` is defined convert it to eccentricity.
-        # Assumes that `star_v` is in units of km/s.
-        return vinf_and_b_to_e(mu=mu, star_b=star_b, star_v=star_v)
-    else: raise AssertionError('Undetermined. Specify either an eccentricity or a velocity for the perturbing star.')
+    return vinf_and_b_to_e(mu=mu, star_b=star_b, star_v=star_v)
+
+def initial_conditions_from_stellar_params(sim, star, rmax):
+    '''
+        Calculate the flyby star's initial conditions based on the provided Simulation and starting distance (rmax).
+    '''
+    e = determine_eccentricity(sim, star.m, star.b, star.v)
+    a = -star.b/_numpy.sqrt(e**2. - 1.) # Compute the semi-major axis of the flyby star
+    l = -a*(e*e-1.) # Compute the semi-latus rectum of the hyperbolic orbit to get the true anomaly (-a because the semi-major axis is negative)
+    f = _numpy.arccos((l/rmax-1.)/e) # Compute the true anomaly
+
+    return {'m':star.m.value, 'a':a.value, 'e':e.value, 'inc':star.inc.value, 'omega':star.omega.value, 'Omega':star.Omega.value, 'f':-f.value}, l.value
 
 
 ############################################################

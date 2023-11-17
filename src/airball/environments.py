@@ -306,7 +306,7 @@ class OpenCluster(StellarEnvironment):
 
     The stellar density is 100 pc^-3 informed by Adams (2010).
     The velocity scale is 1 km/s informed by Adams (2010) and Malmberg et al. (2011).
-    The mass limit is defined to between 0.01-100 solar masses using Chabrier (2003) for single stars when m < 1 and Salpeter (1955) for stars m ≥ 1.
+    The mass limit is defined to between 0.08-100 solar masses using Chabrier (2003) for single stars when m < 1 and Salpeter (1955) for stars m ≥ 1.
 
     # Example
     my_open = airball.OpenCluster()
