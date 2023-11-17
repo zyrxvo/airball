@@ -7,5 +7,6 @@ from .environments import (StellarEnvironment, LocalNeighborhood, OpenCluster, G
 from .analytic import (relative_energy_change, energy_change_adiabatic_estimate, eccentricity_change_adiabatic_estimate)
 from .imf import (IMF)
 from .stars import (Star, Stars)
+from .tools import (UnitSet)
 
-__version__ = 'v0.4.5'
+__version__ = 'v0.5.0'
