@@ -43,6 +43,133 @@ class UnitSet():
        s += f'{key}: {self.units[key].to_string()},\n'
     s = s[:-2] + '}'
     return s
+  
+  def __iter__(self):
+    for k in self.units:
+      yield self.units[k]
+  
+  def __eq__(self, other):
+    '''Determines if two UnitSets are equivalent, not necessarily identical.'''
+    if isinstance(other, UnitSet):
+        return _numpy.all([u1.is_equivalent(u2) for u1,u2 in zip(self, other)])
+    return NotImplemented
+  
+  def __ne__(self, other):
+    """Overrides the default implementation (unnecessary in Python 3)"""
+    x = self.__eq__(other)
+    if x is not NotImplemented:
+        return not x
+    return NotImplemented
+
+  def __hash__(self):
+    """Overrides the default implementation"""
+    return hash(tuple(sorted(self.__dict__.items())))
+  
+
+  @property
+  def length(self):
+    """Units of LENGTH."""
+    return self._units['length']
+
+  @length.setter
+  def length(self, value):
+    """
+    Setter for the Units of LENGTH.
+
+    Parameters:
+    - value: An Astropy Quantity describing LENGTH.
+    """
+    self.UNIT_SYSTEM = [value]
+
+  @property
+  def time(self):
+    """Units of TIME."""
+    return self._units['time']
+
+  @time.setter
+  def time(self, value):
+    """
+    Setter for the Units of TIME.
+
+    Parameters:
+    - value: An Astropy Quantity describing TIME.
+    """
+    self.UNIT_SYSTEM = [value]
+
+  @property
+  def mass(self):
+    """Units of MASS."""
+    return self._units['mass']
+
+  @mass.setter
+  def mass(self, value):
+    """
+    Setter for the Units of MASS.
+
+    Parameters:
+    - value: An Astropy Quantity describing MASS.
+    """
+    self.UNIT_SYSTEM = [value]
+
+  @property
+  def angle(self):
+    """Units of ANGLE."""
+    return self._units['angle']
+
+  @angle.setter
+  def angle(self, value):
+    """
+    Setter for the Units of ANGLE.
+
+    Parameters:
+    - value: An Astropy Quantity describing ANGLE.
+    """
+    self.UNIT_SYSTEM = [value]
+
+  @property
+  def velocity(self):
+    """Units of VELOCITY."""
+    return self._units['velocity']
+
+  @velocity.setter
+  def velocity(self, value):
+    """
+    Setter for the Units of VELOCITY.
+
+    Parameters:
+    - value: An Astropy Quantity describing VELOCITY.
+    """
+    self.UNIT_SYSTEM = [value]
+
+  @property
+  def density(self):
+    """Units of DENSITY."""
+    return self._units['density']
+
+  @density.setter
+  def density(self, value):
+    """
+    Setter for the Units of DENSITY .
+
+    Parameters:
+    - value: An Astropy Quantity describing DENSITY.
+    """
+    self.UNIT_SYSTEM = [value]
+
+  @property
+  def object(self):
+    """Units of an OBJECT (such as a star)."""
+    return self._units['object']
+
+  @object.setter
+  def object(self, value):
+    """
+    Setter for the Units of an OBJECT (such as a star).
+
+    Parameters:
+    - value: An Astropy Quantity describing an OBJECT (such as a star).
+    """
+    self.UNIT_SYSTEM = [value]
 
   @UNIT_SYSTEM.setter
   def UNIT_SYSTEM(self, UNIT_SYSTEM):
@@ -113,6 +240,15 @@ def notNone(a):
     Returns True if array a contains at least one element that is not None. Returns False otherwise.
     """
     return a.count(None) != len(a)
+
+def hasTrue(a):
+    """
+    Returns True if array a contains at least one element that is True. Returns False otherwise.
+    """
+    return a.count(True) > 0
+
+def numberOfElementsReturnedBySlice(start, stop, step):
+   return (stop - start) // step
 
 def _integrate(sim, tmax):
     sim.integrate(tmax)
@@ -223,7 +359,7 @@ def gravitational_mu(sim, star):
     units = rebound_units(sim)
     G = (sim.G * units['length']**3 / units['mass'] / units['time']**2)
     star_mass = verify_unit(star.mass, units['mass'])
-    return G * (sim.calculate_com().m * units['mass'] + star_mass)
+    return G * (system_mass(sim)  * units['mass'] + star_mass)
 
 def star_q(sim, star):
     '''
@@ -238,10 +374,18 @@ def star_q(sim, star):
 
     units = rebound_units(sim)
     G = (sim.G * units['length']**3 / units['mass'] / units['time']**2)
-    mu = G * (sim.calculate_com().m * units['mass'] + star.m)
+    mu = G * (system_mass(sim)  * units['mass'] + star.m)
 
     star_e = vinf_and_b_to_e(mu, star.b, star.v)
     return star.b * _numpy.sqrt((star_e - 1.0)/(star_e + 1.0))
+
+def system_mass(sim):
+    total_mass = 0
+    for i,p in enumerate(sim.particles):
+        if i == 0: total_mass += p.m
+        elif p.a > 0: total_mass += p.m
+        else: pass
+    return total_mass      
 
 def determine_eccentricity(sim, star_mass, star_b, star_v=None, star_e=None):
     '''Calculate the eccentricity of the flyby star. '''
@@ -252,7 +396,7 @@ def determine_eccentricity(sim, star_mass, star_b, star_v=None, star_e=None):
     star_b = verify_unit(star_b, units['length'])
     star_v = verify_unit(star_v, units['length']/units['time'])
 
-    mu = G * (sim.calculate_com().m * units['mass'] + star_mass)
+    mu = G * (system_mass(sim) * units['mass'] + star_mass)
     if star_e is not None and star_v is not None: raise AssertionError('Overdetermined. Cannot specify an eccentricity and a velocity for the perturbing star.')
     elif star_e is not None and star_v is None:
         # Simply use the eccentricity if it is defined.
