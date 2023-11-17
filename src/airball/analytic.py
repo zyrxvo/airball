@@ -24,7 +24,7 @@ def binary_energy(sim, particle_index=1):#sun_mass, planet_mass, planet_a):
     p = sim.particles
     return (-G * p[0].m * unit_set['mass'] * p[index].m * unit_set['mass'] / (2. * p[index].a * unit_set['length'])).decompose(list(unit_set.values()))
     
-def energy_change_adiabatic_estimate(sim, star, averaged=True, particle_index=1, ethreshold=1e-16, mode=0):
+def energy_change_adiabatic_estimate(sim, star, averaged=True, particle_index=1):
     '''
         An analytical estimate for the change in energy of a binary system due to a flyby star.
         
@@ -48,7 +48,7 @@ def energy_change_adiabatic_estimate(sim, star, averaged=True, particle_index=1,
     M12 = m1 + m2 # total mass of the binary system
     M123 = m1 + m2 + m3 # total mass of all the objects involved
     
-    mu = G * (sim.calculate_com().m * unit_set['mass'] + m3)
+    mu = G * (system_mass(sim)  * unit_set['mass'] + m3)
     es = vinf_and_b_to_e(mu=mu, star_b=star.b, star_v=star.v)
     
     a, e = p[index].a * unit_set['length'], p[index].e # redefine the orbital elements of the planet for convenience
@@ -99,14 +99,10 @@ def energy_change_adiabatic_estimate(sim, star, averaged=True, particle_index=1,
     if averaged: circular_result = (prefactor / _numpy.pi).decompose(list(unit_set.values()))
     else: circular_result = (prefactor * term1 * (term2 + term3)).decompose(list(unit_set.values()))
 
-    alpha = _numpy.log10(e)/_numpy.log10(ethreshold)
-    if mode == 1: return circular_result * alpha + noncircular_result * (1-alpha)
-    else:
-        if e < ethreshold: return circular_result
-        else: return noncircular_result
+    return circular_result + noncircular_result
 
 
-def relative_energy_change(sim, star, averaged=False, particle_index=1, ethreshold=1e-16, mode=0):
+def relative_energy_change(sim, star, averaged=False, particle_index=1):
     '''
         An analytical estimate for the relative change in energy of a binary system due to a flyby star.
         
@@ -117,7 +113,7 @@ def relative_energy_change(sim, star, averaged=False, particle_index=1, ethresho
         sim : REBOUND Simulation with two bodies, a central star and a planet
         star : AIRBALL Star flyby object
     '''
-    return energy_change_adiabatic_estimate(sim=sim, star=star, averaged=averaged, particle_index=particle_index, ethreshold=ethreshold, mode=mode)/binary_energy(sim, particle_index=particle_index)
+    return energy_change_adiabatic_estimate(sim=sim, star=star, averaged=averaged, particle_index=particle_index)/binary_energy(sim, particle_index=particle_index)
 
 def eccentricity_change_adiabatic_estimate(sim, star, averaged=False, particle_index=1):
     '''
@@ -143,7 +139,7 @@ def eccentricity_change_adiabatic_estimate(sim, star, averaged=False, particle_i
     M12 = m1 + m2 # total mass of the binary system
     M123 = m1 + m2 + m3 # total mass of all the objects involved
     
-    mu = G * (sim.calculate_com().m * unit_set['mass'] + m3)
+    mu = G * (system_mass(sim)  * unit_set['mass'] + m3)
     es = vinf_and_b_to_e(mu=mu, star_b=star.b, star_v=star.v)
     
     a, e = p[index].a * unit_set['length'], p[index].e # redefine the orbital elements of the planet for convenience
