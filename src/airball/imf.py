@@ -1,7 +1,7 @@
 import numpy as _numpy
 from scipy.integrate import quad as _quad
 from . import units as u
-from .tools import *
+from . import tools
 
 
 def chabrier_2003_single(x, A=0.158):
@@ -48,12 +48,12 @@ class IMF():
   def __init__(self, min_mass, max_mass, mass_function=None, unit=u.solMass, number_samples=100, seed=None):
     self._number_samples = int(number_samples)
     self._seed = seed
-    self.unit = unit if isUnit(unit) else u.solMass
+    self.unit = unit if tools.isUnit(unit) else u.solMass
 
     # Convert min_mass and max_mass to specified unit if they are Quantity objects, otherwise assume they are already in the correct unit
-    self._min_mass = min_mass.to(self.unit) if isQuantity(min_mass) else min_mass * self.unit
+    self._min_mass = min_mass.to(self.unit) if tools.isQuantity(min_mass) else min_mass * self.unit
     if self._min_mass.value <= 0: raise Exception('Cannot have minimum mass value be less than or equal to 0.')
-    self._max_mass = max_mass.to(self.unit) if isQuantity(max_mass) else max_mass * self.unit
+    self._max_mass = max_mass.to(self.unit) if tools.isQuantity(max_mass) else max_mass * self.unit
 
     # Determine the probability distribution function (PDF) based on the given mass function or default to a piecewise Chabrier 2003 and Salpeter 1955
     if mass_function is None: mass_function = lambda x: _numpy.where(x < 1, chabrier_2003_single(x), salpeter_1955(x, chabrier_2003_single(1)))
@@ -132,7 +132,7 @@ class IMF():
     Parameters:
     - value: New minimum mass value (float or astropy.units.Quantity).
     """
-    value = value.to(self.unit) if isQuantity(value) else value * self.unit
+    value = value.to(self.unit) if tools.isQuantity(value) else value * self.unit
     if value.value <= 0: raise Exception('Cannot have minimum mass value be less than or equal to 0.')
     self._min_mass = value
     self._recalculate()
@@ -153,7 +153,7 @@ class IMF():
     Parameters:
     - value: New maximum mass value (float or astropy.units.Quantity).
     """
-    self._max_mass = value.to(self.unit) if isQuantity(value) else value * self.unit
+    self._max_mass = value.to(self.unit) if tools.isQuantity(value) else value * self.unit
     self._recalculate()
 
   @property
