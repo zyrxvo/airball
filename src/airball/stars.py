@@ -26,16 +26,6 @@ class Star:
     if inc == 'uniform' or inc == None: inc = 2.0*_numpy.pi * _uniform.rvs() - _numpy.pi
     if omega == 'uniform' or omega == None: omega = 2.0*_numpy.pi * _uniform.rvs() - _numpy.pi
     if Omega == 'uniform' or Omega == None: Omega = 2.0*_numpy.pi * _uniform.rvs() - _numpy.pi
-    
-
-    # Considering making it possible to specify the a,e, or q of the star, but I think it would be better to build tools to convert between the values instead.
-    # a = kwargs.get('a', None)
-    # e = kwargs.get('e', None)
-    # q = kwargs.get('q', None)
-    # sim = kwargs.get('sim', None)
-    # if notNone([a,e,q]) and sim is None: raise AssertionError('Need to specify a simulation when initializing the perturbing star with orbital elements.')
-    # if notNone([e,v]): raise AssertionError('Overdetermined. Specify either an eccentricity or a velocity for the perturbing star.')
-    # if notNone([b,q]): raise AssertionError('Overdetermined. Specify either an impact parameter or a periastron for the perturbing star.')
 
     self.mass = m
     self.impact_parameter = b
@@ -150,10 +140,18 @@ class Star:
 
   @property
   def params(self):
+    '''
+      Returns a list of the parameters of the Stars (with units) in order of:
+      Mass, m; Impact Parameter, b; Velocity, v; Inclination, inc; Argument of the Periastron, omega; and Longitude of the Ascending Node, Omega
+    '''
     return [self.m, self.b, self.v, self.inc, self.omega, self.Omega]
   
   @property
   def param_values(self):
+    '''
+      Returns a list of the parameters of the Stars in order of:
+      Mass, m; Impact Parameter, b; Velocity, v; Inclination, inc; Argument of the Periastron, omega; and Longitude of the Ascending Node, Omega
+    '''
     return _numpy.array([self.m.value, self.b.value, self.v.value, self.inc.value, self.omega.value, self.Omega.value])
   
   def q(self, sim):
@@ -180,7 +178,31 @@ class Star:
     return self.stats(returned=True)
   
   def __len__(self):
-    return -1
+    return NotImplemented
+  
+  def __eq__(self, other):
+    """Overrides the default implementation"""
+    if isinstance(other, Star):
+        data = ((self.m == other.m) and (self.b == other.b) and (self.v == other.v) and (self.inc == other.inc) and (self.omega == other.omega) and (self.Omega == other.Omega))
+        properties = (self.units == other.units)
+        return data and properties
+    return NotImplemented
+  
+  def __ne__(self, other):
+    """Overrides the default implementation (unnecessary in Python 3)"""
+    x = self.__eq__(other)
+    if x is not NotImplemented:
+        return not x
+    return NotImplemented
+
+  def __hash__(self):
+    """Overrides the default implementation"""
+    data = []
+    for d in sorted(self.__dict__.items()):
+        try: data.append((d[0], tuple(d[1])))
+        except: data.append(d)
+    data = tuple(data)
+    return hash(data)
 
 
 class Stars(MutableMapping):
@@ -201,24 +223,18 @@ class Stars(MutableMapping):
         self.__dict__ = loaded.__dict__
       except: raise Exception('Invalid filename.')
       return
+    
+    self._environment = kwargs.get('environment', None)
 
     self._Nstars = 0
     for key in kwargs:
-      value = kwargs[key]
       try: 
-        keyShape = _numpy.array(value).shape
-        keysize = _numpy.prod([i for i in keyShape])
-        if keysize > self.N and keysize > 1: self._Nstars = keyShape
-      except:
-        try:
-          keylen = len(value)
-          if isList(value) and (keylen > self.N): self._Nstars = keylen
-        except: pass # Key is not ndarray or list.
-    print(self.N, self.shape)
+        len(kwargs[key])
+        if isList(kwargs[key]) and len(kwargs[key]) > self.N:
+          self._Nstars = len(kwargs[key])
+      except: pass
     if 'size' in kwargs and self.N != 0: raise OverspecifiedParametersException('If lists are given then size cannot be specified.')
-    elif 'size' in kwargs:
-      if isinstance(kwargs['size'], tuple): self._Nstars = kwargs['size']
-      else: self._Nstars = int(kwargs['size'])
+    elif 'size' in kwargs: self._Nstars = int(kwargs['size'])
     elif self.N == 0: raise UnspecifiedParameterException('If no lists are given then size must be specified.')
     else: pass
 
@@ -226,77 +242,56 @@ class Stars(MutableMapping):
     units = ['mass', 'length', 'velocity']
     unspecifiedParameterExceptions = ['Mass, m, must be specified.', 'Impact Parameter, b, must be specified.', 'Velocity, v, must be specified.']
 
+    _check_shape = None
     for k,u,upe in zip(keys, units, unspecifiedParameterExceptions):
       try:
         # Check to see if was key is given.
         value = kwargs[k]
-        # Assume value is ndarray and check if shape matches other key values.
-        if value.shape != self.shape and value.shape != (): raise ListLengthException(f'Difference of {value.shape} and {self.shape} for {k}.')
-        # Shape of value matches other key values, check if value is an ndarray.
+        # Check if length matches other key values.
+        if len(value) != self.N: raise ListLengthException(f'Difference of {len(value)} and {self.N} for {k}.')
+        # Length of value matches other key values, check if value is a list.
+        elif isinstance(value, list):
+          # Value is a list, try to turn list of Quantities into a ndarray Quantity.
+          try: quantityValue = _numpy.array([v.to(self.units[u]).value for v in value]) << self.units[u]
+          # Value was not a list of Quantities, turn list into ndarray and make a Quantity.
+          except: quantityValue = _numpy.array(value) << self.units[u]
+        # Value was not a list, check to see if value is an ndarray.
         elif isinstance(value, _numpy.ndarray):
           # Assume ndarray is a Quantity and try to convert ndarray into given units.
           try: quantityValue = value.to(self.units[u])
-          # ndarray is not a Quantity so add units to ndarray.
+          # ndarray is not a Quantity so turn ndarray into a Quantity.
           except: quantityValue = value << self.units[u]
-        # Value implements 'shape' attribute, but is not an ndarray.
+        # Value implements __len__, but is not a list or ndarray.
         else: raise IncompatibleListException()
       # This key is necessary and must be specified, raise and Exception.
       except KeyError: raise UnspecifiedParameterException(upe)
-      # Assumes no Attribute 'shape', likely a list was given instead of an ndarray.
-      except AttributeError:
-        # Assume value is a list, try to turn list of Quantities into a ndarray Quantity.
-        try:
-          # Assume a list and check if shape matches other key values.
-          if len(value) != self.N: 
-            # If the length doesn't match it could be because it is a nested list. Try casting as ndarray.
-            npval = _numpy.array(value)
-            if npval.shape != self.shape: raise ListLengthException(f'Difference of {npval.shape} and {self.shape} for {k}.')
-            # Assume ndarray is a Quantity and try to convert ndarray into given units.
-            try: quantityValue = npval.to(self.units[u])
-            # ndarray is not a Quantity so add units to ndarray.
-            except: quantityValue = npval << self.units[u]
-          # Length of value matches other key values, check if value is a list.
-          elif isinstance(value, list):
-            # Value is a list, try to turn list of Quantities into a ndarray Quantity.
-            try: quantityValue = _numpy.array([v.to(self.units[u]).value for v in value]) << self.units[u]
-            # Value was not a list of Quantities, turn list into ndarray and make a Quantity.
-            except: quantityValue = _numpy.array(value) << self.units[u]
-          # Value implements __len__, but is not a list or ndarray.
-          else: raise IncompatibleListException()
-        # Value is not a list (arrives from __len__ exception), so assume it is an int or float and generate an ndarray of the given value.
-        except TypeError: 
-          value = value.to(self.units[u]) if isQuantity(value) else value * self.units[u]
-          quantityValue = _numpy.ones(self.shape) * value
-        # Catch any additional Exceptions.
+      # Value is not a list, so assume it is an int or float and generate an ndarray of the given value.
+      except TypeError: 
+        value = value.to(self.units[u]) if isQuantity(value) else value * self.units[u]
+        quantityValue = _numpy.ones(self.N) * value
+      # Catch any additional Exceptions.
       except Exception as err: raise err
+      # Store Quantity Value as class property.
       if k == 'm': self._m = quantityValue
       elif k == 'b': self._b = quantityValue
       elif k == 'v': self._v = quantityValue
-      else: pass
+      else: raise InvalidKeyException()
+      # Double check for consistent shapes.
+      if _check_shape is not None:
+        if quantityValue.shape != _check_shape: raise ListLengthException(f'Difference of {quantityValue.shape} and {_check_shape} for {k}.')
+      else: _check_shape = quantityValue.shape
         
-    ### TODO: Update
     for k in ['inc', 'omega', 'Omega']:
       try:
         # Check to see if was key is given.
         value = kwargs[k]
-        # Assume value is ndarray and check if shape matches other key values.
-        if value.shape != self.shape and value.shape != (): raise ListLengthException(f'Difference of {value.shape} and {self.shape} for {k}.')
-        # Shape of value matches other key values, check if value is an ndarray.
-        elif isinstance(value, _numpy.ndarray):
-          # Assume ndarray is a Quantity and try to convert ndarray into given units.
-          try: quantityValue = value.to(self.units['angle'])
-          # ndarray is not a Quantity so add units to ndarray.
-          except: quantityValue = value << self.units['angle']
-        # Value implements 'shape' attribute, but is not an ndarray.
-        else: raise IncompatibleListException()
-      # Assumes no Attribute 'shape', likely a list was given instead of an ndarray.
-      except AttributeError:
           # Check to see if value for key is string.
         if isinstance(value, str):
           # Value is a string, check to see if value for key is valid.
           if value != 'uniform': raise InvalidValueForKeyException()
           # Value 'uniform' for key is valid, now generate an array of values for key.
-          quantityValue = (2.0*_numpy.pi * _uniform.rvs(size=self.shape) - _numpy.pi) * self.units['angle']
+          _shape = self.N if len(_check_shape) == 1 else _check_shape
+          quantityValue = (2.0*_numpy.pi * _uniform.rvs(size=_shape) - _numpy.pi) * self.units['angle']
         # Value is not a string, check if length matches other key values.
         elif len(value) != self.N: raise ListLengthException(f'Difference of {len(value)} and {self.N} for {k}.')
         # Length of value matches other key values, check if value is a list.
@@ -305,61 +300,34 @@ class Stars(MutableMapping):
           try: quantityValue = _numpy.array([v.to(self.units['angle']).value for v in value]) * self.units['angle']
           # Value was not a list of Quantities, turn list into ndarray and make a Quantity.
           except: quantityValue = _numpy.array(value) * self.units['angle']
+        # Value was not a list, check to see if value is an ndarray.
+        elif isinstance(value, _numpy.ndarray):
+          # Assume ndarray is a Quantity and try to convert ndarray into given units.
+          try: quantityValue = value.to(self.units['angle'])
+          # ndarray is not a Quantity so turn ndarray into a Quantity.
+          except: quantityValue = value * self.units['angle']
         # Value implements __len__, but is not a list or ndarray.
         else: raise IncompatibleListException()
-      # Value is not a list (arrives from __len__ exception), so assume it is an int or float and generate an ndarray of the given value.
+      # Key does not exist, assume the user wants an array of values to automatically be generated.
+      except KeyError: 
+        _shape = self.N if len(_check_shape) == 1 else _check_shape
+        quantityValue = (2.0*_numpy.pi * _uniform.rvs(size=_shape) - _numpy.pi) * self.units['angle']
+      # Value is not a list, so assume it is an int or float and generate an ndarray of the given value.
       except TypeError: 
         value = value.to(self.units['angle']) if isQuantity(value) else value * self.units['angle']
-        quantityValue = _numpy.ones(self.shape) * value
-      # Key does not exist, assume the user wants an array of values to automatically be generated.
-      except KeyError: quantityValue = (2.0*_numpy.pi * _uniform.rvs(size=self.shape) - _numpy.pi) * self.units['angle']
+        quantityValue = _numpy.ones(self.N) * value
       # Catch any additional Exceptions.
       except Exception as err: raise err
+      # Store Quantity Value as class property.
       if k == 'inc': self._inc = quantityValue
       elif k == 'omega': self._omega = quantityValue
       elif k == 'Omega': self._Omega = quantityValue
-      else: pass
+      else: raise InvalidKeyException()
+      # Double check for consistent shapes.
+      if _check_shape is not None:
+        if quantityValue.shape != _check_shape: raise ListLengthException(f'Difference of {quantityValue.shape} and {_check_shape} for {k}.')
+      else: _check_shape = quantityValue.shape
 
-
-      # try:
-      #   # Check to see if was key is given.
-      #   value = kwargs[k]
-      #     # Check to see if value for key is string.
-      #   if isinstance(value, str):
-      #     # Value is a string, check to see if value for key is valid.
-      #     if value != 'uniform': raise InvalidValueForKeyException()
-      #     # Value 'uniform' for key is valid, now generate an array of values for key.
-      #     quantityValue = (2.0*_numpy.pi * _uniform.rvs(size=self.N) - _numpy.pi) * self.units['angle']
-      #   # Value is not a string, check if length matches other key values.
-      #   elif len(value) != self.N: raise ListLengthException(f'Difference of {len(value)} and {self.N} for {k}.')
-      #   # Length of value matches other key values, check if value is a list.
-      #   elif isinstance(value, list):
-      #     # Value is a list, try to turn list of Quantities into a ndarray Quantity.
-      #     try: quantityValue = _numpy.array([v.to(self.units['angle']).value for v in value]) * self.units['angle']
-      #     # Value was not a list of Quantities, turn list into ndarray and make a Quantity.
-      #     except: quantityValue = _numpy.array(value) * self.units['angle']
-      #   # Value was not a list, check to see if value is an ndarray.
-      #   elif isinstance(value, _numpy.ndarray):
-      #     # Assume ndarray is a Quantity and try to convert ndarray into given units.
-      #     try: quantityValue = value.to(self.units['angle'])
-      #     # ndarray is not a Quantity so turn ndarray into a Quantity.
-      #     except: quantityValue = value * self.units['angle']
-      #   # Value implements __len__, but is not a list or ndarray.
-      #   else: raise IncompatibleListException()
-      # # Key does not exist, assume the user wants an array of values to automatically be generated.
-      # except KeyError: quantityValue = (2.0*_numpy.pi * _uniform.rvs(size=self.shape) - _numpy.pi) * self.units['angle']
-      # # Value is not a list, so assume it is an int or float and generate an ndarray of the given value.
-      # except TypeError: 
-      #   value = value.to(self.units['angle']) if isQuantity(value) else value * self.units['angle']
-      #   quantityValue = _numpy.ones(self.N) * value
-      # # Catch any additional Exceptions.
-      # except Exception as err: raise err
-
-      # if k == 'inc': self._inc = quantityValue
-      # elif k == 'omega': self._omega = quantityValue
-      # elif k == 'Omega': self._Omega = quantityValue
-      # else: pass
-  
   @property
   def N(self):
     if isinstance(self._Nstars, tuple):
@@ -367,17 +335,6 @@ class Stars(MutableMapping):
     else:
       return self._Nstars
   
-  @property
-  def shape(self):
-    if isinstance(self._Nstars, tuple):
-      return self._Nstars
-    else:
-      return (self._Nstars,)
-  
-  @property
-  def dim(self):
-    return self.shape
-
   @property
   def median_mass(self):
     return _numpy.median([mass.value for mass in self.m]) * self.units['mass']
@@ -398,40 +355,39 @@ class Stars(MutableMapping):
 
     # Allows for boolean array masking and indexing using a subset of indices.
     if isinstance(key, _numpy.ndarray):
-      if len(self.shape) > 1: 
-        print('Multi-dim Stars')
-        return Stars(m=self.m[key], b=self.b[key], v=self.v[key], inc=self.inc[key], omega=self.omega[key], Omega=self.Omega[key], UNIT_SYSTEM=self.units.UNIT_SYSTEM)
-      elif len(key.shape) == 1: 
-        print(f'{len(self.shape)} {self.shape} {key} {key.shape} {len(key.shape)} {key[0]} Single element requested')
-        return Star(m=self.m[key], b=self.b[key], v=self.v[key], inc=self.inc[key], omega=self.omega[key], Omega=self.Omega[key], UNIT_SYSTEM=self.units.UNIT_SYSTEM)
-      else: print(f'{len(self.shape)} {key} {key[0]} What now?'); pass
+      return Stars(m=self.m[key], b=self.b[key], v=self.v[key], inc=self.inc[key], omega=self.omega[key], Omega=self.Omega[key], UNIT_SYSTEM=self.units.UNIT_SYSTEM)
     
     # Allow for speed efficient slicing by returning a new set of Stars which are a subset of the original object.
     if isinstance(key, slice):
       # Check for number of elements returned by the slice.
       numEl = numberOfElementsReturnedBySlice(*key.indices(self.N))
-      # If the slice requests the entire set, then simply return the set.
-      if key == slice(None, None, None): return self #  !!! **Note: this is a reference to the same object.** !!!
+            # If the slice requests the entire set, then simply return the set.
+            # if key == slice(None, None, None): return self #  !!! **Note: this is a reference to the same object.** !!!
       # If there are no elements requested, return the empty set.
-      elif numEl == 0: return Stars(m=[], b=[], v=[], size=0)
+      if numEl == 0: return Stars(m=[], b=[], v=[], size=0)
       # If only one element is requested, return a set of Stars with only one Star.
-      elif numEl == 1 and len(self.shape) == 1: return Stars(m=self.m[key], b=self.b[key], v=self.v[key], inc=self.inc[key], omega=self.omega[key], Omega=self.Omega[key], UNIT_SYSTEM=self.units.UNIT_SYSTEM, size=1)
+      elif numEl == 1: return Stars(m=self.m[key], b=self.b[key], v=self.v[key], inc=self.inc[key], omega=self.omega[key], Omega=self.Omega[key], UNIT_SYSTEM=self.units.UNIT_SYSTEM, size=1)
       # Otherwise return a subset of the Stars defined by the slice.
       else: return Stars(m=self.m[key], b=self.b[key], v=self.v[key], inc=self.inc[key], omega=self.omega[key], Omega=self.Omega[key], UNIT_SYSTEM=self.units.UNIT_SYSTEM)
 
     # Allow for Numpy style array indexing.
     if isinstance(key, tuple):
+      # Check if Stars data is multi-dimensional.
+      if len(self.m.shape) == 1: raise IndexError(f'Too many indices: Stars are 1-dimensional, but {len(key)} were indexed.')
       # Check to see if the tuple has a slice.
       hasSlice = hasTrue([isinstance(k, slice) for k in key])
       if hasSlice:
         # Check the number of elements requested by the slice.
-        numEl = [numberOfElementsReturnedBySlice(*k.indices(self.shape[i])) if isinstance(k, slice) else 1 for i,k in enumerate(key)]
+        numEl = [numberOfElementsReturnedBySlice(*k.indices(self.m.shape[i])) if isinstance(k, slice) else 1 for i,k in enumerate(key)]
         # If there are no elements requested, return the empty set.
         if numEl.count(0) > 0: return Stars(m=[], b=[], v=[], size=0)
         # If multiple elements are requested, return a set of Stars.
         elif _numpy.any(_numpy.array(numEl) > 1): return Stars(m=self.m[key], b=self.b[key], v=self.v[key], inc=self.inc[key], omega=self.omega[key], Omega=self.Omega[key], UNIT_SYSTEM=self.units.UNIT_SYSTEM)
         # If only one element is requested, return a set of Stars with only one Star.
-        else: return Stars(m=self.m[key], b=self.b[key], v=self.v[key], inc=self.inc[key], omega=self.omega[key], Omega=self.Omega[key], size=1, UNIT_SYSTEM=self.units.UNIT_SYSTEM)
+        else:
+          # Check to see if the single element is an scalar or an array with only one element.
+          if self.m[key].isscalar: return Stars(m=self.m[key], b=self.b[key], v=self.v[key], inc=self.inc[key], omega=self.omega[key], Omega=self.Omega[key], size=1, UNIT_SYSTEM=self.units.UNIT_SYSTEM)
+          else: return Stars(m=self.m[key], b=self.b[key], v=self.v[key], inc=self.inc[key], omega=self.omega[key], Omega=self.Omega[key], UNIT_SYSTEM=self.units.UNIT_SYSTEM)
       # If there is no slice, the return the requested Star.
       else: return Star(m=self.m[key], b=self.b[key], v=self.v[key], inc=self.inc[key], omega=self.omega[key], Omega=self.Omega[key], UNIT_SYSTEM=self.units.UNIT_SYSTEM)
 
@@ -447,14 +403,51 @@ class Stars(MutableMapping):
     raise ValueError('Cannot delete Star elements from Stars array.')
 
   def __iter__(self):
-    _shape = self.shape
-    self.reshape((self.N,))
-    for i in range(self.N):
+    for i in list(_numpy.ndindex(self.m.shape)):
       yield Star(m=self.m[i], b=self.b[i], v=self.v[i], inc=self.inc[i], omega=self.omega[i], Omega=self.Omega[i], UNIT_SYSTEM=self.units.UNIT_SYSTEM)
-    self.reshape(_shape)
 
   def __len__(self):
-    return len(self.m)
+    return self.N
+  
+  def __eq__(self, other):
+    """Overrides the default implementation"""
+    if isinstance(other, Stars):
+        data = (_numpy.all(self.m == other.m) and _numpy.all(self.b == other.b) and _numpy.all(self.v == other.v) and _numpy.all(self.inc == other.inc) and _numpy.all(self.omega == other.omega) and _numpy.all(self.Omega == other.Omega))
+        properties = (self.N == other.N and self.units == other.units)
+        return data and properties
+    return NotImplemented
+  
+  def __ne__(self, other):
+    """Overrides the default implementation (unnecessary in Python 3)"""
+    x = self.__eq__(other)
+    if x is not NotImplemented:
+        return not x
+    return NotImplemented
+
+  def __hash__(self):
+    """Overrides the default implementation"""
+    data = []
+    for d in sorted(self.__dict__.items()):
+        try: data.append((d[0], tuple(d[1])))
+        except: data.append(d)
+    data = tuple(data)
+    return hash(data)
+  
+  def copy(self):
+    '''Returns a deep copy of the data.'''
+    return self[:]
+
+  def sort(self, key, sim=None, argsort=False):
+    '''Alias for `sortby`.'''
+    return self.sortby(key, sim, argsort)
+  
+  def argsort(self, key, sim=None):
+    '''Alias for `sortby(argsort=True)`.'''
+    return self.sortby(key, sim, argsort=True)
+  
+  def argsortby(self, key, sim=None):
+    '''Alias for `sortby(argsort=True)`.'''
+    return self.sortby(key, sim, argsort=True)
 
   def sortby(self, key, sim=None, argsort=False):
     '''
@@ -471,7 +464,7 @@ class Stars(MutableMapping):
     e: eccentricity (requires REBOUND Simulation)
 
     The Stars can also be sorted arbitrarily by providing a list of indices of length N.
-    By setting argsort=True the indices used to sort the Stars will be returned.
+    By setting argsort=True the indices used to sort the Stars will be returned instead.
     '''
 
     inds = _numpy.arange(self.N)
@@ -494,14 +487,14 @@ class Stars(MutableMapping):
       inds = _numpy.array(key)
     else: raise InvalidValueForKeyException()
 
-    self.m[:] = self.m[inds]
-    self.b[:] = self.b[inds]
-    self.v[:] = self.v[inds]
-    self.inc[:] = self.inc[inds]
-    self.omega[:] = self.omega[inds]
-    self.Omega[:] = self.Omega[inds]
-
     if argsort: return inds
+    else:
+      self.m[:] = self.m[inds]
+      self.b[:] = self.b[inds]
+      self.v[:] = self.v[inds]
+      self.inc[:] = self.inc[inds]
+      self.omega[:] = self.omega[inds]
+      self.Omega[:] = self.Omega[inds]
 
   def save(self, filename):
     with open(filename, 'wb') as pfile:
@@ -513,7 +506,7 @@ class Stars(MutableMapping):
 
   @property
   def m(self):
-    return self._m
+    return self._m << self.units['mass']
 
   @property
   def mass(self):
@@ -521,7 +514,7 @@ class Stars(MutableMapping):
   
   @property
   def b(self):
-    return self._b
+    return self._b << self.units['length']
 
   @property
   def impact_parameter(self):
@@ -529,7 +522,7 @@ class Stars(MutableMapping):
 
   @property
   def v(self):
-    return self._v
+    return self._v << self.units['velocity']
 
   @property
   def velocity(self):
@@ -537,23 +530,23 @@ class Stars(MutableMapping):
 
   @property
   def inc(self):
-    return self._inc
+    return self._inc << self.units['angle']
 
   @property
   def inclination(self):
     return self.inc
 
   @property
+  def omega(self):
+    return self._omega << self.units['angle']
+
+  @property
   def argument_periastron(self):
     return self.omega
 
   @property
-  def omega(self):
-    return self._omega
-
-  @property
   def Omega(self):
-    return self._Omega
+    return self._Omega << self.units['angle']
 
   @property
   def longitude_ascending_node(self):
@@ -562,14 +555,18 @@ class Stars(MutableMapping):
   @property
   def params(self):
     '''
-      Returns a list of the parameters of the Stars in order of:
+      Returns a list of the parameters of the Stars (with units) in order of:
       Mass, m; Impact Parameter, b; Velocity, v; Inclination, inc; Argument of the Periastron, omega; and Longitude of the Ascending Node, Omega
     '''
     return [self.m, self.b, self.v, self.inc, self.omega, self.Omega]
   
   @property
   def param_values(self):
-    return _numpy.array([self.m, self.b, self.v, self.inc, self.omega, self.Omega])
+    '''
+      Returns a list of the parameters of the Stars in order of:
+      Mass, m; Impact Parameter, b; Velocity, v; Inclination, inc; Argument of the Periastron, omega; and Longitude of the Ascending Node, Omega
+    '''
+    return _numpy.array([self.m.value, self.b.value, self.v.value, self.inc.value, self.omega.value, self.Omega.value])
  
   def e(self, sim):
     sim_units = rebound_units(sim)
@@ -588,30 +585,12 @@ class Stars(MutableMapping):
     star_e = _numpy.sqrt(1 + (numerator/mu)**2.)
     return self.b * _numpy.sqrt((star_e - 1.0)/(star_e + 1.0))
   
-  def reshape(self, shape):
-    self._m = self.m.reshape(shape)
-    self._b = self.b.reshape(shape)
-    self._v = self.v.reshape(shape)
-    self._inc = self.inc.reshape(shape)
-    self._omega = self.omega.reshape(shape)
-    self._Omega = self.Omega.reshape(shape)
-    self._Nstars = shape
-
-  def flatten(self):
-    self._m = self.m.flatten()
-    self._b = self.b.flatten()
-    self._v = self.v.flatten()
-    self._inc = self.inc.flatten()
-    self._omega = self.omega.flatten()
-    self._Omega = self.Omega.flatten()
-    self._Nstars = (self.N,)
-
   def stats(self, returned=False):
     ''' 
     Prints a summary of the current stats of the Stars object.
     '''
     s = f"<{self.__module__}.{type(self).__name__} object at {hex(id(self))}, "
-    s += f"N={self.N}, dim={self.shape}>"
+    s += f"N={self.N}{f', Environment={self._environment.name}' if self._environment is not None else ''}>" #units=[{', '.join([i.to_string() for i in self.units.UNIT_SYSTEM])}]
     if returned: return s
     else: print(s)
   
@@ -647,197 +626,3 @@ class InvalidValueForKeyException(Exception):
 class InvalidParameterTypeException(Exception):
   def __init__(self): super().__init__('The given parameter value is not a valid type.')
 
-
-
-    # try:
-    #   # Check to see if was key is given.
-    #   value = kwargs['m']
-    #   # Check if length matches other key values.
-    #   if value.shape != self.N: raise ListLengthException()
-    #   # Length of value matches other key values, check if value is a list.
-    #   elif isinstance(value, list):
-    #     # Value is a list, try to turn list of Quantities into a ndarray Quantity.
-    #     try: self._m = _numpy.array([v.to(self.units['mass']).value for v in value]) << self.units['mass']
-    #     # Value was not a list of Quantities, turn list into ndarray and make a Quantity.
-    #     except: self._m = _numpy.array(value) << self.units['mass']
-    #   # Value was not a list, check to see if value is an ndarray.
-    #   elif isinstance(value, _numpy.ndarray):
-    #     # Assume ndarray is a Quantity and try to convert ndarray into given units.
-    #     try: self._m = value.to(self.units['mass'])
-    #     # ndarray is not a Quantity so turn ndarray into a Quantity.
-    #     except: self._m = value << self.units['mass']
-    #   # Value implements __len__, but is not a list or ndarray.
-    #   else: raise IncompatibleListException()
-    # # This key is necessary and must be specified, raise and Exception.
-    # except KeyError: raise UnspecifiedParameterException('Mass, m, must be specified.')
-    # # Value is not a list, so assume it is an int or float and generate an ndarray of the given value.
-    # except TypeError: 
-    #   value = value.to(self.units['mass']) if isQuantity(value) else value * self.units['mass']
-    #   self._m = _numpy.ones(self.N) * value
-    # # Assume a list was given instead of an ndarray
-    # except AttributeError:
-    #   # Assume value is a list, try to turn list of Quantities into a ndarray Quantity.
-    #   try: self._m = _numpy.array([v.to(self.units['mass']).value for v in value]) << self.units['mass']
-    #   # Value was not a list of Quantities, turn list into ndarray and make a Quantity.
-    #   except: self._m = _numpy.array(value) << self.units['mass']
-    # # Catch any additional Exceptions.
-    # except Exception as err: raise err
-
-
-    # try:
-    #   # Check to see if was key is given.
-    #   value = kwargs['b']
-    #   # Check if length matches other key values.
-    #   if len(value) != self.N: raise ListLengthException()
-    #   # Length of value matches other key values, check if value is a list.
-    #   elif isinstance(value, list):
-    #     # Value is a list, try to turn list of Quantities into a ndarray Quantity.
-    #     try: self._b = _numpy.array([v.to(self.units['length']).value for v in value]) * self.units['length']
-    #     # Value was not a list of Quantities, turn list into ndarray and make a Quantity.
-    #     except: self._b = _numpy.array(value) * self.units['length']
-    #   # Value was not a list, check to see if value is an ndarray.
-    #   elif isinstance(value, _numpy.ndarray):
-    #     # Assume ndarray is a Quantity and try to convert ndarray into given units.
-    #     try: self._b = value.to(self.units['length'])
-    #     # ndarray is not a Quantity so turn ndarray into a Quantity.
-    #     except: self._b = value * self.units['length']
-    #   # Value implements __len__, but is not a list or ndarray.
-    #   else: raise IncompatibleListException()
-    # # This key is necessary and must be specified, raise and Exception.
-    # except KeyError: raise UnspecifiedParameterException('Impact Parameter, b, must be specified.')
-    # # Value is not a list, so assume it is an int or float and generate an ndarray of the given value.
-    # except TypeError: 
-    #   value = value.to(self.units['length']) if isQuantity(value) else value * self.units['length']
-    #   self._b = _numpy.ones(self.N) * value
-    # # Catch any additional Exceptions.
-    # except Exception as err: raise err
-
-    # try:
-    #   # Check to see if was key is given.
-    #   value = kwargs['v']
-    #   # Check if length matches other key values.
-    #   if len(value) != self.N: raise ListLengthException()
-    #   # Length of value matches other key values, check if value is a list.
-    #   elif isinstance(value, list):
-    #     # Value is a list, try to turn list of Quantities into a ndarray Quantity.
-    #     try: self._v = _numpy.array([v.to(self.units['velocity']).value for v in value]) * self.units['velocity']
-    #     # Value was not a list of Quantities, turn list into ndarray and make a Quantity.
-    #     except: self._v = _numpy.array(value) * self.units['velocity']
-    #   # Value was not a list, check to see if value is an ndarray.
-    #   elif isinstance(value, _numpy.ndarray):
-    #     # Assume ndarray is a Quantity and try to convert ndarray into given units.
-    #     try: self._v = value.to(self.units['velocity'])
-    #     # ndarray is not a Quantity so turn ndarray into a Quantity.
-    #     except: self._v = value * self.units['velocity']
-    #   # Value implements __len__, but is not a list or ndarray.
-    #   else: raise IncompatibleListException()
-    # # This key is necessary and must be specified, raise and Exception.
-    # except KeyError: raise UnspecifiedParameterException('Velocity, v, must be specified.')
-    # # Value is not a list, so assume it is an int or float and generate an ndarray of the given value.
-    # except TypeError: 
-    #   value = value.to(self.units['velocity']) if isQuantity(value) else value * self.units['velocity']
-    #   self._v = _numpy.ones(self.N) * value
-    # # Catch any additional Exceptions.
-    # except Exception as err: raise err
-
-    # try:
-    #   # Check to see if was key is given.
-    #   value = kwargs['inc']
-    #     # Check to see if value for key is string.
-    #   if isinstance(value, str):
-    #     # Value is a string, check to see if value for key is valid.
-    #     if value != 'uniform': raise InvalidValueForKeyException()
-    #     # Value 'uniform' for key is valid, now generate an array of values for key.
-    #     self._inc = (2.0*_numpy.pi * _uniform.rvs(size=self.N) - _numpy.pi) * self.units['angle']
-    #   # Value is not a string, check if length matches other key values.
-    #   elif len(value) != self.N: raise ListLengthException()
-    #   # Length of value matches other key values, check if value is a list.
-    #   elif isinstance(value, list):
-    #     # Value is a list, try to turn list of Quantities into a ndarray Quantity.
-    #     try: self._inc = _numpy.array([v.to(self.units['angle']).value for v in value]) * self.units['angle']
-    #     # Value was not a list of Quantities, turn list into ndarray and make a Quantity.
-    #     except: self._inc = _numpy.array(value) * self.units['angle']
-    #   # Value was not a list, check to see if value is an ndarray.
-    #   elif isinstance(value, _numpy.ndarray):
-    #     # Assume ndarray is a Quantity and try to convert ndarray into given units.
-    #     try: self._inc = value.to(self.units['angle'])
-    #     # ndarray is not a Quantity so turn ndarray into a Quantity.
-    #     except: self._inc = value * self.units['angle']
-    #   # Value implements __len__, but is not a list or ndarray.
-    #   else: raise IncompatibleListException()
-    # # Key does not exist, assume the user wants an array of values to automatically be generated.
-    # except KeyError: self._inc = (2.0*_numpy.pi * _uniform.rvs(size=self.N) - _numpy.pi) * self.units['angle']
-    # # Value is not a list, so assume it is an int or float and generate an ndarray of the given value.
-    # except TypeError: 
-    #   value = value.to(self.units['angle']) if isQuantity(value) else value * self.units['angle']
-    #   self._inc = _numpy.ones(self.N) * value
-    # # Catch any additional Exceptions.
-    # except Exception as err: raise err
-
-    # try:
-    #   # Check to see if was key is given.
-    #   value = kwargs['omega']
-    #     # Check to see if value for key is string.
-    #   if isinstance(value, str):
-    #     # Value is a string, check to see if value for key is valid.
-    #     if value != 'uniform': raise InvalidValueForKeyException()
-    #     # Value 'uniform' for key is valid, now generate an array of values for key.
-    #     self._omega = (2.0*_numpy.pi * _uniform.rvs(size=self.N) - _numpy.pi) * self.units['angle']
-    #   # Value is not a string, check if length matches other key values.
-    #   elif len(value) != self.N: raise ListLengthException()
-    #   # Length of value matches other key values, check if value is a list.
-    #   elif isinstance(value, list):
-    #     # Value is a list, try to turn list of Quantities into a ndarray Quantity.
-    #     try: self._omega = _numpy.array([v.to(self.units['angle']).value for v in value]) * self.units['angle']
-    #     # Value was not a list of Quantities, turn list into ndarray and make a Quantity.
-    #     except: self._omega = _numpy.array(value) * self.units['angle']
-    #   # Value was not a list, check to see if value is an ndarray.
-    #   elif isinstance(value, _numpy.ndarray):
-    #     # Assume ndarray is a Quantity and try to convert ndarray into given units.
-    #     try: self._omega = value.to(self.units['angle'])
-    #     # ndarray is not a Quantity so turn ndarray into a Quantity.
-    #     except: self._omega = value * self.units['angle']
-    #   # Value implements __len__, but is not a list or ndarray.
-    #   else: raise IncompatibleListException()
-    # # Key does not exist, assume the user wants an array of values to automatically be generated.
-    # except KeyError: self._omega = (2.0*_numpy.pi * _uniform.rvs(size=self.N) - _numpy.pi) * self.units['angle']
-    # # Value is not a list, so assume it is an int or float and generate an ndarray of the given value.
-    # except TypeError: 
-    #   value = value.to(self.units['angle']) if isQuantity(value) else value * self.units['angle']
-    #   self._omega = _numpy.ones(self.N) * value
-    # # Catch any additional Exceptions.
-    # except Exception as err: raise err
-
-    # try:
-    #   # Check to see if was key is given.
-    #   value = kwargs['Omega']
-    #     # Check to see if value for key is string.
-    #   if isinstance(value, str):
-    #     # Value is a string, check to see if value for key is valid.
-    #     if value != 'uniform': raise InvalidValueForKeyException()
-    #     # Value 'uniform' for key is valid, now generate an array of values for key.
-    #     self._Omega = (2.0*_numpy.pi * _uniform.rvs(size=self.N) - _numpy.pi) * self.units['angle']
-    #   # Value is not a string, check if length matches other key values.
-    #   elif len(value) != self.N: raise ListLengthException()
-    #   # Length of value matches other key values, check if value is a list.
-    #   elif isinstance(value, list):
-    #     # Value is a list, try to turn list of Quantities into a ndarray Quantity.
-    #     try: self._Omega = _numpy.array([v.to(self.units['angle']).value for v in value]) * self.units['angle']
-    #     # Value was not a list of Quantities, turn list into ndarray and make a Quantity.
-    #     except: self._Omega = _numpy.array(value) * self.units['angle']
-    #   # Value was not a list, check to see if value is an ndarray.
-    #   elif isinstance(value, _numpy.ndarray):
-    #     # Assume ndarray is a Quantity and try to convert ndarray into given units.
-    #     try: self._Omega = value.to(self.units['angle'])
-    #     # ndarray is not a Quantity so turn ndarray into a Quantity.
-    #     except: self._Omega = value * self.units['angle']
-    #   # Value implements __len__, but is not a list or ndarray.
-    #   else: raise IncompatibleListException()
-    # # Key does not exist, assume the user wants an array of values to automatically be generated.
-    # except KeyError: self._Omega = (2.0*_numpy.pi * _uniform.rvs(size=self.N) - _numpy.pi) * self.units['angle']
-    # # Value is not a list, so assume it is an int or float and generate an ndarray of the given value.
-    # except TypeError: 
-    #   value = value.to(self.units['angle']) if isQuantity(value) else value * self.units['angle']
-    #   self._Omega = _numpy.ones(self.N) * value
-    # # Catch any additional Exceptions.
-    # except Exception as err: raise err
