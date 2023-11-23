@@ -9,6 +9,7 @@ nav:
     - 'Basics': examples/basics.ipynb
     - 'IMF': examples/imf.ipynb
     - 'Stellar Environments': examples/stellar-environments.ipynb
+    - 'Multiple Flybys': examples/multiple-flybys.ipynb
     - 'Adiabatic Tests': examples/adiabatic-tests.ipynb
 
 theme:
