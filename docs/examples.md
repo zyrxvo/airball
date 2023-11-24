@@ -8,4 +8,5 @@ Examples are the easiest way to learn how to use AIRBALL. This page contains a l
 - [Basic flyby setups](basics/)
 - [Initial Mass Functions (IMFs)](imf/)
 - [Sampling the effects of different stellar environments](stellar-environments/)
+- [Comparing the differences between successive and concurrent flybys](multiple-flybys/)
 - [Adiabatic tests to verify the flyby results are accurate](adiabatic-tests/)
