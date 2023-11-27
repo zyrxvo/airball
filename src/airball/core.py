@@ -3,10 +3,9 @@ import numpy as _numpy
 import joblib as _joblib
 import warnings as _warnings
 import tempfile as _tempfile
-import ctypes as _ctypes
 
-from . import tools
-from . import units as u
+from . import tools as _tools
+from . import units as _u
 
 ############################################################
 ################# Flyby Helper Functions ###################
@@ -21,17 +20,17 @@ def _rotate_into_plane(sim, plane):
     if plane is not None:
         # Move the system into the chosen plane of reference. TODO: Make sure the angular momentum calculations don't include other flyby stars.
         if plane == 'invariable': rotation = _rebound.Rotation.to_new_axes(newz=sim.angular_momentum())
-        elif plane == 'ecliptic': rotation = _rebound.Rotation.to_new_axes(newz=tools.calculate_angular_momentum(sim)[3]) # Assumes Earth is particle 3. 0-Sun, 1-Mecury, 2-Venus, 3-Earth, ...
-        elif isinstance(plane, int_types): rotation = _rebound.Rotation.to_new_axes(newz=tools.calculate_angular_momentum(sim)[int(plane)])
+        elif plane == 'ecliptic': rotation = _rebound.Rotation.to_new_axes(newz=_tools.calculate_angular_momentum(sim)[3]) # Assumes Earth is particle 3. 0-Sun, 1-Mecury, 2-Venus, 3-Earth, ...
+        elif isinstance(plane, int_types): rotation = _rebound.Rotation.to_new_axes(newz=_tools.calculate_angular_momentum(sim)[int(plane)])
     sim.rotate(rotation)
     return rotation
 
 def add_star_to_sim(sim, star, hash, **kwargs):
     # Because REBOUND Simulations are C structs underneath Python, this function passes the simulation by reference.
 
-    units = tools.rebound_units(sim)
-    rmax = tools.verify_unit(kwargs.get('rmax', 1e5*u.au), units['length'])
-    stellar_elements, semilatus_rectum = tools.initial_conditions_from_stellar_params(sim, star, rmax)
+    units = _tools.rebound_units(sim)
+    rmax = _tools.verify_unit(kwargs.get('rmax', 1e5*_u.au), units['length'])
+    stellar_elements, semilatus_rectum = _tools.initial_conditions_from_stellar_params(sim, star, rmax)
 
     plane = kwargs.get('plane')
     if plane is not None: rotation = _rotate_into_plane(sim, plane)
@@ -56,21 +55,20 @@ def remove_star_from_sim(sim, hash):
     sim.move_to_com() # Readjust the system back into the centre of mass/momentum frame for integrating.
     # Because REBOUND Simulations are C structs underneath Python, this function passes the simulation by reference.
 
-def time_to_periapsis_from_crossover_point(sim, sim_units, crossoverFactor, index, star_elements):
+def _time_to_periapsis_from_crossover_point(sim, sim_units, crossoverFactor, index, star_elements):
     '''
         Compute the time to periapsis from crossover point.
     '''
     rCrossOver = crossoverFactor * sim.particles[index].a * sim_units['length'] # This is the distance to switch integrators
-    q = -star_elements['a'] * (star_elements['e']-1)
-    print(q, rCrossOver, star_elements)
+    q = star_elements['a'] * (1 - star_elements['e'])
     if q < rCrossOver:
         f = _numpy.arccos((star_elements['l']/rCrossOver-1.)/star_elements['e']) # Compute the true anomaly for the cross-over point.
 
         G = (sim.G * sim_units['length']**3 / sim_units['mass'] / sim_units['time']**2)
-        mu = G * (tools.system_mass(sim) * sim_units['mass'] + star_elements['m'])
+        mu = G * (_tools.system_mass(sim) * sim_units['mass'] + star_elements['m'])
 
         # Compute the time to periapsis from the switching point (-a because the semi-major axis is negative).
-        with u.set_enabled_equivalencies(u.dimensionless_angles()):
+        with _u.set_enabled_equivalencies(_u.dimensionless_angles()):
             E = _numpy.arccosh((_numpy.cos(f)+star_elements['e'])/(1.+star_elements['e']*_numpy.cos(f))) # Compute the eccentric anomaly
             M = star_elements['e'] * _numpy.sinh(E)-E # Compute the mean anomaly
         return True, M/_numpy.sqrt(mu/(-star_elements['a']*star_elements['a']*star_elements['a']))
@@ -78,12 +76,12 @@ def time_to_periapsis_from_crossover_point(sim, sim_units, crossoverFactor, inde
 
 # old signature flyby(sim, star=None, m=0.3, b=1000, v=40,  e=None, inc='uniform', omega='uniform', Omega='uniform', rmax=2.5e5, hybrid=True, crossoverFactor=30, overwrite=False):
 
-def integrate_with_ias15(sim, tmax):
+def _integrate_with_ias15(sim, tmax):
     sim.integrator = 'ias15'
     sim.gravity = 'basic'
     sim.integrate(tmax)
 
-def integrate_with_whckl(sim, tmax, dt, dt_frac):
+def _integrate_with_whckl(sim, tmax, dt, dt_frac):
     sim.integrator = 'whckl'
     sim.ri_whfast.safe_mode = 0
     sim.ri_whfast.recalculate_coordinates_this_timestep = 1
@@ -103,9 +101,9 @@ def hybrid_flyby(sim, star, **kwargs):
         Simulate a stellar flyby to a REBOUND simulation.
 
         Because REBOUND Simulations are C structs underneath the Python, this function can pass the simulation by reference.
-        This can be done by specifying overwrite=True. Meaning, any changes made inside this function to the REBOUND simulation are permanent.
-        This function assumes that you are using a WHFAST integrator with REBOUND.
-        Uses IAS15 (instead of WHFast) for the closest approach if b < planet_a * crossoverFactor
+        Meaning, any changes made inside this function to the REBOUND simulation are permanent. This can be avoided by specifying overwrite=False.
+        This function assumes that you are using the WHCKL integrator with REBOUND.
+        Uses IAS15 (instead of WHCKL) for the closest approach if b < planet_a * crossoverFactor
 
         Parameters
         ----------
@@ -117,21 +115,20 @@ def hybrid_flyby(sim, star, **kwargs):
         particle_index: the particle index to consider for the crossoverFactor. Default is 1.
         overwrite: determines whether or not to return a copy of sim (overwrite=False) or integrate using the original sim (overwrite=True)
         integrator: sets the integrator for before and after the hybrid switch (for example, if you want to use WHCKL instead of WHFast)
-        heartbeat: sets a heartbeat function
         plane: String/Int. The plane defining the orientation of the star, None, 'invariable', 'ecliptic', or Int. Default is None.
     '''
 
-    overwrite = kwargs.get('overwrite', False)
+    overwrite = kwargs.get('overwrite', True)
     if not overwrite: sim = sim.copy()
     hash = kwargs.get('hash', 'flybystar')
-    sim_units = tools.rebound_units(sim)
+    sim_units = _tools.rebound_units(sim)
 
-    star_vars = add_star_to_sim(sim, star, rmax=kwargs.get('rmax', 1e5*u.au), plane=kwargs.get('plane'), hash=hash)
+    star_vars = add_star_to_sim(sim, star, rmax=kwargs.get('rmax', 1e5*_u.au), plane=kwargs.get('plane'), hash=hash)
 
     tperi = sim.particles[hash].T - sim.t # Compute the time to periapsis for the flyby star from the current time.
 
     # Integrate the flyby. Start at the current time and go to twice the time to periapsis.
-    switch, tIAS15 = time_to_periapsis_from_crossover_point(sim, sim_units, crossoverFactor=kwargs.get('crossoverFactor', 30), index=kwargs.get('particle_index', 1), star_elements=star_vars)
+    switch, tIAS15 = _time_to_periapsis_from_crossover_point(sim, sim_units, crossoverFactor=kwargs.get('crossoverFactor', 30), index=kwargs.get('particle_index', 1), star_elements=star_vars)
     if switch:
         t_switch = sim.t + tperi - tIAS15.value
         t_switch_back = sim.t + tperi + tIAS15.value
@@ -140,11 +137,11 @@ def hybrid_flyby(sim, star, **kwargs):
         dt = sim.dt
         dt_frac = sim.dt/sim.particles[1].P
 
-        integrate_with_whckl(sim, t_switch, dt, dt_frac)
-        integrate_with_ias15(sim, t_switch_back)
-        integrate_with_whckl(sim, t_end, dt, dt_frac)
+        _integrate_with_whckl(sim, t_switch, dt, dt_frac)
+        _integrate_with_ias15(sim, t_switch_back)
+        _integrate_with_whckl(sim, t_end, dt, dt_frac)
 
-    else: integrate_with_whckl(sim, tmax=(sim.t + 2*tperi), dt=sim.dt, dt_frac=sim.dt/sim.particles[1].P)
+    else: _integrate_with_whckl(sim, tmax=(sim.t + 2*tperi), dt=sim.dt, dt_frac=sim.dt/sim.particles[1].P)
 
     # Remove the flyby star.
     remove_star_from_sim(sim, hash=hash)
@@ -165,13 +162,15 @@ def hybrid_flybys(sims, stars, **kwargs):
         crossoverFactor : Float.
             The value for when to switch to IAS15 as a multiple of sim.particles[1].a Default is 30.
         overwrite : True/False.
-            Sets whether or not to return new simulation objects or overwrite the given ones. Default is False.
+            Sets whether or not to return new simulation objects or overwrite the given ones. Default is True, meaning the same simulation object will be returned. This keeps all original pointers attached to it.
         rmax : Float.
             The starting distance of the flyby object (in units of the REBOUND Simulation). Default is 1e5.
         plane : String/Int.
             The plane defining the orientation of the star, None, 'invariable', 'ecliptic', or Int. Default is None.
         particle_index : Int.
             The simulation particle index to define the crossoverFactor with respect to. Default is 1.
+        hashes : array_like.
+            A list of hash values for adding and removing stars from simulations. Default is 'flybystar'.
 
         inds : array_like
             An array of indices to determine which sims and stars to integrate. Default is all of them.
@@ -195,19 +194,24 @@ def hybrid_flybys(sims, stars, **kwargs):
 
     try:
         rmax = kwargs['rmax']
-        if not tools.isList(rmax): rmax = Nruns * [rmax]
+        if not _tools.isList(rmax): rmax = Nruns * [rmax]
         elif len(rmax) != Nruns: raise Exception('List arguments must be same length.')
     except KeyError: rmax = Nruns * [1e5]
 
     try:
         crossoverFactor = kwargs['crossoverFactor']
-        if not tools.isList(crossoverFactor): crossoverFactor = Nruns * [crossoverFactor]
+        if not _tools.isList(crossoverFactor): crossoverFactor = Nruns * [crossoverFactor]
         elif len(crossoverFactor) != Nruns: raise Exception('List arguments must be same length.')
     except KeyError: crossoverFactor = Nruns * [30]
 
-    heartbeat = kwargs.get('heartbeat', None)
+    try:
+        hashes = kwargs['hashes']
+        if not _tools.isList(hashes): hashes = Nruns * [hashes]
+        elif len(hashes) != Nruns: raise Exception('List arguments must be same length.')
+    except KeyError: hashes = Nruns * ['flybystar']
+
     inds = kwargs.get('inds', _numpy.arange(Nruns))
-    overwrite = kwargs.get('overwrite', False)
+    overwrite = kwargs.get('overwrite', True)
     n_jobs = kwargs.get('n_jobs', -1)
     verbose = kwargs.get('verbose', 0)
     particle_index = kwargs.get('particle_index', 1)
@@ -215,149 +219,17 @@ def hybrid_flybys(sims, stars, **kwargs):
 
     sim_results = _joblib.Parallel(n_jobs=n_jobs, verbose=verbose)(
     _joblib.delayed(hybrid_flyby)(
-        sim=sims[int(i)], star=stars[i], rmax=rmax[i], crossoverFactor=crossoverFactor[i], overwrite=overwrite, particle_index=particle_index, plane=plane, heartbeat=heartbeat)
+        sim=sims[int(i)], star=stars[i], rmax=rmax[i], crossoverFactor=crossoverFactor[i], overwrite=overwrite, particle_index=particle_index, plane=plane, hash=hashes[i])
     for i in inds)
 
     return sim_results
-
-
-def hybrid_successive_flybys(sim, stars, rmax=1e5, crossoverFactor=30, overwrite=False, heartbeat=None, particle_index=1, plane=None):
-    '''
-        Simulate a stellar flyby to a REBOUND simulation.
-
-        Because REBOUND Simulations are C structs underneath the Python, this function can pass the simulation by reference.
-        This can be done by specifying overwrite=True. Meaning, any changes made inside this function to the REBOUND simulation are permanent.
-        This function assumes that you are using a WHFAST integrator with REBOUND.
-        Uses IAS15 (instead of WHFast) for the closest approach if b < planet_a * crossoverFactor
-
-        Parameters
-        ----------
-        sim : the REBOUND Simulation (star and planets) that will experience the flyby star
-        star: a AIRBALL Star object
-
-        rmax : the starting distance of the flyby star in units of AU
-        crossoverFactor: the value for when to switch integrators if hybrid=True
-        overwrite: determines whether or not to return a copy of sim (overwrite=False) or integrate using the original sim (overwrite=True)
-        integrator: sets the integrator for before and after the hybrid switch (for example, if you want to use WHCKL instead of WHFast)
-        heartbeat: sets a heartbeat function
-        plane: String/Int. The plane defining the orientation of the star, None, 'invariable', 'ecliptic', or Int. Default is None.
-    '''
-
-    # Do not overwrite given sim.
-    if not overwrite: sim = sim.copy()
-    if heartbeat is not None: sim.heartbeat = heartbeat
-    sim_units = tools.rebound_units(sim)
-
-    output = None
-    with _tempfile.NamedTemporaryFile() as tmp:
-        sim.simulationarchive_snapshot(tmp.name, deletefile=True)
-        for star_number, star in enumerate(stars):
-            index = int(particle_index)
-            hash = f'flybystar{star_number}'
-            star_vars = add_star_to_sim(sim, star, rmax=rmax, plane=plane, hash=hash)
-
-            tperi = sim.particles[hash].T - sim.t # Compute the time to periapsis for the flyby star from the current time.
-
-            # Integrate the flyby. Start at the current time and go to twice the time to periapsis.
-            switch, tIAS15 = time_to_periapsis_from_crossover_point(sim, sim_units, crossoverFactor, index, star_vars)
-            if switch:
-                t_switch = sim.t + tperi - tIAS15.value
-                t_switch_back = sim.t + tperi + tIAS15.value
-                t_end = sim.t + 2*tperi
-
-                dt = sim.dt
-                dt_frac = sim.dt/sim.particles[1].P
-
-                integrate_with_whckl(sim, t_switch, dt, dt_frac)
-                sim.simulationarchive_snapshot(tmp.name, deletefile=False)
-                integrate_with_ias15(sim, t_switch_back)
-                sim.simulationarchive_snapshot(tmp.name, deletefile=False)
-                integrate_with_whckl(sim, t_end, dt, dt_frac)
-
-            else: integrate_with_whckl(sim, tmax=(sim.t + 2*tperi), dt=sim.dt, dt_frac=sim.dt/sim.particles[1].P)
-
-            # Remove the flyby star.
-            remove_star_from_sim(sim, hash=hash)
-            sim.simulationarchive_snapshot(tmp.name, deletefile=False)
-        output = _rebound.SimulationArchive(tmp.name)
-    return output
-
-def hybrid_successive_flybys_parallel(sims, stars, **kwargs):
-    '''
-        Run serial flybys in parallel.
-
-        Parameters
-        ---------------
-        sims : A list of REBOUND Simulations.
-            REBOUND simulations to integrate flybys with. If only one simulation is given, then AIRBALL will duplicate it to match the number of Stars given. Required.
-        stars : A list of AIRBALL Stars.
-            The objects that will flyby the given REBOUND simulations. Required.
-
-        crossoverFactor : Float.
-            The value for when to switch to IAS15 as a multiple of sim.particles[1].a Default is 30.
-        overwrite : True/False.
-            Sets whether or not to return new simulation objects or overwrite the given ones. Default is False.
-        rmax : Float.
-            The starting distance of the flyby object (in units of the REBOUND Simulation). Default is 1e5.
-        plane : String/Int.
-            The plane defining the orientation of the star, None, 'invariable', 'ecliptic', or Int. Default is None.
-        particle_index : Int.
-            The simulation particle index to define the crossoverFactor with respect to. Default is 1.
-
-        inds : array_like
-            An array of indices to determine which sims and stars to integrate. Default is all of them.
-        n_jobs : Integer.
-            The number of jobs per CPU to run in parallel. Default is -1.
-        verbose : Integer.
-            The amount of details to display for the parallel jobs. Default is 0.
-
-        Returns
-        -------------
-        hybrid_flybys : list
-            List of REBOUND simulations that experienced a flyby.
-    '''
-    Nruns = 0
-    try:
-        Nruns = len(sims)
-        if Nruns != len(stars): raise Exception('Sims and stars are unequal lengths')
-    except Exception as err:
-        # TypeError: object of type 'Simulation' has no len()
-        raise err
-
-    try:
-        rmax = kwargs['rmax']
-        if not tools.isList(rmax): rmax = Nruns * [rmax]
-        elif len(rmax) != Nruns: raise Exception('List arguments must be same length.')
-    except KeyError: rmax = Nruns * [1e5]
-
-    try:
-        crossoverFactor = kwargs['crossoverFactor']
-        if not tools.isList(crossoverFactor): crossoverFactor = Nruns * [crossoverFactor]
-        elif len(crossoverFactor) != Nruns: raise Exception('List arguments must be same length.')
-    except KeyError: crossoverFactor = Nruns * [30]
-
-    heartbeat = kwargs.get('heartbeat', None)
-    inds = kwargs.get('inds', _numpy.arange(Nruns))
-    overwrite = kwargs.get('overwrite', False)
-    n_jobs = kwargs.get('n_jobs', -1)
-    verbose = kwargs.get('verbose', 0)
-    particle_index = kwargs.get('particle_index', 1)
-    plane = kwargs.get('plane', None)
-
-    sim_results = _joblib.Parallel(n_jobs=n_jobs, verbose=verbose)(
-    _joblib.delayed(hybrid_successive_flybys)(
-        sim=sims[int(i)], stars=stars[int(i)], rmax=rmax[i], crossoverFactor=crossoverFactor[i], overwrite=overwrite,  particle_index=particle_index, plane=plane, heartbeat=heartbeat)
-    for i in inds)
-
-    return sim_results
-
 
 def flyby(sim, star, **kwargs):
     '''
         Simulate a stellar flyby to a REBOUND simulation.
 
         Because REBOUND Simulations are C structs underneath the Python, this function can pass the simulation by reference.
-        This can be done by specifying overwrite=True. Meaning, any changes made inside this function to the REBOUND simulation are permanent.
+        Meaning, any changes made inside this function to the REBOUND simulation are permanent. This can be avoided by specifying overwrite=False.
         This function assumes that you are using a WHFAST integrator with REBOUND.
 
         Parameters
@@ -372,10 +244,10 @@ def flyby(sim, star, **kwargs):
     '''
     if kwargs.get('hybrid', False): return hybrid_flyby(sim, star, **kwargs)
     else:
-        overwrite = kwargs.get('overwrite', False)
+        overwrite = kwargs.get('overwrite', True)
         if not overwrite: sim = sim.copy()
         hash = kwargs.get('hash', 'flybystar')
-        add_star_to_sim(sim, star, hash, rmax=kwargs.get('rmax', 1e5*u.au), plane=kwargs.get('plane'))
+        add_star_to_sim(sim, star, hash, rmax=kwargs.get('rmax', 1e5*_u.au), plane=kwargs.get('plane'))
         tperi = sim.particles[hash].T - sim.t # Compute the time to periapsis for the flyby star from the current time.
         sim.integrate(sim.t + 2*tperi)
         remove_star_from_sim(sim, hash)
@@ -393,7 +265,7 @@ def flybys(sims, stars, **kwargs):
             The objects that will flyby the given REBOUND simulations. Required.
 
         overwrite : True/False.
-            Sets whether or not to return new simulation objects or overwrite the given ones. Default is False.
+            Sets whether or not to return new simulation objects or overwrite the given ones. Default is True, meaning the same simulation object will be returned. This keeps all original pointers attached to it.
         rmax : Float.
             The starting distance of the flyby object (in units of the REBOUND Simulation). Default is 1e5.
         plane : String/Int.
@@ -424,13 +296,15 @@ def flybys(sims, stars, **kwargs):
 
     try:
         rmax = kwargs['rmax']
-        if not tools.isList(rmax): rmax = Nruns * [rmax]
-        elif len(rmax) != Nruns: raise Exception('List arguments must be same length.')
-    except KeyError: rmax = Nruns * [1e5]
+        rmax = _tools.verify_unit(rmax, _u.au)
+        if len(rmax.shape) == 0: rmax = _numpy.array(stars.N * [rmax.value]) << rmax.unit
+        elif len(rmax) != stars.N: raise Exception('List arguments must be same length.')
+    except KeyError: rmax = _numpy.array(Nruns * [1e5]) << _u.au
+    if _numpy.any(stars.b > rmax): raise Exception('Some stellar impact parameters are greater than the stellar starting distance, rmax.')
 
     heartbeat = kwargs.get('heartbeat', None)
     inds = kwargs.get('inds', _numpy.arange(Nruns))
-    overwrite = kwargs.get('overwrite', False)
+    overwrite = kwargs.get('overwrite', True)
     n_jobs = kwargs.get('n_jobs', -1)
     verbose = kwargs.get('verbose', 0)
     plane = kwargs.get('plane', None)
@@ -447,7 +321,7 @@ def successive_flybys(sim, stars, **kwargs):
         Simulate a stellar flyby to a REBOUND simulation.
 
         Because REBOUND Simulations are C structs underneath the Python, this function can pass the simulation by reference.
-        This can be done by specifying overwrite=True. Meaning, any changes made inside this function to the REBOUND simulation are permanent.
+        Meaning, any changes made inside this function to the REBOUND simulation are permanent. This can be avoided by specifying overwrite=False.
         This function assumes that you are using a WHFAST integrator with REBOUND.
         Uses IAS15 (instead of WHFast) for the closest approach if b < planet_a * crossoverFactor
 
@@ -465,12 +339,15 @@ def successive_flybys(sim, stars, **kwargs):
     '''
 
     # Do not overwrite given sim.
-    overwrite = kwargs.get('overwrite', False)
-    if not overwrite: sim = sim.copy()
-    ## TODO: This is currently not holding onto the C-heartbeat correctly.
-    for star in stars:
-        if overwrite: flyby(sim, star, **kwargs)
-        else: sim = flyby(sim, star, **kwargs)
+    overwrite = kwargs.get('overwrite', True)
+    if overwrite == False: 
+        hb = sim.heartbeat
+        sim = sim.copy()
+        sim.heartbeat = hb
+    hashes = kwargs.get('hashes', [f'flybystar{i}' for i in range(stars.N)])
+    for i,star in enumerate(stars):
+        if overwrite == True: flyby(sim, star, hash=hashes[i], **kwargs)
+        else:  sim = flyby(sim, star, hash=hashes[i], **kwargs)
     return sim
 
 def concurrent_flybys(sim, stars, start_times, **kwargs):
@@ -478,8 +355,7 @@ def concurrent_flybys(sim, stars, start_times, **kwargs):
         Simulate a stellar flyby to a REBOUND simulation.
 
         Because REBOUND Simulations are C structs underneath the Python, this function can pass the simulation by reference.
-        This can be done by specifying overwrite=True. Meaning, any changes made inside this function to the REBOUND simulation are permanent.
-        This function uses adaptive_mode = 2 of the IAS15 integrator with REBOUND.
+        Meaning, any changes made inside this function to the REBOUND simulation are permanent. This can be avoided by specifying overwrite=False.
 
         Parameters
         ----------
@@ -491,22 +367,24 @@ def concurrent_flybys(sim, stars, start_times, **kwargs):
         overwrite: determines whether or not to return a copy of sim (overwrite=False) or integrate using the original sim (overwrite=True)
         plane: String/Int. The plane defining the orientation of the star, None, 'invariable', 'ecliptic', or Int. Default is None.
     '''
-    _warnings.warn("Integrating flybys concurrently may give unintuitive results. Use with caution.", RuntimeWarning)
+    message = "Integrating flybys concurrently may give unintuitive results. Use with caution."
+    _warnings.warn(message, RuntimeWarning)
 
     # Do not overwrite given sim.
-    overwrite = kwargs.get('overwrite', False)
+    overwrite = kwargs.get('overwrite', True)
     if not overwrite: sim = sim.copy()
-    sim_units = tools.rebound_units(sim)
+    sim_units = _tools.rebound_units(sim)
 
-    rmax = kwargs.get('rmax', 1e5*u.au)
+    rmax = kwargs.get('rmax', 1e5*_u.au)
     plane = kwargs.get('plane')
-    start_times = tools.verify_unit(start_times, sim_units['time']).value
+    start_times = _tools.verify_unit(start_times, sim_units['time']).value
+    hashes = kwargs.get('hashes', [f'flybystar{i}' for i in range(stars.N)])
 
     # Using the sim and the start times, compute the end times for the flyby stars.
     all_times = _numpy.zeros((stars.N, 2))
     for star_number, star in enumerate(stars):
         tmp_sim = sim.copy()
-        hash = f'flybystar{star_number}'
+        hash = hashes[star_number]
         add_star_to_sim(tmp_sim, star, hash=hash, rmax=rmax, plane=plane)
         # Compute the time to periapsis for the flyby star from the current simulation time.
         tperi = tmp_sim.particles[hash].T - tmp_sim.t 
@@ -524,12 +402,75 @@ def concurrent_flybys(sim, stars, start_times, **kwargs):
         event_index = event_order[event_number]
         star_number = event_index//2
         sim.integrate(all_times[event_index])
-        if event_index%2 == 0: add_star_to_sim(sim, stars[star_number], hash=f'flybystar{star_number}', rmax=rmax, plane=plane)
-        else: remove_star_from_sim(sim, hash=f'flybystar{star_number}')
+        if event_index%2 == 0: add_star_to_sim(sim, stars[star_number], hash=hashes[star_number], rmax=rmax, plane=plane)
+        else: remove_star_from_sim(sim, hash=hashes[star_number])
         event_number += 1
     return sim
 
-def hybrid_successive_flybys_parallel(sims, stars, **kwargs):
+
+
+def _hybrid_successive_flybys(sim, stars, rmax=1e5, crossoverFactor=30, overwrite=False, heartbeat=None, particle_index=1, plane=None):
+    '''
+        Simulate a stellar flyby to a REBOUND simulation.
+
+        Because REBOUND Simulations are C structs underneath the Python, this function can pass the simulation by reference.
+        Meaning, any changes made inside this function to the REBOUND simulation are permanent. This can be avoided by specifying overwrite=False.
+        This function assumes that you are using a WHFAST integrator with REBOUND.
+        Uses IAS15 (instead of WHFast) for the closest approach if b < planet_a * crossoverFactor
+
+        Parameters
+        ----------
+        sim : the REBOUND Simulation (star and planets) that will experience the flyby star
+        star: a AIRBALL Star object
+
+        rmax : the starting distance of the flyby star in units of AU
+        crossoverFactor: the value for when to switch integrators if hybrid=True
+        overwrite: determines whether or not to return a copy of sim (overwrite=False) or integrate using the original sim (overwrite=True)
+        integrator: sets the integrator for before and after the hybrid switch (for example, if you want to use WHCKL instead of WHFast)
+        heartbeat: sets a heartbeat function
+        plane: String/Int. The plane defining the orientation of the star, None, 'invariable', 'ecliptic', or Int. Default is None.
+    '''
+
+    # Do not overwrite given sim.
+    if not overwrite: sim = sim.copy()
+    if heartbeat is not None: sim.heartbeat = heartbeat
+    sim_units = _tools.rebound_units(sim)
+
+    output = None
+    with _tempfile.NamedTemporaryFile() as tmp:
+        sim.simulationarchive_snapshot(tmp.name, deletefile=True)
+        for star_number, star in enumerate(stars):
+            index = int(particle_index)
+            hash = f'flybystar{star_number}'
+            star_vars = add_star_to_sim(sim, star, rmax=rmax, plane=plane, hash=hash)
+
+            tperi = sim.particles[hash].T - sim.t # Compute the time to periapsis for the flyby star from the current time.
+
+            # Integrate the flyby. Start at the current time and go to twice the time to periapsis.
+            switch, tIAS15 = _time_to_periapsis_from_crossover_point(sim, sim_units, crossoverFactor, index, star_vars)
+            if switch:
+                t_switch = sim.t + tperi - tIAS15.value
+                t_switch_back = sim.t + tperi + tIAS15.value
+                t_end = sim.t + 2*tperi
+
+                dt = sim.dt
+                dt_frac = sim.dt/sim.particles[1].P
+
+                _integrate_with_whckl(sim, t_switch, dt, dt_frac)
+                sim.simulationarchive_snapshot(tmp.name, deletefile=False)
+                _integrate_with_ias15(sim, t_switch_back)
+                sim.simulationarchive_snapshot(tmp.name, deletefile=False)
+                _integrate_with_whckl(sim, t_end, dt, dt_frac)
+
+            else: _integrate_with_whckl(sim, tmax=(sim.t + 2*tperi), dt=sim.dt, dt_frac=sim.dt/sim.particles[1].P)
+
+            # Remove the flyby star.
+            remove_star_from_sim(sim, hash=hash)
+            sim.simulationarchive_snapshot(tmp.name, deletefile=False)
+        output = _rebound.SimulationArchive(tmp.name)
+    return output
+
+def _hybrid_successive_flybys_parallel(sims, stars, **kwargs):
     '''
         Run serial flybys in parallel.
 
@@ -543,7 +484,7 @@ def hybrid_successive_flybys_parallel(sims, stars, **kwargs):
         crossoverFactor : Float.
             The value for when to switch to IAS15 as a multiple of sim.particles[1].a Default is 30.
         overwrite : True/False.
-            Sets whether or not to return new simulation objects or overwrite the given ones. Default is False.
+            Sets whether or not to return new simulation objects or overwrite the given ones. Default is True, meaning the same simulation object will be returned. This keeps all original pointers attached to it.
         rmax : Float.
             The starting distance of the flyby object (in units of the REBOUND Simulation). Default is 1e5.
         plane : String/Int.
@@ -576,37 +517,37 @@ def hybrid_successive_flybys_parallel(sims, stars, **kwargs):
 
     try:
         rmax = kwargs['rmax']
-        if not tools.isList(rmax): rmax = Nruns * [rmax]
+        if not _tools.isList(rmax): rmax = Nruns * [rmax]
         elif len(rmax) != Nruns: raise Exception('List arguments must be same length.')
     except KeyError: rmax = Nruns * [1e5]
 
     try:
         crossoverFactor = kwargs['crossoverFactor']
-        if not tools.isList(crossoverFactor): crossoverFactor = Nruns * [crossoverFactor]
+        if not _tools.isList(crossoverFactor): crossoverFactor = Nruns * [crossoverFactor]
         elif len(crossoverFactor) != Nruns: raise Exception('List arguments must be same length.')
     except KeyError: crossoverFactor = Nruns * [30]
 
     heartbeat = kwargs.get('heartbeat', None)
     inds = kwargs.get('inds', _numpy.arange(Nruns))
-    overwrite = kwargs.get('overwrite', False)
+    overwrite = kwargs.get('overwrite', True)
     n_jobs = kwargs.get('n_jobs', -1)
     verbose = kwargs.get('verbose', 0)
     particle_index = kwargs.get('particle_index', 1)
     plane = kwargs.get('plane', None)
 
     sim_results = _joblib.Parallel(n_jobs=n_jobs, verbose=verbose)(
-    _joblib.delayed(hybrid_successive_flybys)(
+    _joblib.delayed(_hybrid_successive_flybys)(
         sim=sims[int(i)], stars=stars[int(i)], rmax=rmax[i], crossoverFactor=crossoverFactor[i], overwrite=overwrite,  particle_index=particle_index, plane=plane, heartbeat=heartbeat)
     for i in inds)
 
     return sim_results
 
-def hybrid_concurrent_flybys(sim, stars, times, rmax=1e5, crossoverFactor=30, overwrite=False, heartbeat=None, particle_index=1, plane=None, verbose=False):
+def _hybrid_concurrent_flybys(sim, stars, times, rmax=1e5, crossoverFactor=30, overwrite=False, heartbeat=None, particle_index=1, plane=None, verbose=False):
     '''
         Simulate a stellar flyby to a REBOUND simulation.
 
         Because REBOUND Simulations are C structs underneath the Python, this function can pass the simulation by reference.
-        This can be done by specifying overwrite=True. Meaning, any changes made inside this function to the REBOUND simulation are permanent.
+        Meaning, any changes made inside this function to the REBOUND simulation are permanent. This can be avoided by specifying overwrite=False.
         This function assumes that you are using a WHFAST integrator with REBOUND.
         Uses IAS15 (instead of WHFast) for the closest approach if b < planet_a * crossoverFactor
 
@@ -628,10 +569,10 @@ def hybrid_concurrent_flybys(sim, stars, times, rmax=1e5, crossoverFactor=30, ov
     # Do not overwrite given sim.
     if not overwrite: sim = sim.copy()
     if heartbeat is not None: sim.heartbeat = heartbeat
-    sim_units = tools.rebound_units(sim)
+    sim_units = _tools.rebound_units(sim)
     index = int(particle_index)
 
-    times = tools.verify_unit(times, sim_units['time']).value
+    times = _tools.verify_unit(times, sim_units['time']).value
     all_times = []
     for star_number, star in enumerate(stars):
         these_times = []
@@ -642,7 +583,7 @@ def hybrid_concurrent_flybys(sim, stars, times, rmax=1e5, crossoverFactor=30, ov
         tperi = times[star_number] + tmp_sim.particles[hash].T - tmp_sim.t # Compute the time to periapsis for the flyby star from the current time.
         these_times.append(times[star_number])
         # Integrate the flyby. Start at the current time and go to twice the time to periapsis.
-        switch, tIAS15 = time_to_periapsis_from_crossover_point(tmp_sim, sim_units, crossoverFactor, index, star_vars)
+        switch, tIAS15 = _time_to_periapsis_from_crossover_point(tmp_sim, sim_units, crossoverFactor, index, star_vars)
         if switch:
             these_times.append(times[star_number] + tmp_sim.t + tperi - tIAS15.value)
             these_times.append(times[star_number] + tmp_sim.t + tperi + tIAS15.value)
@@ -681,8 +622,8 @@ def hybrid_concurrent_flybys(sim, stars, times, rmax=1e5, crossoverFactor=30, ov
         while event_number < max_event_number:
             event_index = event_order[event_number]
             star_number = event_index//4
-            if _numpy.any(useIAS15): integrate_with_ias15(sim, all_times[event_index])
-            else: integrate_with_whckl(sim, all_times[event_index], dt, dt_frac)
+            if _numpy.any(useIAS15): _integrate_with_ias15(sim, all_times[event_index])
+            else: _integrate_with_whckl(sim, all_times[event_index], dt, dt_frac)
             function_map(event_index, all_times[event_index], sim, stars[star_number], useIAS15, plane, hash=f'flybystar{star_number}')
             sim.simulationarchive_snapshot(tmp.name, deletefile=False)
             event_number += 1
