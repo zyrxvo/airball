@@ -1,4 +1,5 @@
 import numpy as _numpy
+import joblib as _joblib
 import rebound as _rebound
 from scipy.special import j0 as _j0,jv as _jv
 
@@ -115,12 +116,26 @@ def relative_energy_change(sim, star, averaged=False, particle_index=1):
     '''
     return energy_change_adiabatic_estimate(sim=sim, star=star, averaged=averaged, particle_index=particle_index)/binary_energy(sim, particle_index=particle_index)
 
+def parallel_relative_energy_change(sims, stars, averaged=False, particle_index=1):
+    '''
+        An analytical estimate for the relative change in energy of a binary system due to a flyby star.
+        
+        Combines energy_change_adiabatic_estimate(...) and binary_energy(...) functions.
+        
+        Parameters
+        ----------
+        sims : REBOUND Simulations with two bodies, a central star and a planet
+        stars : AIRBALL Stars flyby object
+    '''
+    return _joblib.Parallel(n_jobs=-1)(_joblib.delayed(relative_energy_change)(sim=sims[i], star=stars[i], averaged=averaged, particle_index=particle_index) for i in range(stars.N))
+
+
 def eccentricity_change_adiabatic_estimate(sim, star, averaged=False, particle_index=1):
     '''
         An analytical estimate for the change in eccentricity of an eccentric binary system due to a flyby star.
         
         From Equation (7) of Heggie & Rasio (1996) Equation (A3) from Spurzem et al. (2009) https://ui.adsabs.harvard.edu/abs/2009ApJ...697..458S/abstract. 
-        The orbital element angles of the flyby star are determined with respect to the plane defined by the binary orbit. In REBOUND this is the same as when the inclination of the planet is zero.
+        The orbital element angles of the flyby star are determined with respect to the plane defined by the binary orbit (the invariant plane). In REBOUND this is the same as when the inclination of the planet is zero.
         
         Parameters
         ----------
@@ -158,6 +173,19 @@ def eccentricity_change_adiabatic_estimate(sim, star, averaged=False, particle_i
 
     if averaged: return (prefactor * ( ( _numpy.arccos(-1.0/es).value + _numpy.sqrt(es*es - 1.0) ) + (2.0/3.0) + (2.0 * ((es*es - 1.0)**1.5)/(es*es)) )).decompose(list(unit_set.values()))
     else: return (prefactor * (t1 + t2 + t3)).decompose(list(unit_set.values()))
+
+def parallel_eccentricity_change_adiabatic_estimate(sims, stars, averaged=False, particle_index=1):
+    '''
+        An analytical estimate for the relative change in energy of a binary system due to a flyby star.
+        
+        Combines energy_change_adiabatic_estimate(...) and binary_energy(...) functions.
+        
+        Parameters
+        ----------
+        sims : REBOUND Simulations with two bodies, a central star and a planet
+        stars : AIRBALL Stars flyby object
+    '''
+    return _joblib.Parallel(n_jobs=-1)(_joblib.delayed(eccentricity_change_adiabatic_estimate)(sim=sims[i], star=stars[i], averaged=averaged, particle_index=particle_index) for i in range(stars.N))
 
 def energy_change_close_encounters_sim(sim):
     '''
