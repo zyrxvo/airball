@@ -3,7 +3,9 @@ import rebound as _rebound
 import warnings as _warnings
 import pickle as _pickle
 from scipy.stats import uniform as _uniform
-from .tools import *
+from . import tools as _tools
+from .tools import UnitSet as _UnitSet
+from . import units as _u
 
 try: from collections.abc import MutableMapping # Required for Python>=3.9
 except: from collections import MutableMapping
@@ -21,7 +23,7 @@ class Star:
     Inclination, inc, (rad), Argument of the Periastron, omega (rad), and Longitude of the Ascending Node, Omega, (rad)
     Or define an astropy.units system, i.e. UNIT_SYSTEM = [u.pc, u.Myr, u.solMass, u.rad, u.km/u.s].
     '''
-    self.units = UnitSet(UNIT_SYSTEM)
+    self.units = _UnitSet(UNIT_SYSTEM)
 
     if inc == 'uniform' or inc == None: inc = 2.0*_numpy.pi * _uniform.rvs() - _numpy.pi
     if omega == 'uniform' or omega == None: omega = 2.0*_numpy.pi * _uniform.rvs() - _numpy.pi
@@ -48,7 +50,7 @@ class Star:
 
   @m.setter
   def m(self, value):
-    self._mass = value.to(self.units['mass']) if isQuantity(value) else value * self.units['mass']
+    self._mass = value.to(self.units['mass']) if _tools.isQuantity(value) else value * self.units['mass']
 
   @property
   def mass(self):
@@ -64,7 +66,7 @@ class Star:
 
   @b.setter
   def b(self, value):
-    self._impact_parameter = value.to(self.units['length']) if isQuantity(value) else value * self.units['length']
+    self._impact_parameter = value.to(self.units['length']) if _tools.isQuantity(value) else value * self.units['length']
 
   @property
   def impact_parameter(self):
@@ -80,7 +82,7 @@ class Star:
 
   @v.setter
   def v(self, value):
-    self._velocity = value.to(self.units['velocity']) if isQuantity(value) else value * self.units['velocity']
+    self._velocity = value.to(self.units['velocity']) if _tools.isQuantity(value) else value * self.units['velocity']
 
   @property
   def velocity(self):
@@ -96,7 +98,7 @@ class Star:
 
   @inc.setter
   def inc(self, value):
-    self._inclination = value.to(self.units['angle']) if isQuantity(value) else value * self.units['angle']
+    self._inclination = value.to(self.units['angle']) if _tools.isQuantity(value) else value * self.units['angle']
 
   @property
   def inclination(self):
@@ -112,7 +114,7 @@ class Star:
 
   @omega.setter
   def omega(self, value):
-    self._argument_periastron = value.to(self.units['angle']) if isQuantity(value) else value * self.units['angle']
+    self._argument_periastron = value.to(self.units['angle']) if _tools.isQuantity(value) else value * self.units['angle']
 
   @property
   def argument_periastron(self):
@@ -128,7 +130,7 @@ class Star:
 
   @Omega.setter
   def Omega(self, value):
-    self._longitude_ascending_node = value.to(self.units['angle']) if isQuantity(value) else value * self.units['angle']
+    self._longitude_ascending_node = value.to(self.units['angle']) if _tools.isQuantity(value) else value * self.units['angle']
 
   @property
   def longitude_ascending_node(self):
@@ -137,6 +139,12 @@ class Star:
   @longitude_ascending_node.setter
   def longitude_ascending_node(self, value):
     self.Omega = value
+
+  @property
+  def impulse_gradient(self):
+    '''Calculate the impulse gradient for a flyby star.'''
+    G = (1 * _u.au**3 / _u.solMass / _u.yr2pi**2)
+    return ((2.0 * G * self.m) / (self.v * self.b**2.0)).to(_u.km/_u.s/_u.au)
 
   @property
   def params(self):
@@ -155,7 +163,7 @@ class Star:
     return _numpy.array([self.m.value, self.b.value, self.v.value, self.inc.value, self.omega.value, self.Omega.value])
   
   def q(self, sim):
-    return star_q(sim, self)
+    return _tools.star_q(sim, self)
 
   def stats(self, returned=False):
     ''' 
@@ -213,9 +221,9 @@ class Stars(MutableMapping):
   '''
   def __init__(self, filename=None, **kwargs) -> None:
     try: 
-      self.units = UnitSet(kwargs['UNIT_SYSTEM'])
+      self.units = _UnitSet(kwargs['UNIT_SYSTEM'])
       del kwargs['UNIT_SYSTEM']
-    except KeyError: self.units = UnitSet()
+    except KeyError: self.units = _UnitSet()
 
     if filename is not None:
       try:
@@ -230,7 +238,7 @@ class Stars(MutableMapping):
     for key in kwargs:
       try: 
         len(kwargs[key])
-        if isList(kwargs[key]) and len(kwargs[key]) > self.N:
+        if _tools.isList(kwargs[key]) and len(kwargs[key]) > self.N:
           self._Nstars = len(kwargs[key])
       except: pass
     if 'size' in kwargs and self.N != 0: raise OverspecifiedParametersException('If lists are given then size cannot be specified.')
@@ -267,7 +275,7 @@ class Stars(MutableMapping):
       except KeyError: raise UnspecifiedParameterException(upe)
       # Value is not a list, so assume it is an int or float and generate an ndarray of the given value.
       except TypeError: 
-        value = value.to(self.units[u]) if isQuantity(value) else value * self.units[u]
+        value = value.to(self.units[u]) if _tools.isQuantity(value) else value * self.units[u]
         quantityValue = _numpy.ones(self.N) * value
       # Catch any additional Exceptions.
       except Exception as err: raise err
@@ -275,7 +283,7 @@ class Stars(MutableMapping):
       if k == 'm': self._m = quantityValue
       elif k == 'b': self._b = quantityValue
       elif k == 'v': self._v = quantityValue
-      else: raise InvalidKeyException()
+      else: raise _tools.InvalidKeyException()
       # Double check for consistent shapes.
       if _check_shape is not None:
         if quantityValue.shape != _check_shape: raise ListLengthException(f'Difference of {quantityValue.shape} and {_check_shape} for {k}.')
@@ -314,7 +322,7 @@ class Stars(MutableMapping):
         quantityValue = (2.0*_numpy.pi * _uniform.rvs(size=_shape) - _numpy.pi) * self.units['angle']
       # Value is not a list, so assume it is an int or float and generate an ndarray of the given value.
       except TypeError: 
-        value = value.to(self.units['angle']) if isQuantity(value) else value * self.units['angle']
+        value = value.to(self.units['angle']) if _tools.isQuantity(value) else value * self.units['angle']
         quantityValue = _numpy.ones(self.N) * value
       # Catch any additional Exceptions.
       except Exception as err: raise err
@@ -322,7 +330,7 @@ class Stars(MutableMapping):
       if k == 'inc': self._inc = quantityValue
       elif k == 'omega': self._omega = quantityValue
       elif k == 'Omega': self._Omega = quantityValue
-      else: raise InvalidKeyException()
+      else: raise _tools.InvalidKeyException()
       # Double check for consistent shapes.
       if _check_shape is not None:
         if quantityValue.shape != _check_shape: raise ListLengthException(f'Difference of {quantityValue.shape} and {_check_shape} for {k}.')
@@ -360,7 +368,7 @@ class Stars(MutableMapping):
     # Allow for speed efficient slicing by returning a new set of Stars which are a subset of the original object.
     if isinstance(key, slice):
       # Check for number of elements returned by the slice.
-      numEl = numberOfElementsReturnedBySlice(*key.indices(self.N))
+      numEl = _tools.numberOfElementsReturnedBySlice(*key.indices(self.N))
             # If the slice requests the entire set, then simply return the set.
             # if key == slice(None, None, None): return self #  !!! **Note: this is a reference to the same object.** !!!
       # If there are no elements requested, return the empty set.
@@ -375,10 +383,10 @@ class Stars(MutableMapping):
       # Check if Stars data is multi-dimensional.
       if len(self.m.shape) == 1: raise IndexError(f'Too many indices: Stars are 1-dimensional, but {len(key)} were indexed.')
       # Check to see if the tuple has a slice.
-      hasSlice = hasTrue([isinstance(k, slice) for k in key])
+      hasSlice = _tools.hasTrue([isinstance(k, slice) for k in key])
       if hasSlice:
         # Check the number of elements requested by the slice.
-        numEl = [numberOfElementsReturnedBySlice(*k.indices(self.m.shape[i])) if isinstance(k, slice) else 1 for i,k in enumerate(key)]
+        numEl = [_tools.numberOfElementsReturnedBySlice(*k.indices(self.m.shape[i])) if isinstance(k, slice) else 1 for i,k in enumerate(key)]
         # If there are no elements requested, return the empty set.
         if numEl.count(0) > 0: return Stars(m=[], b=[], v=[], size=0)
         # If multiple elements are requested, return a set of Stars.
@@ -391,7 +399,7 @@ class Stars(MutableMapping):
       # If there is no slice, the return the requested Star.
       else: return Star(m=self.m[key], b=self.b[key], v=self.v[key], inc=self.inc[key], omega=self.omega[key], Omega=self.Omega[key], UNIT_SYSTEM=self.units.UNIT_SYSTEM)
 
-    raise InvalidKeyException() 
+    raise _tools.InvalidKeyException() 
 
   def __setitem__(self, key, value):
     star_type = Star, Stars
@@ -482,7 +490,7 @@ class Stars(MutableMapping):
       if isinstance(sim, _rebound.Simulation):
         inds = _numpy.argsort(self.e(sim))
       else: raise InvalidParameterTypeException()
-    elif isList(key): 
+    elif _tools.isList(key): 
       if len(key) != self.N: raise ListLengthException(f'Difference of {len(key)} and {self.N}.')
       inds = _numpy.array(key)
     else: raise InvalidValueForKeyException()
@@ -551,6 +559,12 @@ class Stars(MutableMapping):
   @property
   def longitude_ascending_node(self):
     return self.Omega
+  
+  @property
+  def impulse_gradient(self):
+    '''Calculate the impulse gradient for a flyby star.'''
+    G = (1 * _u.au**3 / _u.solMass / _u.yr2pi**2)
+    return ((2.0 * G * self.m) / (self.v * self.b**2.0)).to(_u.km/_u.s/_u.au)
 
   @property
   def params(self):
@@ -569,17 +583,17 @@ class Stars(MutableMapping):
     return _numpy.array([self.m.value, self.b.value, self.v.value, self.inc.value, self.omega.value, self.Omega.value])
  
   def e(self, sim):
-    sim_units = rebound_units(sim)
+    sim_units = _tools.rebound_units(sim)
     G = (sim.G * sim_units['length']**3 / sim_units['mass'] / sim_units['time']**2)
-    mu = G * (system_mass(sim) * sim_units['mass'] + self.m)
+    mu = G * (_tools.system_mass(sim) * sim_units['mass'] + self.m)
 
     numerator = self.b * self.v*self.v
     return _numpy.sqrt(1 + (numerator/mu)**2.)
   
   def q(self, sim):
-    sim_units = rebound_units(sim)
+    sim_units = _tools.rebound_units(sim)
     G = (sim.G * sim_units['length']**3 / sim_units['mass'] / sim_units['time']**2)
-    mu = G * (system_mass(sim)  * sim_units['mass'] + self.m)
+    mu = G * (_tools.system_mass(sim)  * sim_units['mass'] + self.m)
 
     numerator = self.b * self.v*self.v
     star_e = _numpy.sqrt(1 + (numerator/mu)**2.)
@@ -590,7 +604,7 @@ class Stars(MutableMapping):
     Prints a summary of the current stats of the Stars object.
     '''
     s = f"<{self.__module__}.{type(self).__name__} object at {hex(id(self))}, "
-    s += f"N={self.N}{f', Environment={self._environment.name}' if self._environment is not None else ''}>" #units=[{', '.join([i.to_string() for i in self.units.UNIT_SYSTEM])}]
+    s += f"N={self.N:,.0f}{f', Environment={self._environment.name}' if self._environment is not None else ''}>" #units=[{', '.join([i.to_string() for i in self.units.UNIT_SYSTEM])}]
     if returned: return s
     else: print(s)
   
