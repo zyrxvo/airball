@@ -27,8 +27,8 @@ def test_initialize_Stars_with_lists_and_units():
     assert np.all(stars.b == np.array([4,5,6]) * u.au)
     assert np.all(stars.v == np.array([7,8,9]) * u.km/u.s)
 
-    stars = airball.Stars(m=[1*u.solMass, 2*u.solMass, 3*u.solMass], b=[4*u.au, 5*u.au, 6*u.au], v=[7*u.km/u.s, 8*u.km/u.s, 9*u.km/u.s])
-    assert np.all(stars.m == np.array([1,2,3]) * u.solMass)
+    stars = airball.Stars(m=[1*u.solMass, 2000*u.jupiterMass, 1e6*u.earthMass], b=[4*u.au, 5*u.au, 6*u.au], v=[7*u.km/u.s, 8*u.km/u.s, 9*u.km/u.s])
+    assert np.all(stars.m == np.array([1, 1.90918846793865, 3.003489348850793]) * u.solMass)
     assert np.all(stars.b == np.array([4,5,6]) * u.au)
     assert np.all(stars.v == np.array([7,8,9]) * u.km/u.s)
 
