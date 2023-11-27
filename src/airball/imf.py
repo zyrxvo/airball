@@ -101,7 +101,8 @@ class IMF():
     if 'seed' in kwargs: self.seed = kwargs['seed']
     if self.seed != None: _numpy.random.seed(self.seed)
     rand_masses = _numpy.interp(_numpy.random.uniform(size=size), self._CDF, self._masses) * self.unit
-    if size > 1: return rand_masses
+    if isinstance(size, tuple): return rand_masses
+    elif size > 1: return rand_masses
     else: return rand_masses[0]
 
   def masses(self, number_samples, endpoint=True):
