@@ -6,6 +6,9 @@ pyrightconfig.json
 
 # Example Data
 example-data/
+docs/examples/multiple_flyby_heartbeat.*
+docs/examples/rebound.h
+docs/examples/librebound.so
 
 # Distribution / packaging
 bin/
