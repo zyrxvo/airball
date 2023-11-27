@@ -1,14 +1,14 @@
 import numpy as _numpy
 import joblib as _joblib
 import astropy.constants as const
-from . import units as u
+from . import units as _u
 
 twopi = 2.*_numpy.pi
 
 class UnitSet():
 
   def __init__(self, UNIT_SYSTEM=[]) -> None:
-    self._units = {'length': u.au, 'time': u.Myr, 'mass': u.solMass, 'angle': u.rad, 'velocity': u.km/u.s, 'object': u.stars, 'density': u.stars/u.pc**3}
+    self._units = {'length': _u.au, 'time': _u.Myr, 'mass': _u.solMass, 'angle': _u.rad, 'velocity': _u.km/_u.s, 'object': _u.stars, 'density': _u.stars/_u.pc**3}
     self.UNIT_SYSTEM = UNIT_SYSTEM
     pass
 
@@ -174,33 +174,33 @@ class UnitSet():
   @UNIT_SYSTEM.setter
   def UNIT_SYSTEM(self, UNIT_SYSTEM):
     if UNIT_SYSTEM != []:
-      lengthUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(u.m)]
+      lengthUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(_u.m)]
       self._units['length'] = lengthUnit[0] if lengthUnit != [] else self._units['length']
 
-      timeUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(u.s)]
+      timeUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(_u.s)]
       self._units['time'] = timeUnit[0] if timeUnit != [] else self._units['time']
 
-      velocityUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(u.km/u.s)]
+      velocityUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(_u.km/_u.s)]
       if velocityUnit == [] and timeUnit != [] and lengthUnit != []: velocityUnit = [lengthUnit[0]/timeUnit[0]]
       self._units['velocity'] = velocityUnit[0] if velocityUnit != [] else self._units['velocity']
 
-      massUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(u.kg)]
+      massUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(_u.kg)]
       self._units['mass'] = massUnit[0] if massUnit != [] else self._units['mass']
 
-      angleUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(u.rad)]
+      angleUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(_u.rad)]
       self._units['angle'] = angleUnit[0] if angleUnit != [] else self._units['angle']
 
-      objectUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(u.stars)]
-      self._units['object'] = objectUnit[0] if objectUnit != [] else u.stars
+      objectUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(_u.stars)]
+      self._units['object'] = objectUnit[0] if objectUnit != [] else _u.stars
 
-      densityUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(u.stars/u.m**3)]
-      densityUnit2 = [this for this in UNIT_SYSTEM if this.is_equivalent(1/u.m**3)]
+      densityUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(_u.stars/_u.m**3)]
+      densityUnit2 = [this for this in UNIT_SYSTEM if this.is_equivalent(1/_u.m**3)]
       if densityUnit == [] and densityUnit2 != []: 
         densityUnit = [self._units['object'] * densityUnit2[0]]
       elif densityUnit == [] and objectUnit != [] and lengthUnit != []: 
         densityUnit = [self._units['object']/self._units['length']**3]
       elif densityUnit == [] and densityUnit2 == [] and objectUnit != []:
-         densityLength = [this for this in self._units['density'].bases if this.is_equivalent(u.m)][0]
+         densityLength = [this for this in self._units['density'].bases if this.is_equivalent(_u.m)][0]
          densityUnit = [self._units['object']/densityLength**3]
       self._units['density'] = densityUnit[0] if densityUnit != [] else self._units['density']
     
@@ -226,6 +226,12 @@ def moving_average(a, n=3, method=None) :
     else: ret = _numpy.cumsum(a)
     ret[n:] = ret[n:] - ret[:-n]
     return ret[n - 1:] / n
+
+# Implemented from StackOverflow: https://stackoverflow.com/a/33585850
+def moving_median(arr, n=3):
+    '''Compute the moving median of an array of numbers using the nearest n elements.'''
+    idx = _numpy.arange(n) + _numpy.arange(len(arr)-n+1)[:,None]
+    return _numpy.median(arr[idx], axis=1)
 
 def save_as_simulationarchive(filename, sims, deletefile=True):
     '''
@@ -316,8 +322,8 @@ def vinf_and_b_to_e(mu, star_b, star_v):
         star_v : the relative velocity at infinity between the central star and the flyby star (hyperbolic excess velocity)
     '''
 
-    star_b = verify_unit(star_b, u.au)
-    star_v = verify_unit(star_v, u.km/u.s)
+    star_b = verify_unit(star_b, _u.au)
+    star_v = verify_unit(star_v, _u.km/_u.s)
 
     numerator = star_b * star_v**2.
     return _numpy.sqrt(1 + (numerator/mu)**2.)
@@ -333,8 +339,8 @@ def vinf_and_q_to_e(mu, star_q, star_v):
         star_v : the relative velocity at infinity between the central star and the flyby star (hyperbolic excess velocity)
     '''
 
-    star_q = verify_unit(star_q, u.au)
-    star_vinf = verify_unit(star_v, u.km/u.s)
+    star_q = verify_unit(star_q, _u.au)
+    star_vinf = verify_unit(star_v, _u.km/_u.s)
     return 1 + star_q * star_vinf * star_vinf / mu
 
 def vinf_and_q_to_b(mu, star_q, star_v):
@@ -348,11 +354,11 @@ def vinf_and_q_to_b(mu, star_q, star_v):
         star_v : the relative velocity at infinity between the central star and the flyby star (hyperbolic excess velocity)
     '''
 
-    mu = verify_unit(mu, (u.au**3)/(u.yr2pi**2))
-    star_q = verify_unit(star_q, u.au)
-    star_vinf = verify_unit(star_v, u.km/u.s)
+    mu = verify_unit(mu, (_u.au**3)/(_u.yr2pi**2))
+    star_q = verify_unit(star_q, _u.au)
+    star_vinf = verify_unit(star_v, _u.km/_u.s)
     star_e = 1 + star_q * star_vinf * star_vinf / mu
-    return verify_unit(star_q * _numpy.sqrt((star_e + 1.0)/(star_e - 1.0)), u.au)
+    return verify_unit(star_q * _numpy.sqrt((star_e + 1.0)/(star_e - 1.0)), _u.au)
 
 def gravitational_mu(sim, star):
     # Convert the units of the REBOUND Simulation into Astropy Units.
@@ -413,6 +419,10 @@ def initial_conditions_from_stellar_params(sim, star, rmax):
 
     return {'m':star.m.value, 'a':a.value, 'e':e.value, 'inc':star.inc.value, 'omega':star.omega.value, 'Omega':star.Omega.value, 'f':-f.value}, l.value
 
+def impulse_gradient(star):
+    '''Calculate the impulse gradient for a flyby star.'''
+    G = (1 * _u.au**3 / _u.solMass / _u.yr2pi**2)
+    return ((2.0 * G * star.m) / (star.v * star.b**2.0)).to(_u.km/_u.s/_u.au)
 
 ############################################################
 ############# Stellar Environment Functions ################
@@ -458,7 +468,7 @@ def cross_section(M, R, v, unit_set=UnitSet()):
 
     # Newton's gravitational constant in units of Msun, AU, and Years/2pi (G ~ 1).
     G = const.G.decompose(unit_set.UNIT_SYSTEM) 
-    sun_mass = 1 * u.solMass # mass of the Sun in units of Msun
+    sun_mass = 1 * _u.solMass # mass of the Sun in units of Msun
 
     v = verify_unit(v, unit_set.units['velocity'])
     R = verify_unit(R, unit_set.units['length'])
@@ -466,7 +476,7 @@ def cross_section(M, R, v, unit_set=UnitSet()):
 
     return (_numpy.pi * R**2) * (1 + 2*G*(sun_mass + M)/(R * v**2))
 
-def encounter_rate(n, v, R, M=(1 * u.solMass), unit_set=UnitSet()):
+def encounter_rate(n, v, R, M=(1 * _u.solMass), unit_set=UnitSet()):
     '''
         The expected flyby encounter rate within an stellar environment
         
@@ -490,12 +500,12 @@ def encounter_rate(n, v, R, M=(1 * u.solMass), unit_set=UnitSet()):
 ############################################################
 
 def rebound_units(sim):
-    defrebunits = {'length': u.au, 'mass': u.solMass, 'time': u.yr2pi}
+    defrebunits = {'length': _u.au, 'mass': _u.solMass, 'time': _u.yr2pi}
     simunits = sim.units
     
     for unit in simunits:
         if simunits[unit] == None: simunits[unit] = defrebunits[unit]
-        else: simunits[unit] = u.Unit(simunits[unit])
+        else: simunits[unit] = _u.Unit(simunits[unit])
     return simunits
 
 def verify_unit(value, unit):
@@ -508,11 +518,11 @@ def isList(l):
 
 def isQuantity(var):
     '''Determines if an object is an Astropy Quantity. Used for Stellar Environment initializations.'''
-    return isinstance(var, u.quantity.Quantity)
+    return isinstance(var, _u.quantity.Quantity)
 
 def isUnit(var):
     '''Determines if an object is an Astropy Quantity. Used for Stellar Environment initializations.'''
-    return isinstance(var, (u.core.IrreducibleUnit, u.core.CompositeUnit, u.Unit))
+    return isinstance(var, (_u.core.IrreducibleUnit, _u.core.CompositeUnit, _u.Unit))
 
 
 ############################################################
