@@ -1,9 +1,12 @@
-import numpy as _numpy
+import numpy as _np
 import joblib as _joblib
 import astropy.constants as const
 from . import units as _u
+from scipy.stats import uniform
+from scipy.stats import maxwell
+from scipy.stats import expon
 
-twopi = 2.*_numpy.pi
+twopi = 2.*_np.pi
 
 class UnitSet():
 
@@ -51,7 +54,7 @@ class UnitSet():
   def __eq__(self, other):
     '''Determines if two UnitSets are equivalent, not necessarily identical.'''
     if isinstance(other, UnitSet):
-        return _numpy.all([u1.is_equivalent(u2) for u1,u2 in zip(self, other)])
+        return _np.all([u1.is_equivalent(u2) for u1,u2 in zip(self, other)])
     return NotImplemented
   
   def __ne__(self, other):
@@ -215,23 +218,23 @@ class UnitSet():
 # Implemented from StackOverflow: https://stackoverflow.com/a/14314054
 def moving_average(a, n=3, method=None) :
     '''Compute the moving average of an array of numbers using the nearest n elements.'''
-    if method == 'nan': ret = _numpy.nancumsum(a)
+    if method == 'nan': ret = _np.nancumsum(a)
     elif method == 'nn':
-        bool = _numpy.isnan(a)
-        inds = _numpy.arange(len(a))[bool]
+        bool = _np.isnan(a)
+        inds = _np.arange(len(a))[bool]
         ret = a.copy()
         for i in inds:
             ret[i] = (ret[i-1 if i-1 > 0 else i+1] + ret[i+1 if i+1 < len(a) else i-1])/2.0
-        ret = _numpy.cumsum(ret)
-    else: ret = _numpy.cumsum(a)
+        ret = _np.cumsum(ret)
+    else: ret = _np.cumsum(a)
     ret[n:] = ret[n:] - ret[:-n]
     return ret[n - 1:] / n
 
 # Implemented from StackOverflow: https://stackoverflow.com/a/33585850
 def moving_median(arr, n=3):
     '''Compute the moving median of an array of numbers using the nearest n elements.'''
-    idx = _numpy.arange(n) + _numpy.arange(len(arr)-n+1)[:,None]
-    return _numpy.median(arr[idx], axis=1)
+    idx = _np.arange(n) + _np.arange(len(arr)-n+1)[:,None]
+    return _np.median(arr[idx], axis=1)
 
 def save_as_simulationarchive(filename, sims, deletefile=True):
     '''
@@ -268,41 +271,94 @@ def integrate(sims, tmaxs, n_jobs=-1, verbose=0):
 def hist(arr, bins=10, normalize=False, density=False, wfac=1):
     # https://stackoverflow.com/questions/30551694/logarithmic-multi-sequenz-plot-with-equal-bar-widths/30555229#30555229
     # """Return pairwise geometric means of adjacent elements."""
-    geometric_means = lambda a: _numpy.sqrt(a[1:] * a[:-1])
+    geometric_means = lambda a: _np.sqrt(a[1:] * a[:-1])
     
-    astart = _numpy.min(arr)
-    aend = _numpy.max(arr)
-    arange = _numpy.linspace(astart, aend, bins+1, endpoint=True)
+    astart = _np.min(arr)
+    aend = _np.max(arr)
+    arange = _np.linspace(astart, aend, bins+1, endpoint=True)
     
-    y,b = _numpy.histogram(arr, bins=arange, density=density)
+    y,b = _np.histogram(arr, bins=arange, density=density)
     x = geometric_means(b)
-    w = wfac * _numpy.mean(x[1:] - x[:-1])
+    w = wfac * _np.mean(x[1:] - x[:-1])
     
-    if normalize: return x, y/_numpy.trapz(y,x), w
+    if normalize: return x, y/_np.trapz(y,x), w
     else: return x,y,w
 
 def hist10(arr, bins=10, normalize=False, density=False, wfac=1):
     # https://stackoverflow.com/questions/30551694/logarithmic-multi-sequenz-plot-with-equal-bar-widths/30555229#30555229
     # """Return pairwise geometric means of adjacent elements."""
-    geometric_means = lambda a: _numpy.sqrt(a[1:] * a[:-1])
+    geometric_means = lambda a: _np.sqrt(a[1:] * a[:-1])
     
-    astart = _numpy.log10(_numpy.min(arr)/2)
-    aend = _numpy.log10(_numpy.max(arr)*2)
-    arange = _numpy.logspace(astart, aend, bins+1, endpoint=True)
+    astart = _np.log10(_np.min(arr)/2)
+    aend = _np.log10(_np.max(arr)*2)
+    arange = _np.logspace(astart, aend, bins+1, endpoint=True)
     
-    y,b = _numpy.histogram(arr, bins=arange, density=density)
+    y,b = _np.histogram(arr, bins=arange, density=density)
     x = geometric_means(b)
-    w = wfac * x*_numpy.mean((x[1:] - x[:-1])/x[:-1])
+    w = wfac * x*_np.mean((x[1:] - x[:-1])/x[:-1])
     
-    if normalize: return x, y/_numpy.trapz(y,x), w
+    if normalize: return x, y/_np.trapz(y,x), w
     else: return x,y,w
+
+# https://stackoverflow.com/a/13849249/71522
+def unit_vector(vector):
+    """ Returns the unit vector of the vector.  """
+    return vector / _np.linalg.norm(vector)
+
+def angle_between(v1, v2):
+    """ Returns the angle in radians between vectors 'v1' and 'v2'::
+
+            >>> angle_between((1, 0, 0), (0, 1, 0))
+            1.5707963267948966
+            >>> angle_between((1, 0, 0), (1, 0, 0))
+            0.0
+            >>> angle_between((1, 0, 0), (-1, 0, 0))
+            3.141592653589793
+    """
+    v1_u = unit_vector(v1)
+    v2_u = unit_vector(v2)
+    return _np.arccos(_np.clip(_np.dot(v1_u, v2_u), -1.0, 1.0))
+
+def reb_mod2pi(f):
+    return _np.mod(twopi + _np.mod(f, twopi), twopi)
+
+def reb_M_to_E(e, M):
+  E = 0
+  if e < 1.0 :
+    M = reb_mod2pi(M); # avoid numerical artefacts for negative numbers
+    E = M if e < 0.8 else _np.pi
+    F = E - e*_np.sin(E) - M
+    for i in range(100):
+      E = E - F/(1.-e*_np.cos(E))
+      F = E - e*_np.sin(E) - M
+      if _np.all(_np.abs(F) < 1.0e-16) : break
+    E = reb_mod2pi(E)
+    return E
+  else:
+    E = M/_np.abs(M)*_np.log(2.*_np.abs(M)/e + 1.8)
+    F = E - e*_np.sinh(E) + M
+    for i in range(100):
+      E = E - F/(1.0 - e*_np.cosh(E))
+      F = E - e*_np.sinh(E) + M
+      if _np.all(_np.abs(F) < 1.0e-16): break
+    return E
+
+def reb_E_to_f(e, E):
+	if e > 1. :return reb_mod2pi(2.*_np.arctan(_np.sqrt((1.+e)/(e-1.))*_np.tanh(0.5*E)));
+	else: return reb_mod2pi(2.*_np.arctan(_np.sqrt((1.+e)/(1.-e))*_np.tan(0.5*E)));
+
+
+def reb_M_to_f(e, M):
+  E = reb_M_to_E(e, M)
+  return reb_E_to_f(e, E)
+
 
 ############################################################
 ############### Properties and Elements ####################
 ############################################################
 
 def calculate_angular_momentum(sim):
-    L = _numpy.zeros((sim.N, 3))
+    L = _np.zeros((sim.N, 3))
     L[0] = sim.angular_momentum()
     for i,p in enumerate(sim.particles[1:]):
         L[i+1,0] = p.m*(p.y*p.vz - p.z*p.vy)
@@ -326,7 +382,7 @@ def vinf_and_b_to_e(mu, star_b, star_v):
     star_v = verify_unit(star_v, _u.km/_u.s)
 
     numerator = star_b * star_v**2.
-    return _numpy.sqrt(1 + (numerator/mu)**2.)
+    return _np.sqrt(1 + (numerator/mu)**2.) * _u.dimensionless_unscaled
 
 def vinf_and_q_to_e(mu, star_q, star_v):
     '''
@@ -341,7 +397,7 @@ def vinf_and_q_to_e(mu, star_q, star_v):
 
     star_q = verify_unit(star_q, _u.au)
     star_vinf = verify_unit(star_v, _u.km/_u.s)
-    return 1 + star_q * star_vinf * star_vinf / mu
+    return (1 + star_q * star_vinf * star_vinf / mu) * _u.dimensionless_unscaled
 
 def vinf_and_q_to_b(mu, star_q, star_v):
     '''
@@ -358,13 +414,16 @@ def vinf_and_q_to_b(mu, star_q, star_v):
     star_q = verify_unit(star_q, _u.au)
     star_vinf = verify_unit(star_v, _u.km/_u.s)
     star_e = 1 + star_q * star_vinf * star_vinf / mu
-    return verify_unit(star_q * _numpy.sqrt((star_e + 1.0)/(star_e - 1.0)), _u.au)
+    return verify_unit(star_q * _np.sqrt((star_e + 1.0)/(star_e - 1.0)), _u.au)
 
-def gravitational_mu(sim, star):
+def gravitational_mu(sim, star=None, star_mass=None):
     # Convert the units of the REBOUND Simulation into Astropy Units.
     units = rebound_units(sim)
     G = (sim.G * units['length']**3 / units['mass'] / units['time']**2)
-    star_mass = verify_unit(star.mass, units['mass'])
+    if star is not None and star_mass is not None: raise Exception('Cannot define both star and star_mass.')
+    elif star is not None and star_mass is None: star_mass = verify_unit(star.mass, units['mass'])
+    elif star is None and star_mass is not None: star_mass = verify_unit(star_mass, units['mass'])
+    else: raise Exception('Either star or star_mass must be defined.')
     return G * (system_mass(sim)  * units['mass'] + star_mass)
 
 def star_q(sim, star):
@@ -383,7 +442,7 @@ def star_q(sim, star):
     mu = G * (system_mass(sim)  * units['mass'] + star.m)
 
     star_e = vinf_and_b_to_e(mu, star.b, star.v)
-    return star.b * _numpy.sqrt((star_e - 1.0)/(star_e + 1.0))
+    return star.b * _np.sqrt((star_e - 1.0)/(star_e + 1.0))
 
 def system_mass(sim):
     '''
@@ -413,11 +472,34 @@ def initial_conditions_from_stellar_params(sim, star, rmax):
         Calculate the flyby star's initial conditions based on the provided Simulation and starting distance (rmax).
     '''
     e = determine_eccentricity(sim, star.m, star.b, star.v)
-    a = -star.b/_numpy.sqrt(e**2. - 1.) # Compute the semi-major axis of the flyby star
+    a = -star.b/_np.sqrt(e**2. - 1.) # Compute the semi-major axis of the flyby star
     l = -a*(e*e-1.) # Compute the semi-latus rectum of the hyperbolic orbit to get the true anomaly (-a because the semi-major axis is negative)
-    f = _numpy.arccos((l/rmax-1.)/e) # Compute the true anomaly
+    if rmax == 0 * _u.au: f = 0 * _u.dimensionless_unscaled
+    else: f = _np.arccos((l/rmax-1.)/e) # Compute the true anomaly
 
     return {'m':star.m.value, 'a':a.value, 'e':e.value, 'inc':star.inc.value, 'omega':star.omega.value, 'Omega':star.Omega.value, 'f':-f.value}, l.value
+
+def hyperbolic_elements_from_stellar_params(sim, star, rmax):
+    '''
+        Calculate the flyby star's hyperbolic orbital elements based on the provided Simulation and starting distance (rmax).
+    '''
+    sim_units = rebound_units(sim)
+    e = determine_eccentricity(sim, star.m, star.b, star.v)
+    a = -star.b/_np.sqrt(e**2. - 1.) # Compute the semi-major axis of the flyby star
+    l = -a*(e*e-1.) # Compute the semi-latus rectum of the hyperbolic orbit to get the true anomaly (-a because the semi-major axis is negative)
+    if rmax == 0 * _u.au: f = 0 * _u.dimensionless_unscaled
+    else: f = _np.arccos((l/rmax-1.)/e) # Compute the true anomaly
+
+    G = (sim.G * sim_units['length']**3 / sim_units['mass'] / sim_units['time']**2)
+    mu = G * (system_mass(sim) * sim_units['mass'] + star.m)
+
+    # Compute the time to periapsis from the switching point (-a because the semi-major axis is negative).
+    with _u.set_enabled_equivalencies(_u.dimensionless_angles()):
+        E = _np.arccosh((_np.cos(f)+e)/(1.+e*_np.cos(f))) # Compute the eccentric anomaly
+        M = e * _np.sinh(E)-E # Compute the mean anomaly
+    Tperi = M/_np.sqrt(mu/(-a*a*a))
+
+    return {'m':star.m, 'a':a, 'e':e, 'inc':star.inc, 'omega':star.omega, 'Omega':star.Omega, 'f':-f, 'T':Tperi, 'l':l}
 
 def impulse_gradient(star):
     '''Calculate the impulse gradient for a flyby star.'''
@@ -433,27 +515,27 @@ def maxwell_boltzmann_scale_from_dispersion(sigma):
     '''
         Converts velocity dispersion (sigma) to scale factor for Maxwell-Boltzmann distributions.
     '''
-    return _numpy.sqrt((_numpy.pi*_numpy.square(sigma))/(3.0*_numpy.pi - 8.0))
+    return _np.sqrt((_np.pi*_np.square(sigma))/(3.0*_np.pi - 8.0))
 
 def maxwell_boltzmann_scale_from_mean(mu):
     '''
         Converts mean (mu) to scale factor for Maxwell-Boltzmann distributions.
     '''
-    return _numpy.sqrt(_numpy.pi/2.0) * (mu / 2.0)
+    return _np.sqrt(_np.pi/2.0) * (mu / 2.0)
 
 def maxwell_boltzmann_mean_from_dispersion(sigma):
     '''
         Converts velocity dispersion (sigma) to mean (mu) for Maxwell-Boltzmann distributions.
     '''
     scale = maxwell_boltzmann_scale_from_dispersion(sigma)
-    return (2.0 * scale) * _numpy.sqrt(2.0/_numpy.pi)
+    return (2.0 * scale) * _np.sqrt(2.0/_np.pi)
 
 def maxwell_boltzmann_mode_from_dispersion(sigma):
     '''
         Converts velocity dispersion (sigma) to mode (most common or typical value) for Maxwell-Boltzmann distributions.
     '''
     scale = maxwell_boltzmann_scale_from_dispersion(sigma)
-    return scale * _numpy.sqrt(2.0)
+    return scale * _np.sqrt(2.0)
 
 def cross_section(M, R, v, unit_set=UnitSet()):
     '''
@@ -474,7 +556,7 @@ def cross_section(M, R, v, unit_set=UnitSet()):
     R = verify_unit(R, unit_set.units['length'])
     M = verify_unit(M, unit_set.units['mass'])
 
-    return (_numpy.pi * R**2) * (1 + 2*G*(sun_mass + M)/(R * v**2))
+    return (_np.pi * R**2) * (1 + 2*G*(sun_mass + M)/(R * v**2))
 
 def encounter_rate(n, v, R, M=(1 * _u.solMass), unit_set=UnitSet()):
     '''
@@ -513,7 +595,7 @@ def verify_unit(value, unit):
 
 def isList(l):
     '''Determines if an object is a list or numpy array. Used for flyby parallelization.'''
-    if isinstance(l,(list,_numpy.ndarray)): return True
+    if isinstance(l,(list,_np.ndarray)): return True
     else: return False
 
 def isQuantity(var):

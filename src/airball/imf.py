@@ -1,4 +1,4 @@
-import numpy as _numpy
+import numpy as _np
 from scipy.integrate import quad as _quad
 from . import units as u
 from . import tools
@@ -15,7 +15,7 @@ def chabrier_2003_single(x, A=0.158):
     Returns:
     - Probability density at the given mass value.
     """
-    return (A / x) * _numpy.exp(-((_numpy.log10(x) - _numpy.log10(0.079)) ** 2) / (2 * 0.69 ** 2))
+    return (A / x) * _np.exp(-((_np.log10(x) - _np.log10(0.079)) ** 2) / (2 * 0.69 ** 2))
 
 def salpeter_1955(x, A):
     """
@@ -56,7 +56,7 @@ class IMF():
     self._max_mass = max_mass.to(self.unit) if tools.isQuantity(max_mass) else max_mass * self.unit
 
     # Determine the probability distribution function (PDF) based on the given mass function or default to a piecewise Chabrier 2003 and Salpeter 1955
-    if mass_function is None: mass_function = lambda x: _numpy.where(x < 1, chabrier_2003_single(x), salpeter_1955(x, chabrier_2003_single(1)))
+    if mass_function is None: mass_function = lambda x: _np.where(x < 1, chabrier_2003_single(x), salpeter_1955(x, chabrier_2003_single(1)))
     self._imf = mass_function
 
     # Recalculate the IMF properties based on the updated parameters
@@ -69,20 +69,20 @@ class IMF():
     mass values, and IMF values based on the current min_mass, max_mass, and PDF.
     """
     # Calculate the normalization factor for the PDF
-    pdf = _numpy.vectorize(lambda x: _numpy.where(x < self.min_mass.value, 0, _numpy.where(x > self.max_mass.value, 0, self._imf(x))))
+    pdf = _np.vectorize(lambda x: _np.where(x < self.min_mass.value, 0, _np.where(x > self.max_mass.value, 0, self._imf(x))))
     normalization_factor = _quad(pdf, self._min_mass.value, self._max_mass.value)[0]
 
     # Create a normalized PDF
      
     npdf = lambda x: pdf(x) / normalization_factor
-    self._npdf = _numpy.vectorize(npdf)
+    self._npdf = _np.vectorize(npdf)
 
     # Create a cumulative distribution function (CDF)
-    cdf = lambda x: _numpy.where(x < self.min_mass.value, 0, _numpy.where(x > self.max_mass.value, 1,  _quad(self._npdf, self._min_mass.value, x)[0]))
-    self._cdf = _numpy.vectorize(cdf)
+    cdf = lambda x: _np.where(x < self.min_mass.value, 0, _np.where(x > self.max_mass.value, 1,  _quad(self._npdf, self._min_mass.value, x)[0]))
+    self._cdf = _np.vectorize(cdf)
 
     # Generate logarithmically spaced mass values between min_mass and max_mass
-    self._masses = _numpy.logspace(_numpy.log10(self._min_mass.value), _numpy.log10(self._max_mass.value), self.number_samples)
+    self._masses = _np.logspace(_np.log10(self._min_mass.value), _np.log10(self._max_mass.value), self.number_samples)
 
     # Calculate the CDF and IMF values for the mass values
     self._CDF = self._cdf(self._masses)
@@ -99,8 +99,8 @@ class IMF():
     - Randomly generated mass value(s) from the IMF.
     """
     if 'seed' in kwargs: self.seed = kwargs['seed']
-    if self.seed != None: _numpy.random.seed(self.seed)
-    rand_masses = _numpy.interp(_numpy.random.uniform(size=size), self._CDF, self._masses) * self.unit
+    if self.seed != None: _np.random.seed(self.seed)
+    rand_masses = _np.interp(_np.random.uniform(size=size), self._CDF, self._masses) * self.unit
     if isinstance(size, tuple): return rand_masses
     elif size > 1: return rand_masses
     else: return rand_masses[0]
@@ -115,7 +115,7 @@ class IMF():
     Returns:
     - numpy array of mass values logarithmically spanning the IMF range.
     """
-    return _numpy.logspace(_numpy.log10(self._min_mass.value), _numpy.log10(self._max_mass.value), number_samples, endpoint=endpoint)
+    return _np.logspace(_np.log10(self._min_mass.value), _np.log10(self._max_mass.value), number_samples, endpoint=endpoint)
 
   @property
   def min_mass(self):
@@ -162,7 +162,7 @@ class IMF():
     """
     Median mass value of the IMF.
     """
-    return _numpy.interp(0.5, self._CDF, self._masses) * self.unit
+    return _np.interp(0.5, self._CDF, self._masses) * self.unit
   
   @property
   def seed(self):
@@ -204,7 +204,7 @@ class IMF():
     """
     Cumulative distribution function (CDF) of the IMF.
     """
-    return lambda x: _numpy.interp(x, self._masses, self._CDF)
+    return lambda x: _np.interp(x, self._masses, self._CDF)
 
   @property
   def CDF(self):

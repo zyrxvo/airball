@@ -1,5 +1,5 @@
 import rebound as _rebound
-import numpy as _numpy
+import numpy as _np
 import joblib as _joblib
 import warnings as _warnings
 import tempfile as _tempfile
@@ -15,17 +15,31 @@ def _rotate_into_plane(sim, plane):
     '''
         Rotates the simulation into the specified plane.
     '''
-    int_types = int, _numpy.integer
+    int_types = int, _np.integer
     rotation = _rebound.Rotation.to_new_axes(newz=[0,0,1])
     if plane is not None:
         # Move the system into the chosen plane of reference. TODO: Make sure the angular momentum calculations don't include other flyby stars.
         if plane == 'invariable': rotation = _rebound.Rotation.to_new_axes(newz=sim.angular_momentum())
         elif plane == 'ecliptic': rotation = _rebound.Rotation.to_new_axes(newz=_tools.calculate_angular_momentum(sim)[3]) # Assumes Earth is particle 3. 0-Sun, 1-Mecury, 2-Venus, 3-Earth, ...
-        elif isinstance(plane, int_types): rotation = _rebound.Rotation.to_new_axes(newz=_tools.calculate_angular_momentum(sim)[int(plane)])
+        elif isinstance(plane, int_types):
+            p = sim.particles[int(plane)]
+            rotation = (_rebound.Rotation.orbit(Omega=p.Omega, inc=p.inc, omega=p.omega)).inverse()
     sim.rotate(rotation)
     return rotation
 
 def add_star_to_sim(sim, star, hash, **kwargs):
+    '''
+        Adds a Star to a REBOUND Simulation.
+
+        Parameters
+        ----------
+        sim : the REBOUND Simulation (star and planets).
+        star: an AIRBALL Star object.
+        hash: a string to refer to the Star object.
+
+        rmax : the starting distance of the flyby star in units of AU; if rmax=0, then the star will be placed at perihelion.
+        plane: String/Int. The plane defining the orientation of the star, None, 'invariable', 'ecliptic', or Int. Default is None.
+    '''
     # Because REBOUND Simulations are C structs underneath Python, this function passes the simulation by reference.
 
     units = _tools.rebound_units(sim)
@@ -62,16 +76,16 @@ def _time_to_periapsis_from_crossover_point(sim, sim_units, crossoverFactor, ind
     rCrossOver = crossoverFactor * sim.particles[index].a * sim_units['length'] # This is the distance to switch integrators
     q = star_elements['a'] * (1 - star_elements['e'])
     if q < rCrossOver:
-        f = _numpy.arccos((star_elements['l']/rCrossOver-1.)/star_elements['e']) # Compute the true anomaly for the cross-over point.
+        f = _np.arccos((star_elements['l']/rCrossOver-1.)/star_elements['e']) # Compute the true anomaly for the cross-over point.
 
         G = (sim.G * sim_units['length']**3 / sim_units['mass'] / sim_units['time']**2)
         mu = G * (_tools.system_mass(sim) * sim_units['mass'] + star_elements['m'])
 
         # Compute the time to periapsis from the switching point (-a because the semi-major axis is negative).
         with _u.set_enabled_equivalencies(_u.dimensionless_angles()):
-            E = _numpy.arccosh((_numpy.cos(f)+star_elements['e'])/(1.+star_elements['e']*_numpy.cos(f))) # Compute the eccentric anomaly
-            M = star_elements['e'] * _numpy.sinh(E)-E # Compute the mean anomaly
-        return True, M/_numpy.sqrt(mu/(-star_elements['a']*star_elements['a']*star_elements['a']))
+            E = _np.arccosh((_np.cos(f)+star_elements['e'])/(1.+star_elements['e']*_np.cos(f))) # Compute the eccentric anomaly
+            M = star_elements['e'] * _np.sinh(E)-E # Compute the mean anomaly
+        return True, M/_np.sqrt(mu/(-star_elements['a']*star_elements['a']*star_elements['a']))
     else: return False, None
 
 # old signature flyby(sim, star=None, m=0.3, b=1000, v=40,  e=None, inc='uniform', omega='uniform', Omega='uniform', rmax=2.5e5, hybrid=True, crossoverFactor=30, overwrite=False):
@@ -210,7 +224,7 @@ def hybrid_flybys(sims, stars, **kwargs):
         elif len(hashes) != Nruns: raise Exception('List arguments must be same length.')
     except KeyError: hashes = Nruns * ['flybystar']
 
-    inds = kwargs.get('inds', _numpy.arange(Nruns))
+    inds = kwargs.get('inds', _np.arange(Nruns))
     overwrite = kwargs.get('overwrite', True)
     n_jobs = kwargs.get('n_jobs', -1)
     verbose = kwargs.get('verbose', 0)
@@ -244,6 +258,7 @@ def flyby(sim, star, **kwargs):
     '''
     if kwargs.get('hybrid', False): return hybrid_flyby(sim, star, **kwargs)
     else:
+        if sim.integrator == 'whfast': _warnings.warn("Did you intend to use the hybrid method with WHFast?", RuntimeWarning)
         overwrite = kwargs.get('overwrite', True)
         if not overwrite: sim = sim.copy()
         hash = kwargs.get('hash', 'flybystar')
@@ -292,28 +307,29 @@ def flybys(sims, stars, **kwargs):
         sims = [sims.copy() for _ in range(Nruns)]
 
     try: inds = kwargs['inds']
-    except KeyError: inds = _numpy.arange(Nruns)
+    except KeyError: inds = _np.arange(Nruns)
 
     try:
         rmax = kwargs['rmax']
         rmax = _tools.verify_unit(rmax, _u.au)
-        if len(rmax.shape) == 0: rmax = _numpy.array(stars.N * [rmax.value]) << rmax.unit
+        if len(rmax.shape) == 0: rmax = _np.array(stars.N * [rmax.value]) << rmax.unit
         elif len(rmax) != stars.N: raise Exception('List arguments must be same length.')
-    except KeyError: rmax = _numpy.array(Nruns * [1e5]) << _u.au
-    if _numpy.any(stars.b > rmax): raise Exception('Some stellar impact parameters are greater than the stellar starting distance, rmax.')
+    except KeyError: rmax = _np.array(Nruns * [1e5]) << _u.au
+    if _np.any(stars.b > rmax): raise Exception('Some stellar impact parameters are greater than the stellar starting distance, rmax.')
 
     heartbeat = kwargs.get('heartbeat', None)
-    inds = kwargs.get('inds', _numpy.arange(Nruns))
+    inds = kwargs.get('inds', _np.arange(Nruns))
     overwrite = kwargs.get('overwrite', True)
     n_jobs = kwargs.get('n_jobs', -1)
     verbose = kwargs.get('verbose', 0)
+    require = kwargs.get('require')
     plane = kwargs.get('plane', None)
+    hybrid = kwargs.get('hybrid', False)
 
-    sim_results = _joblib.Parallel(n_jobs=n_jobs, verbose=verbose)(
+    sim_results = _joblib.Parallel(n_jobs=n_jobs, verbose=verbose, require=require)(
     _joblib.delayed(flyby)(
-        sim=sims[int(i)], star=stars[i], rmax=rmax[i], overwrite=overwrite, heartbeat=heartbeat, plane=plane)
+        sim=sims[int(i)], star=stars[i], rmax=rmax[i], overwrite=overwrite, heartbeat=heartbeat, plane=plane, hybrid=hybrid)
     for i in inds)
-
     return sim_results
 
 def successive_flybys(sim, stars, **kwargs):
@@ -340,15 +356,16 @@ def successive_flybys(sim, stars, **kwargs):
 
     # Do not overwrite given sim.
     overwrite = kwargs.get('overwrite', True)
-    if overwrite == False: 
-        hb = sim.heartbeat
-        sim = sim.copy()
-        sim.heartbeat = hb
+    if overwrite == False: sim = sim.copy()
     hashes = kwargs.get('hashes', [f'flybystar{i}' for i in range(stars.N)])
+    saveSnapshots = kwargs.get('snapshots', False)
+    if saveSnapshots: snapshots = [sim.copy()]
     for i,star in enumerate(stars):
         if overwrite == True: flyby(sim, star, hash=hashes[i], **kwargs)
         else:  sim = flyby(sim, star, hash=hashes[i], **kwargs)
-    return sim
+        if saveSnapshots: snapshots.append(sim.copy())
+    if saveSnapshots: return snapshots
+    else: return sim
 
 def concurrent_flybys(sim, stars, start_times, **kwargs):
     '''
@@ -381,7 +398,7 @@ def concurrent_flybys(sim, stars, start_times, **kwargs):
     hashes = kwargs.get('hashes', [f'flybystar{i}' for i in range(stars.N)])
 
     # Using the sim and the start times, compute the end times for the flyby stars.
-    all_times = _numpy.zeros((stars.N, 2))
+    all_times = _np.zeros((stars.N, 2))
     for star_number, star in enumerate(stars):
         tmp_sim = sim.copy()
         hash = hashes[star_number]
@@ -393,7 +410,7 @@ def concurrent_flybys(sim, stars, start_times, **kwargs):
 
     # Sort the event times sequentially.
     all_times = all_times.flatten()
-    event_order = _numpy.argsort(all_times)
+    event_order = _np.argsort(all_times)
     max_event_number = len(all_times)
     
     # Integrate the flybys, adding and removing them at the appropriate times.
@@ -528,7 +545,7 @@ def _hybrid_successive_flybys_parallel(sims, stars, **kwargs):
     except KeyError: crossoverFactor = Nruns * [30]
 
     heartbeat = kwargs.get('heartbeat', None)
-    inds = kwargs.get('inds', _numpy.arange(Nruns))
+    inds = kwargs.get('inds', _np.arange(Nruns))
     overwrite = kwargs.get('overwrite', True)
     n_jobs = kwargs.get('n_jobs', -1)
     verbose = kwargs.get('verbose', 0)
@@ -588,24 +605,24 @@ def _hybrid_concurrent_flybys(sim, stars, times, rmax=1e5, crossoverFactor=30, o
             these_times.append(times[star_number] + tmp_sim.t + tperi - tIAS15.value)
             these_times.append(times[star_number] + tmp_sim.t + tperi + tIAS15.value)
         else:
-            these_times.append(_numpy.nan)
-            these_times.append(_numpy.nan)
+            these_times.append(_np.nan)
+            these_times.append(_np.nan)
 
         these_times.append(times[star_number] + tmp_sim.t + 2*tperi)
         all_times.append(these_times)
-    all_times = _numpy.array(all_times).flatten()
-    max_event_number = len(all_times) - _numpy.sum(_numpy.isnan(all_times))
-    event_order = _numpy.argsort(all_times)
+    all_times = _np.array(all_times).flatten()
+    max_event_number = len(all_times) - _np.sum(_np.isnan(all_times))
+    event_order = _np.argsort(all_times)
     if verbose:
         tmpdic = {0 : f'ADD', 1 : f'start IAS15', 2 : f'end IAS15', 3 : f'REMOVE'}
         print([f'{tmpdic[i%4]} {i//4}' for i in event_order[:max_event_number]])
 
-    useIAS15 = _numpy.array([False] * stars.N)
+    useIAS15 = _np.array([False] * stars.N)
     def startUsingIAS15(i, IAS15_array): IAS15_array[i//4] = True
     def stopUsingIAS15(i, IAS15_array): IAS15_array[i//4] = False
     
     def function_map( i, v, sim, star, IAS15_array, plane, hash):
-        if not _numpy.isnan(v): 
+        if not _np.isnan(v): 
             map_i = i%4
             if map_i == 0: add_star_to_sim(sim, star, plane=plane, hash=hash)
             elif map_i == 1: startUsingIAS15(i, IAS15_array)
@@ -622,7 +639,7 @@ def _hybrid_concurrent_flybys(sim, stars, times, rmax=1e5, crossoverFactor=30, o
         while event_number < max_event_number:
             event_index = event_order[event_number]
             star_number = event_index//4
-            if _numpy.any(useIAS15): _integrate_with_ias15(sim, all_times[event_index])
+            if _np.any(useIAS15): _integrate_with_ias15(sim, all_times[event_index])
             else: _integrate_with_whckl(sim, all_times[event_index], dt, dt_frac)
             function_map(event_index, all_times[event_index], sim, stars[star_number], useIAS15, plane, hash=f'flybystar{star_number}')
             sim.simulationarchive_snapshot(tmp.name, deletefile=False)

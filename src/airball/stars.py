@@ -1,4 +1,4 @@
-import numpy as _numpy
+import numpy as _np
 import rebound as _rebound
 import warnings as _warnings
 import pickle as _pickle
@@ -25,9 +25,9 @@ class Star:
     '''
     self.units = _UnitSet(UNIT_SYSTEM)
 
-    if inc == 'uniform' or inc == None: inc = 2.0*_numpy.pi * _uniform.rvs() - _numpy.pi
-    if omega == 'uniform' or omega == None: omega = 2.0*_numpy.pi * _uniform.rvs() - _numpy.pi
-    if Omega == 'uniform' or Omega == None: Omega = 2.0*_numpy.pi * _uniform.rvs() - _numpy.pi
+    if inc == 'uniform' or inc == None: inc = 2.0*_np.pi * _uniform.rvs() - _np.pi
+    if omega == 'uniform' or omega == None: omega = 2.0*_np.pi * _uniform.rvs() - _np.pi
+    if Omega == 'uniform' or Omega == None: Omega = 2.0*_np.pi * _uniform.rvs() - _np.pi
 
     self.mass = m
     self.impact_parameter = b
@@ -160,7 +160,7 @@ class Star:
       Returns a list of the parameters of the Stars in order of:
       Mass, m; Impact Parameter, b; Velocity, v; Inclination, inc; Argument of the Periastron, omega; and Longitude of the Ascending Node, Omega
     '''
-    return _numpy.array([self.m.value, self.b.value, self.v.value, self.inc.value, self.omega.value, self.Omega.value])
+    return _np.array([self.m.value, self.b.value, self.v.value, self.inc.value, self.omega.value, self.Omega.value])
   
   def q(self, sim):
     return _tools.star_q(sim, self)
@@ -250,7 +250,7 @@ class Stars(MutableMapping):
     units = ['mass', 'length', 'velocity']
     unspecifiedParameterExceptions = ['Mass, m, must be specified.', 'Impact Parameter, b, must be specified.', 'Velocity, v, must be specified.']
 
-    _check_shape = None
+    self._shape = None
     for k,u,upe in zip(keys, units, unspecifiedParameterExceptions):
       try:
         # Check to see if was key is given.
@@ -260,11 +260,11 @@ class Stars(MutableMapping):
         # Length of value matches other key values, check if value is a list.
         elif isinstance(value, list):
           # Value is a list, try to turn list of Quantities into a ndarray Quantity.
-          try: quantityValue = _numpy.array([v.to(self.units[u]).value for v in value]) << self.units[u]
+          try: quantityValue = _np.array([v.to(self.units[u]).value for v in value]) << self.units[u]
           # Value was not a list of Quantities, turn list into ndarray and make a Quantity.
-          except: quantityValue = _numpy.array(value) << self.units[u]
+          except: quantityValue = _np.array(value) << self.units[u]
         # Value was not a list, check to see if value is an ndarray.
-        elif isinstance(value, _numpy.ndarray):
+        elif isinstance(value, _np.ndarray):
           # Assume ndarray is a Quantity and try to convert ndarray into given units.
           try: quantityValue = value.to(self.units[u])
           # ndarray is not a Quantity so turn ndarray into a Quantity.
@@ -276,7 +276,7 @@ class Stars(MutableMapping):
       # Value is not a list, so assume it is an int or float and generate an ndarray of the given value.
       except TypeError: 
         value = value.to(self.units[u]) if _tools.isQuantity(value) else value * self.units[u]
-        quantityValue = _numpy.ones(self.N) * value
+        quantityValue = _np.ones(self.N) * value
       # Catch any additional Exceptions.
       except Exception as err: raise err
       # Store Quantity Value as class property.
@@ -285,9 +285,9 @@ class Stars(MutableMapping):
       elif k == 'v': self._v = quantityValue
       else: raise _tools.InvalidKeyException()
       # Double check for consistent shapes.
-      if _check_shape is not None:
-        if quantityValue.shape != _check_shape: raise ListLengthException(f'Difference of {quantityValue.shape} and {_check_shape} for {k}.')
-      else: _check_shape = quantityValue.shape
+      if self._shape is not None:
+        if quantityValue.shape != self._shape: raise ListLengthException(f'Difference of {quantityValue.shape} and {self._shape} for {k}.')
+      else: self._shape = quantityValue.shape
         
     for k in ['inc', 'omega', 'Omega']:
       try:
@@ -298,18 +298,18 @@ class Stars(MutableMapping):
           # Value is a string, check to see if value for key is valid.
           if value != 'uniform': raise InvalidValueForKeyException()
           # Value 'uniform' for key is valid, now generate an array of values for key.
-          _shape = self.N if len(_check_shape) == 1 else _check_shape
-          quantityValue = (2.0*_numpy.pi * _uniform.rvs(size=_shape) - _numpy.pi) * self.units['angle']
+          _shape = self.N if len(self._shape) == 1 else self._shape
+          quantityValue = (2.0*_np.pi * _uniform.rvs(size=_shape) - _np.pi) * self.units['angle']
         # Value is not a string, check if length matches other key values.
         elif len(value) != self.N: raise ListLengthException(f'Difference of {len(value)} and {self.N} for {k}.')
         # Length of value matches other key values, check if value is a list.
         elif isinstance(value, list):
           # Value is a list, try to turn list of Quantities into a ndarray Quantity.
-          try: quantityValue = _numpy.array([v.to(self.units['angle']).value for v in value]) * self.units['angle']
+          try: quantityValue = _np.array([v.to(self.units['angle']).value for v in value]) * self.units['angle']
           # Value was not a list of Quantities, turn list into ndarray and make a Quantity.
-          except: quantityValue = _numpy.array(value) * self.units['angle']
+          except: quantityValue = _np.array(value) * self.units['angle']
         # Value was not a list, check to see if value is an ndarray.
-        elif isinstance(value, _numpy.ndarray):
+        elif isinstance(value, _np.ndarray):
           # Assume ndarray is a Quantity and try to convert ndarray into given units.
           try: quantityValue = value.to(self.units['angle'])
           # ndarray is not a Quantity so turn ndarray into a Quantity.
@@ -318,12 +318,12 @@ class Stars(MutableMapping):
         else: raise IncompatibleListException()
       # Key does not exist, assume the user wants an array of values to automatically be generated.
       except KeyError: 
-        _shape = self.N if len(_check_shape) == 1 else _check_shape
-        quantityValue = (2.0*_numpy.pi * _uniform.rvs(size=_shape) - _numpy.pi) * self.units['angle']
+        _shape = self.N if len(self._shape) == 1 else self._shape
+        quantityValue = (2.0*_np.pi * _uniform.rvs(size=_shape) - _np.pi) * self.units['angle']
       # Value is not a list, so assume it is an int or float and generate an ndarray of the given value.
       except TypeError: 
         value = value.to(self.units['angle']) if _tools.isQuantity(value) else value * self.units['angle']
-        quantityValue = _numpy.ones(self.N) * value
+        quantityValue = _np.ones(self.N) * value
       # Catch any additional Exceptions.
       except Exception as err: raise err
       # Store Quantity Value as class property.
@@ -332,27 +332,29 @@ class Stars(MutableMapping):
       elif k == 'Omega': self._Omega = quantityValue
       else: raise _tools.InvalidKeyException()
       # Double check for consistent shapes.
-      if _check_shape is not None:
-        if quantityValue.shape != _check_shape: raise ListLengthException(f'Difference of {quantityValue.shape} and {_check_shape} for {k}.')
-      else: _check_shape = quantityValue.shape
+      if self._shape is not None:
+        if quantityValue.shape != self._shape: raise ListLengthException(f'Difference of {quantityValue.shape} and {self._shape} for {k}.')
+      else: self._shape = quantityValue.shape
 
   @property
   def N(self):
-    if isinstance(self._Nstars, tuple):
-      return _numpy.prod([d for d in self._Nstars])
-    else:
-      return self._Nstars
+    return self._Nstars
+    
+  @property
+  def shape(self):
+    return self._shape
+
   
   @property
   def median_mass(self):
-    return _numpy.median([mass.value for mass in self.m]) * self.units['mass']
+    return _np.median([mass.value for mass in self.m]) * self.units['mass']
   
   @property
   def mean_mass(self):
-    return _numpy.mean([mass.value for mass in self.m]) * self.units['mass']
+    return _np.mean([mass.value for mass in self.m]) * self.units['mass']
   
   def __getitem__(self, key):
-    int_types = int, _numpy.integer
+    int_types = int, _np.integer
   
     # Basic indexing.
     if isinstance(key, int_types):
@@ -362,7 +364,7 @@ class Stars(MutableMapping):
       else: return Star(m=self.m[key], b=self.b[key], v=self.v[key], inc=self.inc[key], omega=self.omega[key], Omega=self.Omega[key], UNIT_SYSTEM=self.units.UNIT_SYSTEM)
 
     # Allows for boolean array masking and indexing using a subset of indices.
-    if isinstance(key, _numpy.ndarray):
+    if isinstance(key, _np.ndarray):
       return Stars(m=self.m[key], b=self.b[key], v=self.v[key], inc=self.inc[key], omega=self.omega[key], Omega=self.Omega[key], UNIT_SYSTEM=self.units.UNIT_SYSTEM)
     
     # Allow for speed efficient slicing by returning a new set of Stars which are a subset of the original object.
@@ -390,7 +392,7 @@ class Stars(MutableMapping):
         # If there are no elements requested, return the empty set.
         if numEl.count(0) > 0: return Stars(m=[], b=[], v=[], size=0)
         # If multiple elements are requested, return a set of Stars.
-        elif _numpy.any(_numpy.array(numEl) > 1): return Stars(m=self.m[key], b=self.b[key], v=self.v[key], inc=self.inc[key], omega=self.omega[key], Omega=self.Omega[key], UNIT_SYSTEM=self.units.UNIT_SYSTEM)
+        elif _np.any(_np.array(numEl) > 1): return Stars(m=self.m[key], b=self.b[key], v=self.v[key], inc=self.inc[key], omega=self.omega[key], Omega=self.Omega[key], UNIT_SYSTEM=self.units.UNIT_SYSTEM)
         # If only one element is requested, return a set of Stars with only one Star.
         else:
           # Check to see if the single element is an scalar or an array with only one element.
@@ -411,7 +413,7 @@ class Stars(MutableMapping):
     raise ValueError('Cannot delete Star elements from Stars array.')
 
   def __iter__(self):
-    for i in list(_numpy.ndindex(self.m.shape)):
+    for i in list(_np.ndindex(self.m.shape)):
       yield Star(m=self.m[i], b=self.b[i], v=self.v[i], inc=self.inc[i], omega=self.omega[i], Omega=self.Omega[i], UNIT_SYSTEM=self.units.UNIT_SYSTEM)
 
   def __len__(self):
@@ -420,7 +422,7 @@ class Stars(MutableMapping):
   def __eq__(self, other):
     """Overrides the default implementation"""
     if isinstance(other, Stars):
-        data = (_numpy.all(self.m == other.m) and _numpy.all(self.b == other.b) and _numpy.all(self.v == other.v) and _numpy.all(self.inc == other.inc) and _numpy.all(self.omega == other.omega) and _numpy.all(self.Omega == other.Omega))
+        data = (_np.all(self.m == other.m) and _np.all(self.b == other.b) and _np.all(self.v == other.v) and _np.all(self.inc == other.inc) and _np.all(self.omega == other.omega) and _np.all(self.Omega == other.Omega))
         properties = (self.N == other.N and self.units == other.units)
         return data and properties
     return NotImplemented
@@ -457,7 +459,7 @@ class Stars(MutableMapping):
     '''Alias for `sortby(argsort=True)`.'''
     return self.sortby(key, sim, argsort=True)
 
-  def sortby(self, key, sim=None, argsort=False):
+  def sortby(self, key, sim=None, argsort=False, **kwargs):
     '''
     Sort the Stars in ascending order by a defining parameter.
 
@@ -475,24 +477,24 @@ class Stars(MutableMapping):
     By setting argsort=True the indices used to sort the Stars will be returned instead.
     '''
 
-    inds = _numpy.arange(self.N)
-    if key == 'm' or key == 'mass': inds = _numpy.argsort(self.m)
-    elif key == 'b' or key == 'impact' or key == 'impact param' or key == 'impact parameter': inds = _numpy.argsort(self.b)
-    elif key == 'v' or key == 'vinf' or key == 'v_inf' or key == 'velocity': inds = _numpy.argsort(self.v)
-    elif key == 'inc' or key == 'inclination' or key == 'i' or key == 'I': inds = _numpy.argsort(self.inc)
-    elif key == 'omega' or key == 'ω': inds = _numpy.argsort(self.omega)
-    elif key == 'Omega' or key == 'Ω': inds = _numpy.argsort(self.Omega)
+    inds = _np.arange(self.N)
+    if key == 'm' or key == 'mass': inds = _np.argsort(self.m)
+    elif key == 'b' or key == 'impact' or key == 'impact param' or key == 'impact parameter': inds = _np.argsort(self.b)
+    elif key == 'v' or key == 'vinf' or key == 'v_inf' or key == 'velocity': inds = _np.argsort(self.v)
+    elif key == 'inc' or key == 'inclination' or key == 'i' or key == 'I': inds = _np.argsort(self.inc)
+    elif key == 'omega' or key == 'ω': inds = _np.argsort(self.omega)
+    elif key == 'Omega' or key == 'Ω': inds = _np.argsort(self.Omega)
     elif key == 'q' or key == 'peri' or key == 'perihelion' or key == 'periastron' or key == 'periapsis': 
       if isinstance(sim, _rebound.Simulation):
-        inds = _numpy.argsort(self.q(sim))
+        inds = _np.argsort(self.q(sim))
       else: raise InvalidParameterTypeException()
     elif key == 'e' or key == 'eccentricity': 
       if isinstance(sim, _rebound.Simulation):
-        inds = _numpy.argsort(self.e(sim))
+        inds = _np.argsort(self.e(sim))
       else: raise InvalidParameterTypeException()
     elif _tools.isList(key): 
       if len(key) != self.N: raise ListLengthException(f'Difference of {len(key)} and {self.N}.')
-      inds = _numpy.array(key)
+      inds = _np.array(key)
     else: raise InvalidValueForKeyException()
 
     if argsort: return inds
@@ -580,7 +582,7 @@ class Stars(MutableMapping):
       Returns a list of the parameters of the Stars in order of:
       Mass, m; Impact Parameter, b; Velocity, v; Inclination, inc; Argument of the Periastron, omega; and Longitude of the Ascending Node, Omega
     '''
-    return _numpy.array([self.m.value, self.b.value, self.v.value, self.inc.value, self.omega.value, self.Omega.value])
+    return _np.array([self.m.value, self.b.value, self.v.value, self.inc.value, self.omega.value, self.Omega.value])
  
   def e(self, sim):
     sim_units = _tools.rebound_units(sim)
@@ -588,7 +590,7 @@ class Stars(MutableMapping):
     mu = G * (_tools.system_mass(sim) * sim_units['mass'] + self.m)
 
     numerator = self.b * self.v*self.v
-    return _numpy.sqrt(1 + (numerator/mu)**2.)
+    return _np.sqrt(1 + (numerator/mu)**2.)
   
   def q(self, sim):
     sim_units = _tools.rebound_units(sim)
@@ -596,15 +598,20 @@ class Stars(MutableMapping):
     mu = G * (_tools.system_mass(sim)  * sim_units['mass'] + self.m)
 
     numerator = self.b * self.v*self.v
-    star_e = _numpy.sqrt(1 + (numerator/mu)**2.)
-    return self.b * _numpy.sqrt((star_e - 1.0)/(star_e + 1.0))
+    star_e = _np.sqrt(1 + (numerator/mu)**2.)
+    return self.b * _np.sqrt((star_e - 1.0)/(star_e + 1.0))
   
   def stats(self, returned=False):
     ''' 
     Prints a summary of the current stats of the Stars object.
     '''
     s = f"<{self.__module__}.{type(self).__name__} object at {hex(id(self))}, "
-    s += f"N={self.N:,.0f}{f', Environment={self._environment.name}' if self._environment is not None else ''}>" #units=[{', '.join([i.to_string() for i in self.units.UNIT_SYSTEM])}]
+    s += f"N={f'{self.N:,.0f}' if len(self.shape) == 1 else self.shape}"
+    s += f", m= {_np.min(self.m.value):,.2f}-{_np.max(self.m.value):,.2f} {self.units['mass']}"
+    s += f", b= {_np.min(self.b.value):,.0f}-{_np.max(self.b.value):,.0f} {self.units['length']}"
+    s += f", v= {_np.min(self.v.value):,.0f}-{_np.max(self.v.value):,.0f} {self.units['velocity']}"
+    s += f"{f', Environment={self._environment.name}' if self._environment is not None else ''}"
+    s += ">"
     if returned: return s
     else: print(s)
   

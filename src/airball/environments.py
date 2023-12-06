@@ -1,14 +1,18 @@
 import rebound as _rebound
-import numpy as _numpy
+import numpy as _np
 from scipy.stats import uniform as _uniform
 from scipy.stats import maxwell as _maxwell
 from scipy.stats import expon as _exponential
 from scipy.optimize import fminbound as _fminbound
 
 from . import units as _u
-from .imf import *
-from .stars import *
-from .analytic import *
+from . import imf as _imf
+from .imf import IMF as _IMF
+from .stars import Star as _Star
+from .stars import Stars as _Stars
+from . import analytic as _analytic
+from . import tools as _tools
+from .tools import UnitSet as _UnitSet
 
 class StellarEnvironment:
   '''
@@ -26,7 +30,7 @@ class StellarEnvironment:
   def __init__(self, stellar_density, velocity_dispersion, lower_mass_limit, upper_mass_limit, mass_function=None, maximum_impact_parameter=None, name=None, UNIT_SYSTEM=[], object_name=None, seed=None):
 
     # Check to see if an stars object unit is defined in the given UNIT_SYSTEM and if the user defined a different name for the objects.
-    self.units = UnitSet(UNIT_SYSTEM)
+    self.units = _UnitSet(UNIT_SYSTEM)
     objectUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(_u.stars)]
     if objectUnit == [] and object_name is not None: self.units.object = _u.def_unit(object_name, _u.stars)
     elif objectUnit == [] and object_name is None: self.units.object = _u.stars
@@ -35,14 +39,14 @@ class StellarEnvironment:
     self.density = stellar_density
     self.velocity_dispersion = velocity_dispersion
 
-    self._upper_mass_limit = upper_mass_limit.to(self.units['mass']) if isQuantity(upper_mass_limit) else upper_mass_limit * self.units['mass']
-    self._lower_mass_limit = lower_mass_limit.to(self.units['mass']) if isQuantity(lower_mass_limit) else lower_mass_limit * self.units['mass']
-    self._IMF = IMF(min_mass=self._lower_mass_limit, max_mass=self._upper_mass_limit, mass_function=mass_function, unit=self.units['mass'])
+    self._upper_mass_limit = upper_mass_limit.to(self.units['mass']) if _tools.isQuantity(upper_mass_limit) else upper_mass_limit * self.units['mass']
+    self._lower_mass_limit = lower_mass_limit.to(self.units['mass']) if _tools.isQuantity(lower_mass_limit) else lower_mass_limit * self.units['mass']
+    self._IMF = _IMF(min_mass=self._lower_mass_limit, max_mass=self._upper_mass_limit, mass_function=mass_function, unit=self.units['mass'])
     self._median_mass = self.IMF.median_mass
     self.maximum_impact_parameter = maximum_impact_parameter
 
     self.name = name if name is not None else 'Stellar Environment'
-    self.seed = seed if seed is not None else None #_numpy.random.randint(0, int(2**32 - 1))
+    self.seed = seed if seed is not None else None #_np.random.randint(0, int(2**32 - 1))
 
   def random_star(self, size=1, include_orientation=True, maximum_impact_parameter=None, **kwargs):
     ''' Alias for `random_stars`.'''
@@ -57,23 +61,23 @@ class StellarEnvironment:
     else: size = int(size)
 
     self.seed = kwargs.get('seed')
-    if self.seed != None: _numpy.random.seed(self.seed)
+    if self.seed != None: _np.random.seed(self.seed)
 
-    v = _maxwell.rvs(scale=maxwell_boltzmann_scale_from_dispersion(self.velocity_dispersion), size=size) # Relative velocity of the star at infinity.
+    v = _maxwell.rvs(scale=_tools.maxwell_boltzmann_scale_from_dispersion(self.velocity_dispersion), size=size) # Relative velocity of the star at infinity.
 
     max_impact = maximum_impact_parameter if maximum_impact_parameter is not None else self.maximum_impact_parameter
-    b = max_impact * _numpy.sqrt(_uniform.rvs(size=size)) # Impact parameter of the star.
+    b = max_impact * _np.sqrt(_uniform.rvs(size=size)) # Impact parameter of the star.
 
     m = self.IMF.random_mass(size=size) # Mass of the star.
 
-    zeros = _numpy.zeros(size)
-    inc = 2.0*_numpy.pi * _uniform.rvs(size=size) - _numpy.pi if include_orientation else zeros
-    ω = 2.0*_numpy.pi * _uniform.rvs(size=size) - _numpy.pi if include_orientation else zeros
-    Ω = 2.0*_numpy.pi * _uniform.rvs(size=size) - _numpy.pi if include_orientation else zeros
+    zeros = _np.zeros(size)
+    inc = 2.0*_np.pi * _uniform.rvs(size=size) - _np.pi if include_orientation else zeros
+    ω = 2.0*_np.pi * _uniform.rvs(size=size) - _np.pi if include_orientation else zeros
+    Ω = 2.0*_np.pi * _uniform.rvs(size=size) - _np.pi if include_orientation else zeros
 
-    if isinstance(size, tuple): return Stars(m=m, b=b, v=v, inc=inc, omega=ω, Omega=Ω, UNIT_SYSTEM=self.UNIT_SYSTEM)
-    elif size > 1: return Stars(m=m, b=b, v=v, inc=inc, omega=ω, Omega=Ω, UNIT_SYSTEM=self.UNIT_SYSTEM)#, environment=self)
-    else: return Star(m, b[0], v[0], inc[0], ω[0], Ω[0], UNIT_SYSTEM=self.UNIT_SYSTEM)
+    if isinstance(size, tuple): return _Stars(m=m, b=b, v=v, inc=inc, omega=ω, Omega=Ω, UNIT_SYSTEM=self.UNIT_SYSTEM)
+    elif size > 1: return _Stars(m=m, b=b, v=v, inc=inc, omega=ω, Omega=Ω, UNIT_SYSTEM=self.UNIT_SYSTEM)#, environment=self)
+    else: return _Star(m, b[0], v[0], inc[0], ω[0], Ω[0], UNIT_SYSTEM=self.UNIT_SYSTEM)
 
   def stats(self):
     '''
@@ -127,15 +131,15 @@ class StellarEnvironment:
   @maximum_impact_parameter.setter
   def maximum_impact_parameter(self, value):
     if value is not None:
-      self._maximum_impact_parameter = value.to(self.units['length']) if isQuantity(value) else value * self.units['length']
+      self._maximum_impact_parameter = value.to(self.units['length']) if _tools.isQuantity(value) else value * self.units['length']
     else:
       # TODO: Convert from fminbound to interpolation
       sim = _rebound.Simulation()
       sim.add(m=1.0)
       sim.add(m=5.2e-05, a=30.2, e=0.013)
-      _f = lambda b: _numpy.log10(_numpy.abs(1e-16 - _numpy.abs(relative_energy_change(sim, Star(self.upper_mass_limit, b * self.units['length'], _numpy.sqrt(2.0)*maxwell_boltzmann_mean_from_dispersion(self.velocity_dispersion))))))
-      bs = _numpy.logspace(1, 6, 1000)
-      b0 = bs[_numpy.argmin(_f(bs))]
+      _f = lambda b: _np.log10(_np.abs(1e-16 - _np.abs(_analytic.relative_energy_change(sim, _Star(self.upper_mass_limit, b * self.units['length'], _np.sqrt(2.0)*_tools.maxwell_boltzmann_mean_from_dispersion(self.velocity_dispersion))))))
+      bs = _np.logspace(1, 6, 1000)
+      b0 = bs[_np.argmin(_f(bs))]
       self._maximum_impact_parameter = _fminbound(_f, b0/5, 5*b0) * self.units['length']
 
   @property
@@ -152,7 +156,7 @@ class StellarEnvironment:
       The number density of the environment.
       Default units: pc^{-3}.
     '''
-    if isQuantity(value):
+    if _tools.isQuantity(value):
       if value.unit.is_equivalent(_u.stars/_u.m**3): self._density = value.to(self.units['density'])
       elif value.unit.is_equivalent(1/_u.m**3): self._density = (value * self.units['object']).to(self.units['density'])
       else: raise AssertionError('The given density units are not compatible.')
@@ -172,7 +176,7 @@ class StellarEnvironment:
       The velocity dispersion of the environment.
       Default units: km/s.
     '''
-    self._velocity = value.to(self.units['velocity']) if isQuantity(value) else value * self.units['velocity']
+    self._velocity = value.to(self.units['velocity']) if _tools.isQuantity(value) else value * self.units['velocity']
 
   @property
   def velocity_mean(self):
@@ -180,7 +184,7 @@ class StellarEnvironment:
       Return the velocity dispersion of the environment.
       Default units: km/s.
     '''
-    return maxwell_boltzmann_mean_from_dispersion(self.velocity_dispersion).to(self.units['velocity'])
+    return _tools.maxwell_boltzmann_mean_from_dispersion(self.velocity_dispersion).to(self.units['velocity'])
 
   @property
   def velocity_mode(self):
@@ -188,7 +192,7 @@ class StellarEnvironment:
       Return the velocity dispersion of the environment.
       Default units: km/s.
     '''
-    return maxwell_boltzmann_mode_from_dispersion(self.velocity_dispersion).to(self.units['velocity'])
+    return _tools.maxwell_boltzmann_mode_from_dispersion(self.velocity_dispersion).to(self.units['velocity'])
 
   @property
   def velocity_rms(self):
@@ -197,8 +201,8 @@ class StellarEnvironment:
       Default units: km/s.
     '''
 
-    v = _maxwell.rvs(scale=maxwell_boltzmann_scale_from_dispersion(self.velocity_dispersion), size=int(1e6))
-    return verify_unit(_numpy.sqrt(_numpy.mean(v**2)), self.units['velocity'])
+    v = _maxwell.rvs(scale=_tools.maxwell_boltzmann_scale_from_dispersion(self.velocity_dispersion), size=int(1e6))
+    return _tools.verify_unit(_np.sqrt(_np.mean(v**2)), self.units['velocity'])
 
   @property
   def lower_mass_limit(self):
@@ -244,7 +248,7 @@ class StellarEnvironment:
     '''
       The IMF of the environment.
     '''
-    if isinstance(value, IMF): self._IMF = IMF(value.min_mass, value.max_mass, value.imf, value.unit, value.number_samples, value.seed)
+    if isinstance(value, _IMF): self._IMF = _IMF(value.min_mass, value.max_mass, value.imf, value.unit, value.number_samples, value.seed)
     else: raise AssertionError('Initial Mass Function (IMF) must be an airball.IMF object.')
 
   @property
@@ -262,7 +266,7 @@ class StellarEnvironment:
         - the maximum impact parameter
         - the relative velocity at infinity derived from the velocity dispersion
     '''
-    return encounter_rate(self._density, maxwell_boltzmann_mean_from_dispersion(self.velocity_dispersion), self._maximum_impact_parameter, self.median_mass, unit_set=self.units).to(self.units['object']/self.units['time'])
+    return _tools.encounter_rate(self._density, _tools.maxwell_boltzmann_mean_from_dispersion(self.velocity_dispersion), self._maximum_impact_parameter, self.median_mass, unit_set=self.units).to(self.units['object']/self.units['time'])
   
   def cumulative_encounter_times(self, size=None):
     '''
@@ -271,12 +275,12 @@ class StellarEnvironment:
     '''
     if isinstance(size, tuple): 
       size = tuple([int(i) for i in size])
-      result = _numpy.cumsum(_exponential.rvs(scale=1/self.encounter_rate, size=size), axis=1) << self.units['time']
+      result = _np.cumsum(_exponential.rvs(scale=1/self.encounter_rate, size=size), axis=1) << self.units['time']
       result -= result[:, 0][:, None]
       return result
     else:
       size = int(size)
-      result = _numpy.cumsum(_exponential.rvs(scale=1/self.encounter_rate, size=size)) << self.units['time']
+      result = _np.cumsum(_exponential.rvs(scale=1/self.encounter_rate, size=size)) << self.units['time']
       result -= result[0]
       return result
   
@@ -307,7 +311,7 @@ class LocalNeighborhood(StellarEnvironment):
     It encapsulates the relevant data for a static stellar environment representing the local neighborhood of the solar system.
 
     The stellar density is 0.14 pc^-3 defined by Bovy (2017).
-    The velocity dispersion is 20 km/s, defined by Binnery & Tremaine (2008) v_rms ~50 km/s and Bailer-Jones et al. (2018) so that 90% of stars have v < 100 km/s with an encounter rate of ~20 stars/Myr within 1 pc.
+    The velocity dispersion is 20 km/s, defined by Binnery & Tremaine (2008) v_rms ~50 km/s and Bailer-Jones et al. (2018) so that 90% of stars have v < 100 km/s with an encounter rate of ~20 stars/Myr within 1 pc. A  more accurate representation of the velocity distribution in the solar neighborhood is a triaxial Gaussian distribution.
     The mass limits is defined to between 0.08-8 solar masses using Chabrier (2003) for single stars when m < 1 and a power-law model from Bovy (2017) for stars m ≥ 1 to account for depleted stars due to stellar evolution.
 
     # Example
@@ -320,7 +324,7 @@ class LocalNeighborhood(StellarEnvironment):
     '''
       This defined using Chabrier (2003) for single stars when m < 1 and a power-law model from Bovy (2017) for stars m ≥ 1 to account for depleted stars due to stellar evolution.
     '''
-    return chabrier_2003_single(1, 0.0567) * (x)**-4.7 if x > 1 else chabrier_2003_single(x, 0.0567)
+    return _imf.chabrier_2003_single(1, 0.0567) * (x)**-4.7 if x > 1 else _imf.chabrier_2003_single(x, 0.0567)
 
   def __init__(self, stellar_density = 0.14 * _u.stars/_u.pc**3, velocity_dispersion = 20.8 * _u.km/_u.s, lower_mass_limit=0.08 * _u.solMass, upper_mass_limit = 8 * _u.solMass, maximum_impact_parameter=10000 * _u.au, UNIT_SYSTEM=[], mass_function=local_mass_function, object_name=None):
     super().__init__(stellar_density=stellar_density, velocity_dispersion=velocity_dispersion, lower_mass_limit=lower_mass_limit, upper_mass_limit=upper_mass_limit, mass_function=mass_function, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, name = 'Local Neighborhood', object_name=object_name)
