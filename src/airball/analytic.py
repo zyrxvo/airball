@@ -5,44 +5,74 @@ from scipy.special import j0 as _j0,jv as _jv
 
 from . import tools as _tools
 from . import units as _u
-from .core import add_star_to_sim
+from .core import add_star_to_sim, _rotate_into_plane
 
 ############################################################
-################## Analytical Estimates ####################
+################## Energy Estimates ########################
 ############################################################
 
-def binary_energy(sim, particle_index=1):#sun_mass, planet_mass, planet_a):
-    '''
-        The energy of a binary system, -(G*M*m)/(2*a).
-        
-        Parameters
-        ----------
-        sim : REBOUND Simulation
-    '''
+def binary_energy(sim, particle_index=1):
+    """
+    Calculate the energy of a binary system, $-(G M m)/(2 a)$.
+
+    Args:
+        sim (Simulation): The simulation with two bodies, a central star and a planet.
+        particle_index (int, optional): The index of the particle in the simulation to calculate the energy for. Default is 1.
+
+    Returns:
+        energy (Quantity): The energy of the binary system.
+
+    Example:
+        ```python
+        import rebound
+        import airball
+        sim = rebound.Simulation()
+        sim.add(m=1.)
+        sim.add(m=5e-5, a=30., e=0.1, inc=0.1)
+        energy = airball.analytic.binary_energy(sim)
+        ```
+    """
     index = int(particle_index)
     unit_set = _tools.rebound_units(sim)
     G = (sim.G * unit_set['length']**3 / unit_set['mass'] / unit_set['time']**2)
     p = sim.particles
     return (-G * p[0].m * unit_set['mass'] * p[index].m * unit_set['mass'] / (2. * p[index].a * unit_set['length'])).decompose(list(unit_set.values()))
     
-def energy_change_adiabatic_estimate(sim, star, averaged=True, particle_index=1):
-    '''
-        An analytical estimate for the change in energy of a binary system due to a flyby star.
-        
-        From the conclusions of Roy & Haddow (2003) https://ui.adsabs.harvard.edu/abs/2003CeMDA..87..411R/abstract and Heggie (2006) https://ui.adsabs.harvard.edu/abs/2006fbp..book...20H/abstract. The orbital element angles of the flyby star are determined with respect to the plane defined by the binary orbit. In REBOUND this is the same as when the inclination of the planet is zero.
-        
-        Parameters
-        ----------
-        sim : REBOUND Simulation
-        star : AIRBALL Star flyby object
-    '''
+def energy_change_adiabatic_estimate(sim, star, averaged=False, particle_index=1):
+    """
+    An analytical estimate for the change in energy of a binary system due to a stellar flyby.
+
+    This function is based on the conclusions of [Roy & Haddow (2003)](https://ui.adsabs.harvard.edu/abs/2003CeMDA..87..411R/abstract) and [Heggie (2006)](https://ui.adsabs.harvard.edu/abs/2006fbp..book...20H/abstract). The orbital element angles of the flyby star are determined with respect to the plane defined by the binary orbit.
+
+    Args:
+        sim (Simulation): The simulation to calculate the energy change for.
+        star (Star or Stars): The star or stars that are flying by the binary system.
+        averaged (bool, optional): Whether to return the averaged energy change. Default is False.
+        particle_index (int, optional): The index of the particle in the simulation to calculate the energy change for. Default is 1.
+
+    Returns:
+        result (Quantity): The estimated change in energy.
+
+    Example:
+        ```python
+        import rebound
+        import airball
+        sim = rebound.Simulation()
+        sim.add(m=1.)
+        sim.add(m=5e-5, a=30., e=0.1, inc=0.1)
+        star = airball.Star(m=1., b=500, v=5)
+        energy_change = airball.energy_change_adiabatic_estimate(sim, star)
+        ```
+    """
     index = int(particle_index)
     unit_set = _tools.rebound_units(sim)
     t0 = 0*unit_set['time']
     G = (sim.G * unit_set['length']**3 / unit_set['mass'] / unit_set['time']**2)
 
     sim = sim.copy()
-    sim.rotate(_rebound.Rotation.to_new_axes(newz=sim.angular_momentum()))
+    _rotate_into_plane(sim, plane=index)
+    # add_star_to_sim(sim, star, hash='flybystar', rmax=0) # Initialize Star at perihelion
+    sim.move_to_hel()
     
     p = sim.particles
     m1, m2, m3 = p[0].m * unit_set['mass'], p[index].m * unit_set['mass'], star.mass # redefine the masses for convenience
@@ -90,7 +120,6 @@ def energy_change_adiabatic_estimate(sim, star, averaged=True, particle_index=1)
 
     # Compute the prefactor and terms of the calculation done by Roy & Haddow (2003)
     prefactor = (-_np.sqrt(_np.pi)/8.0) * ((G*m1*m2*m3)/M12) * ((a*a*a)/(q*q*q*q)) * f1 * k**(3.5) * _np.exp((-2.0*k/3.0)*f2) * (m2/M12 - m1/M12)
-    # if m2 < m1: prefactor /= twopi
     with _u.set_enabled_equivalencies(_u.dimensionless_angles()):
         term1 = (1.0 + _np.cos(i)) * _np.sin(i)**2.0
         term2 = ( (_np.cos(w)**3.0) - 3.0 * (_np.sin(w)**2.0) * _np.cos(w) ) * _np.sin(n*t0)
@@ -102,45 +131,143 @@ def energy_change_adiabatic_estimate(sim, star, averaged=True, particle_index=1)
 
     return circular_result + noncircular_result
 
+def energy_change_close_encounter_estimate(sim, star, particle_index=1):
+    '''
+    An analytical estimate for the change in energy of a binary system due to a flyby star. From Equation (4.7) of [Heggie (1975)](https://ui.adsabs.harvard.edu/abs/1975MNRAS.173..729H/abstract). The orbital element angles of the flyby star are determined with respect to the plane defined by the binary orbit.
+
+    Args:
+        sim (Simulation): The simulation with two bodies, a central star and a planet.
+        star (Star): The star used to estimate the change in energy of a binary due to the flyby star
+        particle_index (int, optional): The index of the particle in the simulation to calculate the energy for. Default is 1.
+
+    Returns:
+        result (Quantity): The change in energy of the binary system.
+
+    Example:
+        ```python
+        import rebound
+        from airball import Star
+        sim = rebound.Simulation()
+        sim.add(m=1.)
+        sim.add(m=5e-5, a=30., e=0.1, inc=0.1)
+        star = Star(m=1., b=100, v=5)
+        energy_change = airball.analytic.energy_change_close_encounter_estimate(sim, star)
+        ```
+    '''
+    index = int(particle_index)
+    s = sim.copy()
+    _rotate_into_plane(s, plane=index)
+    add_star_to_sim(s, star, hash='flybystar', rmax=0) # Initialize Star at perihelion
+    s.move_to_hel()
+    p = s.particles
+
+    unit_set = _tools.rebound_units(sim)
+    G = (s.G * unit_set['length']**3 / unit_set['mass'] / unit_set['time']**2) # Newton's Gravitational constant
+
+    m1, m2 = p[0].m * unit_set['mass'], p[index].m * unit_set['mass'] # redefine the masses for convenience
+    m3 = star.m
+    M12 = m1 + m2 # total mass of the binary system
+    M23 = m2 + m3 # total mass of the second and third bodies
+
+    V = star.v # velocity of the star
+
+    x,y,z = _tools.unit_vector(p['flybystar'].xyz << unit_set['length'])
+    vx,vy,vz = p[index].vxyz << (unit_set['length']/unit_set['time'])
+
+    with _u.set_enabled_equivalencies(_u.dimensionless_angles()):
+        cosϕ = 1.0/_np.sqrt(1.0 + (((star.b**2.0)*(V**4.0))/((G*M23)**2.0)).decompose())
+    
+    prefactor = (-2.0 * m1 * m2 * m3)/(M12 * M23) * V * cosϕ
+    t1 = -(x*vx + y*vy + z*vz)
+    t2 = (m3 * V * cosϕ)/M23
+
+    return (prefactor * (t1 + t2)).decompose([unit_set[k] for k in unit_set])
 
 def relative_energy_change(sim, star, averaged=False, particle_index=1):
     '''
-        An analytical estimate for the relative change in energy of a binary system due to a flyby star.
-        
-        Combines energy_change_adiabatic_estimate(...) and binary_energy(...) functions.
-        
-        Parameters
-        ----------
-        sim : REBOUND Simulation with two bodies, a central star and a planet
-        star : AIRBALL Star flyby object
+     A convenience function for computing the analytical estimate for the relative change in energy of a binary system due to a flyby star. Combines [`energy_change_adiabatic_estimate`][airball.analytic.energy_change_adiabatic_estimate] and [`binary_energy`][airball.analytic.binary_energy] functions.
+
+    Args:
+        sim (Simulation): The simulation with two bodies, a central star and a planet.
+        star (Star or Stars): The star or stars used to estimate the change in energy of a binary due to the flyby star
+        averaged (bool, optional): Boolean indicator for averaging over the incident angles of the flyby star. Default is False.
+        particle_index (int, optional): The index of the particle in the simulation to calculate the energy for. Default is 1.
+
+    Returns:
+        energy_change (Quantity): The relative change in energy of the binary system.
+
+    Example:
+        ```python
+        import rebound
+        import airball
+        sim = rebound.Simulation()
+        sim.add(m=1.)
+        sim.add(m=5e-5, a=30., e=0.1, inc=0.1)
+        star = airball.Star(m=1., b=500, v=5)
+        energy_change = airball.analytic.relative_energy_change(sim, star)
+        ```
+
     '''
     return energy_change_adiabatic_estimate(sim=sim, star=star, averaged=averaged, particle_index=particle_index)/binary_energy(sim, particle_index=particle_index)
 
 def parallel_relative_energy_change(sims, stars, averaged=False, particle_index=1):
     '''
-        An analytical estimate for the relative change in energy of a binary system due to a flyby star.
-        
-        Combines energy_change_adiabatic_estimate(...) and binary_energy(...) functions.
-        
-        Parameters
-        ----------
-        sims : REBOUND Simulations with two bodies, a central star and a planet
-        stars : AIRBALL Stars flyby object
+        A convenience function for computing the analytical estimate for the relative change in energy of a binary system due to a flyby star. Combines [`energy_change_adiabatic_estimate`][airball.analytic.energy_change_adiabatic_estimate] and [`binary_energy`][airball.analytic.binary_energy] functions parallelized over the input parameters.
+
+        Args:
+            sims (list of Simulations): The simulation with two bodies, a central star and a planet.
+            stars (Stars): The stars used to estimate the change in energy of a binary due to the flyby star
+            averaged (bool, optional): Boolean indicator for averaging over the incident angles of the flyby star. Default is False.
+            particle_index (int, optional): The index of the particle in the simulation to calculate the energy for. Default is 1.
+
+        Returns:
+            result (list of Quantities): The relative change in energy of the binary systems.
+
+        Example:
+            ```python
+            import rebound
+            import airball
+            def setup():
+                sim = rebound.Simulation()
+                sim.add(m=1.)
+                sim.add(m=5e-5, a=30., e=0.1, f='uniform')
+                return sim
+            stars = airball.Star(m=1., b=500, v=5, size=10)
+            sims = [setup() for _ in range(stars.N)]
+            energy_change = airball.analytic.parallel_relative_energy_change(sims, stars)
+            ```
     '''
     return _joblib.Parallel(n_jobs=-1)(_joblib.delayed(relative_energy_change)(sim=sims[i], star=stars[i], averaged=averaged, particle_index=particle_index) for i in range(stars.N))
 
 
-def eccentricity_change_adiabatic_estimate(sim, star, averaged=False, particle_index=1, mode='all', rmax=1e5*_u.au):
+############################################################
+################ Eccentricity Estimates ####################
+############################################################
+
+def eccentricity_change_adiabatic_estimate(sim, star, averaged=False, particle_index=1, rmax=1e5*_u.au):
     '''
-        An analytical estimate for the change in eccentricity of an eccentric binary system due to a flyby star.
-        
-        From Equation (7) of Heggie & Rasio (1996) Equation (A3) from Spurzem et al. (2009) https://ui.adsabs.harvard.edu/abs/2009ApJ...697..458S/abstract. 
-        The orbital element angles of the flyby star are determined with respect to the plane defined by the binary orbit (the invariant plane). In REBOUND this is the same as when the inclination of the planet is zero.
-        
-        Parameters
-        ----------
-        sim : REBOUND Simulation with two bodies, a central star and a planet
-        star : AIRBALL Star flyby object
+        An analytical estimate for the change in eccentricity of a binary system due to a flyby star. From Equations (7, 9, & 12) of Heggie & Rasio [(1996)](https://ui.adsabs.harvard.edu/abs/1996MNRAS.282.1064H/abstract). The orbital element angles of the flyby star are determined with respect to the plane defined by the binary orbit.
+
+        Args:
+            sim (Simulation): The simulation with two bodies, a central star and a planet.
+            star (Star): The star used to estimate the change in energy of a binary due to the flyby star
+            averaged (bool, optional): Boolean indicator for averaging over the incident angles of the flyby star. Default is False.
+            particle_index (int, optional): The index of the particle in the simulation to calculate the energy for. Default is 1.
+            rmax (float or Quantity, optional): Needed to determine the time when the star will be at perihelion. Default is $10^5$ AU.
+
+        Returns:
+            result (Quantity): The change in eccentricity of the binary system.
+
+        Example:
+            ```python
+            import rebound
+            import airball
+            sim = rebound.Simulation()
+            sim.add(m=1.)
+            sim.add(m=5e-5, a=30., e=0.1, inc=0.1)
+            star = airball.Star(m=1., b=500, v=5)
+            eccentricity_change = airball.analytic.eccentricity_change_adiabatic_estimate(sim, star)
+            ```
     '''
 
     index = int(particle_index)
@@ -178,7 +305,8 @@ def eccentricity_change_adiabatic_estimate(sim, star, averaged=False, particle_i
         t2 = ((1.0/3.0) * (1.0 + _np.cos(i)*_np.cos(i)) * _np.cos(2.0*w) * _np.sin(2.0*W)).value
         t3 = (2.0 * _np.cos(i) * _np.sin(2.0*w) * _np.cos(2.0*W) * ((es*es - 1.0)**1.5)/(es*es)).value
 
-    if averaged: noncircular_result = (prefactor * ( ( _np.arccos(-1.0/es).value + _np.sqrt(es*es - 1.0) ) + (2.0/3.0) + (2.0 * ((es*es - 1.0)**1.5)/(es*es)) )).decompose(list(unit_set.values()))
+    if averaged:
+        noncircular_result = (prefactor * ( ( _np.arccos(-1.0/es).value + _np.sqrt(es*es - 1.0) ) + (2.0/3.0) + (2.0 * ((es*es - 1.0)**1.5)/(es*es)) )).decompose(list(unit_set.values()))
     else: noncircular_result = (prefactor * (t1 + t2 + t3)).decompose(list(unit_set.values()))
 
     # Case: Circular Binary
@@ -209,34 +337,70 @@ def eccentricity_change_adiabatic_estimate(sim, star, averaged=False, particle_i
     if averaged: exponential_result = prefactor * _np.exp(exponential)
     else: exponential_result = prefactor * _np.exp(exponential) * angles
 
-    if mode == 'circular': return circular_result.decompose()
-    elif mode == 'noncircular': return noncircular_result.decompose()
-    elif mode == 'exponential': return exponential_result.decompose()
-    else: return (_np.nan_to_num(circular_result) + _np.nan_to_num(noncircular_result) + _np.nan_to_num(exponential_result)).decompose()
+    return (_np.nan_to_num(circular_result) + _np.nan_to_num(noncircular_result) + _np.nan_to_num(exponential_result)).decompose()
 
-def parallel_eccentricity_change_adiabatic_estimate(sims, stars, averaged=False, particle_index=1, mode='all', rmax=1e5*_u.au):
-    '''
-        An analytical estimate for the relative change in energy of a binary system due to a flyby star.
-        
-        Combines energy_change_adiabatic_estimate(...) and binary_energy(...) functions.
-        
-        Parameters
-        ----------
-        sims : REBOUND Simulations with two bodies, a central star and a planet
-        stars : AIRBALL Stars flyby object
-    '''
-    return _joblib.Parallel(n_jobs=-1)(_joblib.delayed(eccentricity_change_adiabatic_estimate)(sim=sims[i], star=stars[i], averaged=averaged, particle_index=particle_index, mode=mode, rmax=rmax) for i in range(stars.N))
+def parallel_eccentricity_change_adiabatic_estimate(sims, stars, averaged=False, particle_index=1, rmax=1e5*_u.au):
+    """
+    An analytical estimate for the changes in eccentricity of binary systems due to a flyby stars.
+
+    Args:
+        sims (list of Simulations): the simulation with two bodies, a central star and a planet.
+        stars (Stars): the star or stars used to estimate the change in energy of a binary due to the flyby star
+        averaged (bool, optional): boolean indicator for averaging over the incident angles of the flyby star. Default is False.
+        particle_index (int, optional): the index of the particle in the simulation to calculate the energy for. Default is 1.
+        rmax (float or Quantity, optional): needed to determine the time when the star will be at perihelion. Default is $10^5$ AU.
+
+    Returns:
+        results (list of Quantities): The changes in eccentricity of the binary systems.
+
+    Example:
+        ```python
+        import rebound
+        import airball
+        def setup():
+            sim = rebound.Simulation()
+            sim.add(m=1.)
+            sim.add(m=5e-5, a=30., e=0.1, f='uniform')
+            return sim
+        stars = airball.Star(m=1., b=500, v=5, size=10)
+        sims = [setup() for _ in range(stars.N)]
+        eccentricity_changes = airball.analytic.parallel_eccentricity_change_adiabatic_estimate(sims, stars)
+        ```
+    """
+    return _joblib.Parallel(n_jobs=-1)(_joblib.delayed(eccentricity_change_adiabatic_estimate)(sim=sims[i], star=stars[i], averaged=averaged, particle_index=particle_index, rmax=rmax) for i in range(stars.N))
 
 def eccentricity_change_impulsive_estimate(sim, star, particle_index=1):
+    '''
+    An analytical estimate for the change in eccentricity of an eccentric binary system due to a flyby star. From Equation (28) of [Heggie & Rasio (1996)](https://ui.adsabs.harvard.edu/abs/1996MNRAS.282.1064H/abstract). The orbital element angles of the flyby star are determined with respect to the plane defined by the binary orbit.
+
+    Args:
+        sim (Simulation): The simulation with two bodies, a central star and a planet.
+        star (Star): The star used to estimate the change in energy of a binary due to the flyby star
+        particle_index (int, optional): The index of the particle in the simulation to calculate the energy for. Default is 1.
+
+    Returns:
+        result (Quantity): The change in eccentricity of the binary system.
+
+    Example:
+        ```python
+        import rebound
+        import airball
+        sim = rebound.Simulation()
+        sim.add(m=1.)
+        sim.add(m=5e-5, a=30., e=0.1, inc=0.1)
+        star = airball.Star(m=1., b=500, v=5)
+        eccentricity_change = airball.analytic.eccentricity_change_impulsive_estimate(sim, star)
+        ```
+    '''
 
     index = int(particle_index)
 
     unit_set = _tools.rebound_units(sim)
     G = (sim.G * unit_set['length']**3 / unit_set['mass'] / unit_set['time']**2)
     sim = sim.copy()
-    # sim.rotate(_rebound.Rotation.to_new_axes(newz=sim.angular_momentum()))
+    _rotate_into_plane(sim, plane=index)
     add_star_to_sim(sim, star, hash='flybystar', rmax=0) # Initialize Star at perihelion
-    
+
     p = sim.particles
     m1, m2, m3 = p[0].m * unit_set['mass'], p[index].m * unit_set['mass'], star.mass # redefine the masses for convenience
     M12 = m1 + m2 # total mass of the binary system
@@ -250,41 +414,65 @@ def eccentricity_change_impulsive_estimate(sim, star, particle_index=1):
 
     return ((2.0 * _np.sqrt(G/M12) * (m3/V) * _np.sqrt(a*a*a) / (q*q)) * _np.abs(_np.cos(theta)) * _np.sqrt((_np.cos(theta)**2.0) + (4.0 * _np.sin(theta)**2.0))).decompose()
 
-def energy_change_close_encounters_sim(sim):
-    '''
-        An analytical estimate for the change in energy of a binary system due to a flyby star.
-        
-        From the conclusions of Roy & Haddow (2003) https://ui.adsabs.harvard.edu/abs/2003CeMDA..87..411R/abstract and Heggie (2006) https://ui.adsabs.harvard.edu/abs/2006fbp..book...20H/abstract. The orbital element angles of the flyby star are determined with respect to the plane defined by the binary orbit. In REBOUND this is the same as when the inclination of the planet is zero.
-        
-        Parameters
-        ----------
-        sim : three-body REBOUND sim
-    '''
-    s = sim.copy()
-    s.move_to_hel()
-    p = s.particles
 
-    G = s.G # Newton's Gravitational constant in units of Msun, AU, Yr2Pi
-    m1, m2, m3 = p[0].m, p[1].m, p[2].m # redefine the masses for convenience
+############################################################
+################ Inclination Estimate ######################
+############################################################
+
+def inclination_change_adiabatic_estimate(sim, star, averaged=False, particle_index=1):
+    '''
+    An analytical estimate for the sine of the change in inclination of an eccentric binary system due to a flyby star, $\\sin(\\Delta i)$. This function is based on Equation (A5) of [Malmberg, Davies, & Heggie (2011)](https://ui.adsabs.harvard.edu/abs/2011MNRAS.411..859M/abstract), with the addition of a factor of $(1 + e_\\star)^{-1/2}$ to account for hyperbolic flybys. The orbital element angles of the flyby star are determined with respect to the plane defined by the binary orbit.
+
+    Args:
+        sim (Simulation): the simulation with two bodies, a central star and a planet.
+        star (Star or Stars): The star or stars that are flying by the binary system.
+        averaged (bool, optional): Whether to return the inclination change averaged over the incident angles. Default is False.
+        particle_index (int, optional): the index of the particle in the simulation to calculate the inclination change for. Default is 1.
+
+    Returns:
+        result (Quantity): Sine of the estimated change in the inclination, $\\sin(\\Delta i)$.
+
+    Example:
+        ```python
+        import rebound
+        import airball
+        sim = rebound.Simulation()
+        sim.add(m=1.)
+        sim.add(m=5e-5, a=30., e=0.1, inc=0.1)
+        star = airball.Star(m=1., b=500, v=5)
+        inclination_change = airball.analytic.inclination_change_adiabatic_estimate(sim, star)
+        ```
+    '''
+
+    index = int(particle_index)
+
+    unit_set = _tools.rebound_units(sim)
+    t0 = sim.t * unit_set['time']
+    G = (sim.G * unit_set['length']**3 / unit_set['mass'] / unit_set['time']**2)
+    
+    p = sim.particles
+    m1, m2, m3 = p[0].m * unit_set['mass'], p[index].m * unit_set['mass'], star.mass # redefine the masses for convenience
     M12 = m1 + m2 # total mass of the binary system
-    M23 = m2 + m3 # total mass of the second and third bodies
     M123 = m1 + m2 + m3 # total mass of all the objects involved
-
-    V = p[2].v # velocity of the star
-    es = p[2].e
-    GM123 = G*M123
-    b = -p[2].a * _np.sqrt(es*es - 1.0)
-    q = (- GM123 + _np.sqrt( GM123**2. + b**2. * V**4.))/V**2. # compute the periapsis of the flyby star
-
-    x,y,z = p[2].xyz
-    vx,vy,vz = p[1].vxyz
-
-    cosϕ = 1.0/_np.sqrt(1.0 + ((q**2.0)*(V**4.0))/(M23**2.0))
     
-    prefactor = (-2.0 * m1 * m2 * m3)/(M12 * M23) * V * cosϕ
-    t1 = -(x*vx + y*vy + z*vz)
-    t2 = (m3 * V * cosϕ)/M23
+    mu = G * (_tools.system_mass(sim)  * unit_set['mass'] + m3)
+    es = _tools.vinf_and_b_to_e(mu=mu, star_b=star.b, star_v=star.v)
     
-    sim.move_to_hel()
+    a, e = p[index].a * unit_set['length'], p[index].e # redefine the orbital elements of the planet for convenience
     
-    return prefactor * (t1 + t2)
+    w, W, i = star.omega, star.Omega, star.inc # redefine the orientation elements of the flyby star for convenience
+
+    V = star.v
+    q = (- mu + _np.sqrt( mu**2. + star.b**2. * V**4.))/V**2. # compute the periapsis of the flyby star
+
+    # Case: Non-Circular Binary
+
+    prefactor = (3.0*_np.pi * m3 /8.0) * _np.sqrt(2.0/(M123 * M12 * (1.0 - e*e) * (1.0 + es))) * (a/q)**1.5
+    with _u.set_enabled_equivalencies(_u.dimensionless_angles()):
+        angles = (_np.sin(i) * _np.cos(i) * _np.sqrt( (1.0 + 3.0*e*e)**2.0 * _np.sin(W)**2.0 + (1.0 + e*e)**2.0 * _np.cos(W)**2.0 )).value
+
+    if averaged:
+        noncircular_result = (prefactor).decompose(list(unit_set.values()))
+    else: noncircular_result = (prefactor * angles).decompose(list(unit_set.values()))
+
+    return noncircular_result
