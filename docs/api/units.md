@@ -11,7 +11,6 @@ Simply use `airball.units` the way you would use any `astropy.units`, but enjoy 
     import rebound
     import airball.units as u
     sim = rebound.Simulation()
-    sim.add(m=1)
-    sim.add(m=5e-5, a=30, e=0.01)
-    vel = (sim.particles[1].v * u.au/u.yr2pi).to(u.km/u.s) # Get velocity in km/s
+    sim.add('solar system')
+    vel = (sim.particles[8].v * u.au/u.yr2pi).to(u.km/u.s) # Get Neptune's velocity in km/s
     ```

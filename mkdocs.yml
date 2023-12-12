@@ -4,8 +4,17 @@ repo_name: zyrxvo/airball
 edit_uri: ""
 nav:
   - 'Home': index.md
+  - 'API':
+    - 'Overview': api/index.md
+    - 'Core': api/core.md
+    - 'Stars': api/stars.md
+    - 'Environments': api/environments.md
+    - 'Initial Mass Function (IMF)': api/imf.md
+    - 'Analytic Estimates': api/analytic.md
+    - 'Tools': api/tools.md
+    - 'Units': api/units.md
   - 'Examples': 
-    - 'Overview': examples.md
+    - 'Overview': examples/index.md
     - 'Basics': examples/basics.ipynb
     - 'IMF': examples/imf.ipynb
     - 'Stellar Environments': examples/stellar-environments.ipynb
@@ -19,6 +28,7 @@ theme:
   features:
     - navigation.tabs
     - toc.integrate
+    - content.code.copy
 markdown_extensions:
   - admonition
   - def_list
@@ -44,3 +54,13 @@ extra:
 plugins:
   - search
   - mkdocs-jupyter
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          options:
+            show_root_heading: true
+            heading_level: 4
+            show_source: true
+  - pdoc:
+      api_path: api
