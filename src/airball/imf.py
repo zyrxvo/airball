@@ -1,9 +1,10 @@
 import numpy as _np
+import types as _types
 from scipy.integrate import quad as _quad
-from . import units as u
-from . import tools
+from . import units as _u
+from . import tools as _tools
 
-class MassFunction():
+class Distribution():
   def __init__(self, mass_function, **kwargs):
     self.mass_function = mass_function
     self.params = kwargs
@@ -11,7 +12,7 @@ class MassFunction():
   def __call__(self, x):
     return self.mass_function(x, **self.params)
 
-class chabrier_2003_single(MassFunction):
+class chabrier_2003_single(Distribution):
   """
   Chabrier 2003 IMF for single stars.
   This function calculates the probability density for a given mass value (x) based on Equation (17) of Chabrier 2003 for an IMF for single stars.
@@ -38,7 +39,7 @@ class chabrier_2003_single(MassFunction):
   def _chabrier_2003_single(self, x, A=0.158):
     return (A / x) * _np.exp(-((_np.log10(x) - _np.log10(0.079)) ** 2) / (2 * 0.69 ** 2))
 
-class salpeter_1955(MassFunction):
+class salpeter_1955(Distribution):
   """
   Salpeter 1955 IMF for single stars.
   This function calculates the probability density for a given mass value (x) based on the Salpeter 1955 IMF equation.
@@ -65,7 +66,7 @@ class salpeter_1955(MassFunction):
   def _salpeter_1955(self, x, A):
     return A * x ** -2.3
 
-class default_mass_function(MassFunction):
+class default_mass_function(Distribution):
   '''
   Default mass function for an IMF. This function is a piecewise function that uses the IMF for single stars from Chabrier 2003 for masses less than 1 solar mass and the Salpeter 1955 IMF for masses greater than 1 solar mass.
 
@@ -90,7 +91,7 @@ class default_mass_function(MassFunction):
     salpeter55 = salpeter_1955(A=chabrier03(1))
     return _np.where(x < 1, chabrier03(x), salpeter55(x))
 
-class uniform(MassFunction):
+class uniform(Distribution):
   '''
   Uniform IMF.
   This function calculates the probability density for a given mass value (x) based on a uniform IMF.
@@ -103,7 +104,7 @@ class uniform(MassFunction):
   def _uniform(self, x):
     return x * 0 + 1
 
-class power_law(MassFunction):
+class power_law(Distribution):
   '''
   Power law IMF.
   This function calculates the probability density for a given mass value (x) based on a power law IMF.
@@ -124,7 +125,7 @@ class power_law(MassFunction):
   def _power_law(self, x, alpha, A):
     return A * x ** alpha
 
-class broken_power_law(MassFunction):
+class broken_power_law(Distribution):
   '''
   Broken power law IMF.
   This function calculates the probability density for a given mass value (x) based on a broken power law IMF.
@@ -147,7 +148,7 @@ class broken_power_law(MassFunction):
   def _broken_power_law(self, x, alpha, beta, A, x_0):
     return _np.where(x < x_0, A * x ** alpha, A * x_0 ** (beta - alpha) * x ** beta)
 
-class lognormal(MassFunction):
+class lognormal(Distribution):
   '''
   Lognormal IMF.
   This function calculates the probability density for a given mass value (x) based on a lognormal IMF.
@@ -169,7 +170,7 @@ class lognormal(MassFunction):
   def _lognormal(self, x, mu, sigma, A):
     return A * _np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
 
-class loguniform(MassFunction):
+class loguniform(Distribution):
   '''
   Loguniform IMF.
   This function calculates the probability density for a given mass value (x) based on a loguniform IMF.
@@ -201,22 +202,36 @@ class IMF():
     unit (Unit, optional): Unit of mass. Default is solar masses.
     number_samples (float, optional): Number of samples to use for interpolating the CDF. Default is 100.
     seed (float, optional): Value to seed the random number generator with. Default is None.
+
+  Attributes:
+    min_mass (float): Minimum mass value of the IMF range.
+    max_mass (float): Maximum mass value of the IMF range.
+    median_mass (float): Median mass value of the IMF.
+    seed (float): Value to seed the random number generator with.
+    number_samples (float): Number of samples to use for interpolating the CDF.
+    unit (Unit): Unit of mass.
+    normalization_factor (float): Normalization factor for the PDF.
+    masses (ndarray): Mass values logarithmically spanning the IMF range.
+    CDF (function): Cumulative distribution function (CDF) of the IMF.
+    PDF (function): Normalized probability density function (PDF) of the IMF.
+    IMF (function): Initial mass function (IMF) of the IMF.
   """
 
-  def __init__(self, min_mass, max_mass, mass_function=None, unit=u.solMass, number_samples=100, seed=None):
+  def __init__(self, min_mass, max_mass, mass_function=None, unit=_u.solMass, number_samples=100, seed=None):
     self._number_samples = int(number_samples)
     self._seed = seed
-    self.unit = unit if tools.isUnit(unit) else u.solMass
+    self.unit = unit if _tools.isUnit(unit) else _u.solMass
 
     # Convert min_mass and max_mass to specified unit if they are Quantity objects, otherwise assume they are already in the correct unit
-    self._min_mass = min_mass.to(self.unit) if tools.isQuantity(min_mass) else min_mass * self.unit
+    self._min_mass = min_mass.to(self.unit) if _tools.isQuantity(min_mass) else min_mass * self.unit
     if self._min_mass.value <= 0: raise ValueError('Cannot have minimum mass value be less than or equal to 0.')
-    self._max_mass = max_mass.to(self.unit) if tools.isQuantity(max_mass) else max_mass * self.unit
+    self._max_mass = max_mass.to(self.unit) if _tools.isQuantity(max_mass) else max_mass * self.unit
     if self._max_mass <= self._min_mass: raise ValueError('Cannot have maximum mass value be less than or equal to minimum mass.')
     if self._max_mass.value <= 0: raise ValueError('Cannot have maximum mass value be less than or equal to 0.')
 
     # Determine the probability distribution function (PDF) based on the given mass function or default to a piecewise Chabrier 2003 and Salpeter 1955
     if mass_function is None: mass_function = default_mass_function()
+    elif not isinstance(mass_function, (_types.FunctionType, Distribution)): raise ValueError('mass_function must be a function or a Distribution object.')
     self.initial_mass_function = mass_function
 
     # Recalculate the IMF properties based on the updated parameters
@@ -300,7 +315,7 @@ class IMF():
 
   @min_mass.setter
   def min_mass(self, value):
-    value = value.to(self.unit) if tools.isQuantity(value) else value * self.unit
+    value = value.to(self.unit) if _tools.isQuantity(value) else value * self.unit
     if value.value <= 0: raise ValueError('Cannot have minimum mass value be less than or equal to 0.')
     self._min_mass = value
     self._recalculate()
@@ -318,10 +333,10 @@ class IMF():
 
   @max_mass.setter
   def max_mass(self, value):
-    value = value.to(self.unit) if tools.isQuantity(value) else value * self.unit
+    value = value.to(self.unit) if _tools.isQuantity(value) else value * self.unit
     if value.value <= 0: raise ValueError('Cannot have maximum mass value be less than or equal to 0.')
     if value.value <= self.min_mass: raise ValueError('Cannot have maximum mass value be less than or equal to minimum mass value.')
-    self._max_mass = value.to(self.unit) if tools.isQuantity(value) else value * self.unit
+    self._max_mass = value.to(self.unit) if _tools.isQuantity(value) else value * self.unit
     self._recalculate()
 
   @property
@@ -384,3 +399,37 @@ class IMF():
   @property
   def IMF(self):
     return self.imf
+
+  def __eq__(self, other):
+    # Overrides the default implementation
+    if isinstance(other, IMF):
+        return (self.min_mass == other.min_mass and self.max_mass == other.max_mass and self.initial_mass_function == other.initial_mass_function and self.unit == other.unit and self.number_samples == other.number_samples and self.seed==other.seed)
+    else:
+      return NotImplemented
+  
+  def __hash__(self):
+    # Overrides the default implementation
+    data = []
+    for d in sorted(self.__dict__.items()):
+        try: data.append((d[0], tuple(d[1])))
+        except: data.append(d)
+    data = tuple(data)
+    return hash(data)
+  
+
+  def summary(self, returned=False):
+    ''' 
+    Prints a compact summary of the current stats of the Stellar Environment object.
+    '''
+    s = f"<{self.__module__}.{type(self).__name__} object at {hex(id(self))}"
+    s += f", m= {self.min_mass.value:,.2f}-{self.max_mass.value:,.1f} {self.unit}"
+    s += f", IMF= {self.initial_mass_function.__class__.__name__}" if isinstance(self.initial_mass_function, Distribution) else ', IMF= custom'
+    s += ">"
+    if returned: return s
+    else: print(s)
+  
+  def __str__(self):
+    return self.summary(returned=True)
+  
+  def __repr__(self):
+    return self.summary(returned=True)
