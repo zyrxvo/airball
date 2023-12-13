@@ -4,7 +4,7 @@
 
 `airball.units` also adds a `stars` quantity for keeping track of units of stars when doing encounter rates, density, and other calculations related to [`StellarEnvironments`](../environments/#airball.environments.StellarEnvironment).
 
-Simply use `airball.units` the way you would use any `astropy.units`, but enjoy the additional unit of time.
+Simply use `airball.units` the way you would use any [`astropy.units`](https://docs.astropy.org/en/stable/units/index.html), but enjoy the additional unit of time.
 
 !!! example "Example"
     ```python
