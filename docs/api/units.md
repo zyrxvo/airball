@@ -14,3 +14,7 @@ Simply use `airball.units` the way you would use any [`astropy.units`](https://d
     sim.add('solar system')
     vel = (sim.particles[8].v * u.au/u.yr2pi).to(u.km/u.s) # Get Neptune's velocity in km/s
     ```
+
+The following documentation was automatically generated from the docstrings.
+
+::: airball.units.UnitSet
