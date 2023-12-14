@@ -1,4 +1,5 @@
 mkdocs-material
 mkdocs-jupyter
 mkdocstrings
+mkdocstrings-python
 #git+git://github.com/hannorein/mkdocs-jupyter
