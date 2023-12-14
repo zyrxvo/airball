@@ -3,6 +3,7 @@
 __pycache__/
 pyrightconfig.json
 .vscode/
+.coverage
 
 # Example Data
 example-data/

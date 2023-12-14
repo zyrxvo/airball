@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="airball",
-    version="0.5.0",
+    version="0.6.0",
     author="Garett Brown",
     author_email="garett.brown@mail.utoronto.ca",
     description="A package for running and managing flybys using REBOUND",
@@ -23,5 +23,5 @@ setuptools.setup(
     package_dir={"": "src"},
     packages=setuptools.find_packages(where="src"),
     python_requires=">=3.8",
-    install_requires=["numpy", "scipy", "rebound>=3.27.0", "astropy", "joblib"]
+    install_requires=["numpy", "scipy", "rebound>=4.0.0", "astropy", "joblib"]
 )
