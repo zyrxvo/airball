@@ -1,6 +1,5 @@
 import numpy as _np
 import joblib as _joblib
-import rebound as _rebound
 from scipy.special import j0 as _j0,jv as _jv
 
 from . import tools as _tools
@@ -289,7 +288,7 @@ def eccentricity_change_adiabatic_estimate(sim, star, averaged=False, particle_i
     
     w, W, i = star.omega, star.Omega, star.inc # redefine the orientation elements of the flyby star for convenience
 
-    star_params = _tools.hyperbolic_elements_from_stellar_params(sim, star, rmax)
+    star_params = _tools.hyperbolic_elements(sim, star, rmax)
     tperi = star_params['T']
     Mperi = p[index].M + (p[index].n/unit_set['time']) * (tperi - t0) # get the Mean anomaly when the flyby star is at perihelion
     f = _tools.reb_M_to_f(p[index].e, Mperi.value) << _u.rad # get the true anomaly when the flyby star is at perihelion

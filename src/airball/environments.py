@@ -12,7 +12,6 @@ from .stars import Star as _Star
 from .stars import Stars as _Stars
 from . import analytic as _analytic
 from . import tools as _tools
-from .tools import UnitSet as _UnitSet
 
 class StellarEnvironment:
   '''
@@ -30,6 +29,7 @@ class StellarEnvironment:
       maximum_impact_parameter (float, optional): The maximum impact parameter defining the outer limit of the sphere of influence around a stellar system. If not provided, AIRBALL attempts to estimate a reasonable one. Default is None.
       name (str, optional): The name of the environment. Default is None.
       UNIT_SYSTEM (list, optional): The unit system used in the environment. Default is an empty list.
+      units (airball.units.UnitSet, optional): The units used in the environment. Default is None.
       object_name (str, optional): The name of the object in the environment. Default is None.
       seed (int, optional): The seed fixing the random star generator. Default is None so it's always random.
       
@@ -44,9 +44,9 @@ class StellarEnvironment:
     The Maximum Impact Parameter is radius defining the outer limit of the sphere of influence around a stellar system.
     There are predefined subclasses for the LocalNeighborhood, a generic OpenCluster, a generic GlobularCluster, and the Milky Way center GalacticBulge and GalacticCore.
   '''
-  def __init__(self, stellar_density, velocity_dispersion, lower_mass_limit, upper_mass_limit, mass_function=None, maximum_impact_parameter=None, name=None, UNIT_SYSTEM=[], object_name=None, seed=None, number_imf_samples=100):
+  def __init__(self, stellar_density, velocity_dispersion, lower_mass_limit, upper_mass_limit, mass_function=None, maximum_impact_parameter=None, name=None, UNIT_SYSTEM=[], units=None, object_name=None, seed=None, number_imf_samples=100):
     # Check to see if an stars object unit is defined in the given UNIT_SYSTEM and if the user defined a different name for the objects.
-    self.units = _UnitSet(UNIT_SYSTEM)
+    self.units = units if isinstance(units, _u.UnitSet) else _u.UnitSet(UNIT_SYSTEM)
     objectUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(_u.stars)]
     if objectUnit == [] and object_name is not None: self.units.object = _u.def_unit(object_name, _u.stars)
     elif objectUnit == [] and object_name is None: self.units.object = _u.stars
@@ -316,7 +316,7 @@ class StellarEnvironment:
   def encounter_rate(self):
     '''
         Compute the expected flyby encounter rate $\\Gamma = ⟨nσv⟩$ for the stellar environment in units of flybys per year.
-        The inverse of the encouter rate will give the average number of years until a flyby.
+        The inverse of the encounter rate will give the average number of years until a flyby.
 
         The encounter rate is computed using the following parameters:
 
@@ -426,8 +426,8 @@ class LocalNeighborhood(StellarEnvironment):
     power_law = _imf.power_law(-4.7, chabrier03(1))
     return _np.where(x > 1, power_law(x), chabrier03(x))
 
-  def __init__(self, stellar_density = 0.14 * _u.stars/_u.pc**3, velocity_dispersion = 20.8 * _u.km/_u.s, lower_mass_limit=0.08 * _u.solMass, upper_mass_limit = 8 * _u.solMass, mass_function=local_mass_function, maximum_impact_parameter=10000 * _u.au, UNIT_SYSTEM=[], name = 'Local Neighborhood', object_name=None, seed=None, number_imf_samples=100):
-    super().__init__(stellar_density=stellar_density, velocity_dispersion=velocity_dispersion, lower_mass_limit=lower_mass_limit, upper_mass_limit=upper_mass_limit, mass_function=mass_function, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, name=name, object_name=object_name, seed=seed,number_imf_samples=number_imf_samples)
+  def __init__(self, stellar_density = 0.14 * _u.stars/_u.pc**3, velocity_dispersion = 20.8 * _u.km/_u.s, lower_mass_limit=0.08 * _u.solMass, upper_mass_limit = 8 * _u.solMass, mass_function=local_mass_function, maximum_impact_parameter=10000 * _u.au, UNIT_SYSTEM=[], units=None, name = 'Local Neighborhood', object_name=None, seed=None, number_imf_samples=100):
+    super().__init__(stellar_density=stellar_density, velocity_dispersion=velocity_dispersion, lower_mass_limit=lower_mass_limit, upper_mass_limit=upper_mass_limit, mass_function=mass_function, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, units=units, name=name, object_name=object_name, seed=seed,number_imf_samples=number_imf_samples)
 
 class OpenCluster(StellarEnvironment):
   '''
@@ -447,8 +447,8 @@ class OpenCluster(StellarEnvironment):
   '''
   short_name = 'Open'
 
-  def __init__(self, stellar_density = 100 * _u.stars * _u.pc**-3, velocity_dispersion = 1 * _u.km/_u.s, lower_mass_limit=0.08 * _u.solMass, upper_mass_limit = 100 * _u.solMass, mass_function=None, maximum_impact_parameter=1000 * _u.au, UNIT_SYSTEM=[], name = 'Open Cluster', object_name=None, seed=None, number_imf_samples=100):
-    super().__init__(stellar_density=stellar_density, velocity_dispersion=velocity_dispersion, lower_mass_limit=lower_mass_limit, upper_mass_limit=upper_mass_limit, mass_function=mass_function, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, name=name, object_name=object_name, seed=seed,number_imf_samples=number_imf_samples)
+  def __init__(self, stellar_density = 100 * _u.stars * _u.pc**-3, velocity_dispersion = 1 * _u.km/_u.s, lower_mass_limit=0.08 * _u.solMass, upper_mass_limit = 100 * _u.solMass, mass_function=None, maximum_impact_parameter=1000 * _u.au, UNIT_SYSTEM=[], units=None, name = 'Open Cluster', object_name=None, seed=None, number_imf_samples=100):
+    super().__init__(stellar_density=stellar_density, velocity_dispersion=velocity_dispersion, lower_mass_limit=lower_mass_limit, upper_mass_limit=upper_mass_limit, mass_function=mass_function, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, units=units, name=name, object_name=object_name, seed=seed,number_imf_samples=number_imf_samples)
 
 class GlobularCluster(StellarEnvironment):
   '''
@@ -468,8 +468,8 @@ class GlobularCluster(StellarEnvironment):
   '''
   short_name = 'Globular'
 
-  def __init__(self, stellar_density = 1000 * _u.stars * _u.pc**-3, velocity_dispersion = 10 * _u.km/_u.s, lower_mass_limit=0.08 * _u.solMass, upper_mass_limit = 1 * _u.solMass, mass_function=None, maximum_impact_parameter=5000 * _u.au, UNIT_SYSTEM=[], name = 'Globular Cluster', object_name=None, seed=None, number_imf_samples=100):
-    super().__init__(stellar_density=stellar_density, velocity_dispersion=velocity_dispersion, lower_mass_limit=lower_mass_limit, upper_mass_limit=upper_mass_limit, mass_function=mass_function, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, name=name, object_name=object_name, seed=seed,number_imf_samples=number_imf_samples)
+  def __init__(self, stellar_density = 1000 * _u.stars * _u.pc**-3, velocity_dispersion = 10 * _u.km/_u.s, lower_mass_limit=0.08 * _u.solMass, upper_mass_limit = 1 * _u.solMass, mass_function=None, maximum_impact_parameter=5000 * _u.au, UNIT_SYSTEM=[], units=None, name = 'Globular Cluster', object_name=None, seed=None, number_imf_samples=100):
+    super().__init__(stellar_density=stellar_density, velocity_dispersion=velocity_dispersion, lower_mass_limit=lower_mass_limit, upper_mass_limit=upper_mass_limit, mass_function=mass_function, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, units=units, name=name, object_name=object_name, seed=seed,number_imf_samples=number_imf_samples)
 
 class GalacticBulge(StellarEnvironment):
   '''
@@ -489,8 +489,8 @@ class GalacticBulge(StellarEnvironment):
   '''
   short_name = 'Bulge'
 
-  def __init__(self, stellar_density = 50 * _u.stars * _u.pc**-3, velocity_dispersion = 120 * _u.km/_u.s, lower_mass_limit=0.08 * _u.solMass, upper_mass_limit = 10 * _u.solMass, mass_function=None, maximum_impact_parameter=50000 * _u.au, UNIT_SYSTEM=[], name = 'Milky Way Bulge', object_name=None, seed=None, number_imf_samples=100):
-    super().__init__(stellar_density=stellar_density, velocity_dispersion=velocity_dispersion, lower_mass_limit=lower_mass_limit, upper_mass_limit=upper_mass_limit, mass_function=mass_function, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, name=name, object_name=object_name, seed=seed,number_imf_samples=number_imf_samples)
+  def __init__(self, stellar_density = 50 * _u.stars * _u.pc**-3, velocity_dispersion = 120 * _u.km/_u.s, lower_mass_limit=0.08 * _u.solMass, upper_mass_limit = 10 * _u.solMass, mass_function=None, maximum_impact_parameter=50000 * _u.au, UNIT_SYSTEM=[], units=None, name = 'Milky Way Bulge', object_name=None, seed=None, number_imf_samples=100):
+    super().__init__(stellar_density=stellar_density, velocity_dispersion=velocity_dispersion, lower_mass_limit=lower_mass_limit, upper_mass_limit=upper_mass_limit, mass_function=mass_function, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, units=units, name=name, object_name=object_name, seed=seed,number_imf_samples=number_imf_samples)
 
 class GalacticCore(StellarEnvironment):
   '''
@@ -510,5 +510,5 @@ class GalacticCore(StellarEnvironment):
   '''
   short_name = 'Core'
 
-  def __init__(self, stellar_density = 10000 * _u.stars * _u.pc**-3, velocity_dispersion = 170 * _u.km/_u.s, lower_mass_limit=0.08 * _u.solMass, upper_mass_limit = 10 * _u.solMass, mass_function=None, maximum_impact_parameter=50000 * _u.au, UNIT_SYSTEM=[_u.yr], name = 'Milky Way Core', object_name=None, seed=None, number_imf_samples=100):
-    super().__init__(stellar_density=stellar_density, velocity_dispersion=velocity_dispersion, lower_mass_limit=lower_mass_limit, upper_mass_limit=upper_mass_limit, mass_function=mass_function, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, name=name, object_name=object_name, seed=seed,number_imf_samples=number_imf_samples)
+  def __init__(self, stellar_density = 10000 * _u.stars * _u.pc**-3, velocity_dispersion = 170 * _u.km/_u.s, lower_mass_limit=0.08 * _u.solMass, upper_mass_limit = 10 * _u.solMass, mass_function=None, maximum_impact_parameter=50000 * _u.au, UNIT_SYSTEM=[_u.yr], units=None, name = 'Milky Way Core', object_name=None, seed=None, number_imf_samples=100):
+    super().__init__(stellar_density=stellar_density, velocity_dispersion=velocity_dispersion, lower_mass_limit=lower_mass_limit, upper_mass_limit=upper_mass_limit, mass_function=mass_function, maximum_impact_parameter=maximum_impact_parameter, UNIT_SYSTEM=UNIT_SYSTEM, units=units, name=name, object_name=object_name, seed=seed,number_imf_samples=number_imf_samples)

@@ -220,7 +220,7 @@ class IMF():
   def __init__(self, min_mass, max_mass, mass_function=None, unit=_u.solMass, number_samples=100, seed=None):
     self._number_samples = int(number_samples)
     self._seed = seed
-    self.unit = unit if _tools.isUnit(unit) else _u.solMass
+    self.unit = unit if _u.isUnit(unit) else _u.solMass
 
     # Convert min_mass and max_mass to specified unit if they are Quantity objects, otherwise assume they are already in the correct unit
     self._min_mass = min_mass.to(self.unit) if _tools.isQuantity(min_mass) else min_mass * self.unit

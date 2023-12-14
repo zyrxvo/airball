@@ -4,7 +4,6 @@ import pickle as _pickle
 from scipy.stats import uniform as _uniform
 from . import environments as _env
 from . import tools as _tools
-from .tools import UnitSet as _UnitSet
 from . import units as _u
 
 try: from collections.abc import MutableMapping # Required for Python>=3.9
@@ -53,7 +52,7 @@ class Star:
       ```
   '''
   def __init__(self, m, b, v, inc='uniform', omega='uniform', Omega='uniform', UNIT_SYSTEM=[], **kwargs) -> None:
-    self.units = _UnitSet(UNIT_SYSTEM)
+    self.units = _u.UnitSet(UNIT_SYSTEM)
 
     if inc == 'uniform' or inc == None: inc = 2.0*_np.pi * _uniform.rvs() - _np.pi
     if omega == 'uniform' or omega == None: omega = 2.0*_np.pi * _uniform.rvs() - _np.pi
@@ -73,6 +72,9 @@ class Star:
   @UNIT_SYSTEM.setter
   def UNIT_SYSTEM(self, UNIT_SYSTEM):
     self.units.UNIT_SYSTEM = UNIT_SYSTEM
+
+  @property
+  def N(self): return 1
 
   @property
   def m(self):
@@ -310,9 +312,12 @@ class Stars(MutableMapping):
   '''
   def __init__(self, filename=None, **kwargs) -> None:
     try: 
-      self.units = _UnitSet(kwargs['UNIT_SYSTEM'])
+      self.units = _u.UnitSet(kwargs['UNIT_SYSTEM'])
       del kwargs['UNIT_SYSTEM']
-    except KeyError: self.units = _UnitSet()
+    except KeyError:
+      try: self.units = kwargs['units']
+      except KeyError: 
+        self.units = _u.UnitSet()
 
     # Initialize Stars from file.
     if filename is not None and isinstance(filename, str):
@@ -342,7 +347,6 @@ class Stars(MutableMapping):
 
     if 'size' in kwargs and self.N != 0: raise OverspecifiedParametersException('If lists are given then size cannot be specified.')
     elif 'size' in kwargs:
-      print(kwargs['size'])
       if isinstance(kwargs['size'], tuple): 
         self._shape = tuple([int(i) for i in kwargs['size']])
       else: self._shape = (int(kwargs['size']),)

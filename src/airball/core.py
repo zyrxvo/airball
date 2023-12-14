@@ -348,7 +348,7 @@ def concurrent_flybys(sim, stars, start_times, **kwargs):
         Args:
             sim (Simulation): a REBOUND Simulation (star and planets) that will experience the flyby star.
             stars (airball.stars.Stars): Multiple stars that will flyby the given REBOUND simulation.
-            times (list): An array of times for the stars to be added to the sim.
+            start_times (list): An array of times for the stars to be added to the sim.
 
         Keyword Args:
             overwrite (boolean, optional): Sets whether or not to return new simulation objects or overwrite the given ones. Default is True, meaning the same simulation objects will be returned. This keeps all original pointers attached to it.
@@ -468,7 +468,7 @@ def add_star_to_sim(sim, star, hash, **kwargs):
 
     units = _tools.rebound_units(sim)
     rmax = _tools.verify_unit(kwargs.get('rmax', 1e5*_u.au), units['length'])
-    stellar_elements, semilatus_rectum = _tools.initial_conditions_from_stellar_params(sim, star, rmax)
+    stellar_elements = _tools.hyperbolic_elements(sim, star, rmax, values_only=True)
 
     plane = kwargs.get('plane')
     if plane is not None: rotation = _rotate_into_plane(sim, plane)
@@ -482,7 +482,7 @@ def add_star_to_sim(sim, star, hash, **kwargs):
     sim.move_to_com()
 
     # Because REBOUND Simulations are C structs underneath Python, this function passes the simulation by reference.
-    return {'m':stellar_elements['m'] * units['mass'], 'a':stellar_elements['a'] * units['length'], 'e':stellar_elements['e'], 'l':semilatus_rectum * units['length']}
+    return {'m':stellar_elements['m'] * units['mass'], 'a':stellar_elements['a'] * units['length'], 'e':stellar_elements['e'], 'l':_tools.semilatus_rectum(**stellar_elements) * units['length']}
 
 def remove_star_from_sim(sim, hash):
     '''
