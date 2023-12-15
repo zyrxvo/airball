@@ -104,6 +104,8 @@ class UnitSet():
     data = tuple(data)
     return hash(data)
   
+  def values(self):
+    return self.units.values()
 
   @property
   def length(self):

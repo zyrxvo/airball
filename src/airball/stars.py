@@ -759,7 +759,7 @@ class Stars(MutableMapping):
       indices (list or None): The indices used to sort the Stars, if argsort is True. Otherwise, None and sorting is done in place.
 
     !!! Info
-        The Stars can also be sorted arbitrarily by providing a list of indices of length stars.N as the key.
+        The Stars can also be sorted arbitrarily by providing a list of indices of length len(stars) as the key.
 
     Examples:
       ```python

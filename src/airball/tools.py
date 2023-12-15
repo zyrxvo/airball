@@ -75,12 +75,12 @@ def moving_median(arr, n=3, method=None):
     if method == 'nan' or method == 'nn': return _np.nanmedian(arr[idx], axis=1)
     else: return _np.median(arr[idx], axis=1)
 
-def save_as_simulationarchive(filename, sims, deletefile=True):
+def save_as_simulationarchive(filename, sims, delete_file=True):
     '''
     Saves a list of REBOUND Simulations as a SimulationArchive.
     '''
     for i,s in enumerate(sims):
-        s.simulationarchive_snapshot(filename, deletefile=(deletefile if i == 0 else False))
+        s.save_to_file(filename, delete_file=(delete_file if i == 0 else False))
 
 def notNone(a):
     """Returns True if array a contains at least one element that is not None. Returns False otherwise., Implemented from REBOUND particle.py"""
@@ -177,7 +177,7 @@ def hist10(arr, bins=10, normalize=False, density=False, wfac=1):
 
 def unit_vector(vector):
     """ Returns the unit vector of the vector."""
-    return _np.array(vector) / _np.linalg.norm(vector)
+    return vector / _np.linalg.norm(vector)
 
 def angle_between(v1, v2):
     """ Returns the angle in radians between vectors 'v1' and 'v2'. Implemented from [StackOverflow](https://stackoverflow.com/a/13849249/71522).
@@ -200,22 +200,22 @@ def angle_between(v1, v2):
     v2_u = unit_vector(v2)
     return _np.arccos(_np.clip(_np.dot(v1_u, v2_u), -1.0, 1.0))
 
-def reb_mod2pi(f):
+def mod2pi(f):
     '''Converts an angle to the range [0, 2pi). Implemented from REBOUND using Numpy to handle vectorization.'''
     return _np.mod(twopi + _np.mod(f, twopi), twopi)
 
-def reb_M_to_E(e, M):
+def M_to_E(e, M):
   '''Converts mean anomaly to eccentric anomaly. Implemented from REBOUND using Numpy to handle vectorization.'''
   E = 0
   if e < 1.0 :
-    M = reb_mod2pi(M); # avoid numerical artefacts for negative numbers
+    M = mod2pi(M); # avoid numerical artefacts for negative numbers
     E = M if e < 0.8 else _np.pi
     F = E - e*_np.sin(E) - M
     for i in range(100):
       E = E - F/(1.-e*_np.cos(E))
       F = E - e*_np.sin(E) - M
       if _np.all(_np.abs(F) < 1.0e-16) : break
-    E = reb_mod2pi(E)
+    E = mod2pi(E)
     return E
   else:
     E = M/_np.abs(M)*_np.log(2.*_np.abs(M)/e + 1.8)
@@ -226,15 +226,15 @@ def reb_M_to_E(e, M):
       if _np.all(_np.abs(F) < 1.0e-16): break
     return E
 
-def reb_E_to_f(e, E):
+def E_to_f(e, E):
   '''Converts eccentric anomaly to true anomaly. Implemented from REBOUND using Numpy to handle vectorization.'''
-  if e > 1. :return reb_mod2pi(2.*_np.arctan(_np.sqrt((1.+e)/(e-1.))*_np.tanh(0.5*E)))
-  else: return reb_mod2pi(2.*_np.arctan(_np.sqrt((1.+e)/(1.-e))*_np.tan(0.5*E)))
+  if e > 1. :return mod2pi(2.*_np.arctan(_np.sqrt((1.+e)/(e-1.))*_np.tanh(0.5*E)))
+  else: return mod2pi(2.*_np.arctan(_np.sqrt((1.+e)/(1.-e))*_np.tan(0.5*E)))
 
-def reb_M_to_f(e, M):
+def M_to_f(e, M):
   '''Converts mean anomaly to true anomaly. Implemented from REBOUND using Numpy to handle vectorization.'''
-  E = reb_M_to_E(e, M)
-  return reb_E_to_f(e, E)
+  E = M_to_E(e, M)
+  return E_to_f(e, E)
 
 
 ############################################################
@@ -447,7 +447,7 @@ def hyperbolic_elements(sim, star, rmax, values_only=False):
         if star.N > 1:
           if _np.any(rmax[rmax != 0] < star.b[rmax != 0]): raise RuntimeWarning()
         else:
-          if rmax < star.b: raise RuntimeWarning()
+          if rmax < star.b and rmax != 0: raise RuntimeWarning()
         f = _np.where(rmax==0, 0*_u.rad, _np.arccos(div)) # Compute the true anomaly, if rmax is 0, then set f=0.
       except RuntimeWarning as err: 
         if rmax.shape == (): raise RuntimeError(f'{err}, rmax={rmax:1.6g} likely not larger than impact parameter, b={star.b:1.6g}.') from err

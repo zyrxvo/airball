@@ -160,18 +160,18 @@ def energy_change_close_encounter_estimate(sim, star, particle_index=1):
     s.move_to_hel()
     p = s.particles
 
-    unit_set = _tools.rebound_units(sim)
-    G = (s.G * unit_set['length']**3 / unit_set['mass'] / unit_set['time']**2) # Newton's Gravitational constant
+    units = _tools.rebound_units(sim)
+    G = (s.G * units.length**3 / units.mass / units.time**2) # Newton's Gravitational constant
 
-    m1, m2 = p[0].m * unit_set['mass'], p[index].m * unit_set['mass'] # redefine the masses for convenience
+    m1, m2 = p[0].m * units.mass, p[index].m * units.mass # redefine the masses for convenience
     m3 = star.m
     M12 = m1 + m2 # total mass of the binary system
     M23 = m2 + m3 # total mass of the second and third bodies
 
     V = star.v # velocity of the star
 
-    x,y,z = _tools.unit_vector(p['flybystar'].xyz << unit_set['length'])
-    vx,vy,vz = p[index].vxyz << (unit_set['length']/unit_set['time'])
+    x,y,z = _tools.unit_vector(p['flybystar'].xyz << units.length)
+    vx,vy,vz = p[index].vxyz << (units.length/units.time)
 
     with _u.set_enabled_equivalencies(_u.dimensionless_angles()):
         cosϕ = 1.0/_np.sqrt(1.0 + (((star.b**2.0)*(V**4.0))/((G*M23)**2.0)).decompose())
@@ -179,8 +179,7 @@ def energy_change_close_encounter_estimate(sim, star, particle_index=1):
     prefactor = (-2.0 * m1 * m2 * m3)/(M12 * M23) * V * cosϕ
     t1 = -(x*vx + y*vy + z*vz)
     t2 = (m3 * V * cosϕ)/M23
-
-    return (prefactor * (t1 + t2)).decompose([unit_set[k] for k in unit_set])
+    return (prefactor * (t1 + t2)).decompose(units.values())
 
 def relative_energy_change(sim, star, averaged=False, particle_index=1):
     '''
@@ -291,7 +290,7 @@ def eccentricity_change_adiabatic_estimate(sim, star, averaged=False, particle_i
     star_params = _tools.hyperbolic_elements(sim, star, rmax)
     tperi = star_params['T']
     Mperi = p[index].M + (p[index].n/unit_set['time']) * (tperi - t0) # get the Mean anomaly when the flyby star is at perihelion
-    f = _tools.reb_M_to_f(p[index].e, Mperi.value) << _u.rad # get the true anomaly when the flyby star is at perihelion
+    f = _tools.M_to_f(p[index].e, Mperi.value) << _u.rad # get the true anomaly when the flyby star is at perihelion
     Wp = W + f
     V = star.v
     q = (- mu + _np.sqrt( mu**2. + star.b**2. * V**4.))/V**2. # compute the periapsis of the flyby star
