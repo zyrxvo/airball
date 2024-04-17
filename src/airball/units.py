@@ -1,11 +1,11 @@
 import astropy.units as _u
 from astropy.units import *
 twopi = 6.28318530717958623199592693708837032318115234375
-yrtwopi = def_unit('yrtwopi', _u.yr/twopi, format={'latex': r'(yr/2\pi)'})
-yr2pi = def_unit('yr2pi', _u.yr/twopi, format={'latex': r'(yr/2\pi)'})
-stars = def_unit('stars')
-add_enabled_units([yr2pi, yrtwopi])
-add_enabled_aliases({'msun': _u.solMass})
+yrtwopi = _u.def_unit('yrtwopi', _u.yr/twopi, format={'latex': r'(yr/2\pi)'})
+yr2pi = _u.def_unit('yr2pi', _u.yr/twopi, format={'latex': r'(yr/2\pi)'})
+stars = _u.def_unit('stars')
+_u.add_enabled_units([yr2pi, yrtwopi])
+_u.add_enabled_aliases({'msun': _u.solMass})
 
 
 def isUnit(var):
@@ -57,16 +57,16 @@ class UnitSet():
   @property
   def UNIT_SYSTEM(self):
     return self._UNIT_SYSTEM
-  
+
   def __getitem__(self, key):
     if isinstance(key, str): return self.units[key]
-    else: raise InvalidKeyException() 
-  
+    else: raise InvalidKeyException()
+
   def __setitem__(self, key, value):
     if isinstance(key, str):
       if isUnit(value): self.units[key] = value
-      else: raise InvalidUnitException() 
-    else: raise InvalidKeyException() 
+      else: raise InvalidUnitException()
+    else: raise InvalidKeyException()
 
   def __str__(self):
     s = '{'
@@ -74,18 +74,18 @@ class UnitSet():
        s += f'{key}: {self.units[key].to_string()}, '
     s = s[:-2] + '}'
     return s
-  
+
   def __repr__(self):
     s = '{'
     for key in self.units:
        s += f'{key}: {self.units[key].to_string()},\n'
     s = s[:-2] + '}'
     return s
-  
+
   def __iter__(self):
     for k in self.units:
       yield self.units[k]
-  
+
   def __eq__(self, other):
     # Determines if the string representations of the units in each UnitSets are identical.
     if isinstance(other, UnitSet):
@@ -94,7 +94,7 @@ class UnitSet():
             result = result and (u1.to_string() == u2.to_string())
         return result
     return NotImplemented
-  
+
   def __hash__(self):
     # Overrides the default implementation
     data = []
@@ -103,7 +103,7 @@ class UnitSet():
         except: data.append(d)
     data = tuple(data)
     return hash(data)
-  
+
   def values(self):
     return self.units.values()
 
@@ -187,15 +187,15 @@ class UnitSet():
 
       densityUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(stars/_u.m**3)]
       densityUnit2 = [this for this in UNIT_SYSTEM if this.is_equivalent(1/_u.m**3)]
-      if densityUnit == [] and densityUnit2 != []: 
+      if densityUnit == [] and densityUnit2 != []:
         densityUnit = [self._units['object'] * densityUnit2[0]]
-      elif densityUnit == [] and objectUnit != [] and lengthUnit != []: 
+      elif densityUnit == [] and objectUnit != [] and lengthUnit != []:
         densityUnit = [self._units['object']/self._units['length']**3]
       elif densityUnit == [] and densityUnit2 == [] and objectUnit != []:
          densityLength = [this for this in self._units['density'].bases if this.is_equivalent(_u.m)][0]
          densityUnit = [self._units['object']/densityLength**3]
       self._units['density'] = densityUnit[0] if densityUnit != [] else self._units['density']
-    
+
     self._UNIT_SYSTEM = list(self._units.values())
 
 ############################################################
@@ -207,4 +207,3 @@ class InvalidKeyException(Exception):
 
 class InvalidUnitException(Exception):
   def __init__(self): super().__init__('Value is not a valid unit type.')
-
