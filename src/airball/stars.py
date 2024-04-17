@@ -327,6 +327,18 @@ class Stars(MutableMapping):
       except: raise Exception('Invalid filename.')
       return
     
+    # If nothing is specified, return an empty Stars object.
+    if not kwargs: 
+      self._m = _np.array([]) << self.units['mass']
+      self._b = _np.array([]) << self.units['length']
+      self._v = _np.array([]) << self.units['velocity']
+      self._inc = _np.array([]) << self.units['angle']
+      self._omega = _np.array([]) << self.units['angle']
+      self._Omega = _np.array([]) << self.units['angle']
+      self._shape = (0,)
+      self.environment = None
+      return
+
     # Determine the number of stars to generate.
     self._shape = (0,)
     for key in kwargs:
@@ -351,7 +363,7 @@ class Stars(MutableMapping):
         self._shape = tuple([int(i) for i in kwargs['size']])
       else: self._shape = (int(kwargs['size']),)
     elif self.N == 0: raise UnspecifiedParameterException('If no lists of parameters are given then size must be specified.')
-    else: pass
+    else: pass # No errors or issues, continue.
 
 
     # Initialize Stars from environment.
@@ -700,9 +712,9 @@ class Stars(MutableMapping):
     return self.e(sim)
 
   def e(self, sim):
-    sim_units = _tools.rebound_units(sim)
-    G = (sim.G * sim_units['length']**3 / sim_units['mass'] / sim_units['time']**2)
-    mu = G * (_tools.system_mass(sim) * sim_units['mass'] + self.m)
+    units = _tools.rebound_units(sim)
+    G = (sim.G * units.length**3 / units.mass / units.time**2)
+    mu = G * (_tools.system_mass(sim) * units.mass + self.m)
 
     numerator = self.b * self.v*self.v
     return _np.sqrt(1 + (numerator/mu)**2.)
@@ -837,7 +849,7 @@ class Stars(MutableMapping):
       _pickle.dump(self, pfile, protocol=_pickle.HIGHEST_PROTOCOL)
 
   @classmethod
-  def _load(self, filename, init=False):
+  def _load(cls, filename, init=False):
     """
     Load an instance of the Stars class from a file using pickle.
 
@@ -863,9 +875,9 @@ class Stars(MutableMapping):
     '''
     s = f"<{self.__module__}.{type(self).__name__} object at {hex(id(self))}, "
     s += f"N={f'{self.N:,.0f}' if len(self.shape) == 1 else self.shape}"
-    s += f", m= {_np.min(self.m.value):,.2f}-{_np.max(self.m.value):,.2f} {self.units['mass']}"
-    s += f", b= {_np.min(self.b.value):,.0f}-{_np.max(self.b.value):,.0f} {self.units['length']}"
-    s += f", v= {_np.min(self.v.value):,.0f}-{_np.max(self.v.value):,.0f} {self.units['velocity']}"
+    if self.N > 0: s += f", m= {_np.min(self.m.value):,.2f}-{_np.max(self.m.value):,.2f} {self.units['mass']}"
+    if self.N > 0: s += f", b= {_np.min(self.b.value):,.0f}-{_np.max(self.b.value):,.0f} {self.units['length']}"
+    if self.N > 0: s += f", v= {_np.min(self.v.value):,.0f}-{_np.max(self.v.value):,.0f} {self.units['velocity']}"
     s += f"{f', Environment={self.environment.name}' if self.environment is not None else ''}"
     s += ">"
     if returned: return s
@@ -960,6 +972,12 @@ class Stars(MutableMapping):
     data = tuple(data)
     return hash(data)
   
+  def __add__(self, other):
+    # Overrides the default implementation
+    if isinstance(other, Stars):
+      if self.N == 0 and other.N == 0: return Stars()
+      else: return Stars(m=_np.concatenate((self.m, other.m)), b=_np.concatenate((self.b, other.b)), v=_np.concatenate((self.v, other.v)), inc=_np.concatenate((self.inc, other.inc)), omega=_np.concatenate((self.omega, other.omega)), Omega=_np.concatenate((self.Omega, other.Omega)))
+    return NotImplemented
 
 ################################
 ###### Custom Exceptions #######
