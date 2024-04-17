@@ -1,15 +1,42 @@
 import numpy as _np
+import rebound as _rebound
 import joblib as _joblib
 import warnings as _warnings
-from scipy.stats import maxwell
 from .units import UnitSet as _UnitSet
 from . import units as _u
+from mpmath import mp as _mp
+
+# Set the precision
+_mp.dps = 50  # 50 digits of precision
 
 twopi = 2.*_np.pi
 
 ############################################################
 ################### Helper Functions #######################
 ############################################################
+
+def rotate_into_plane(sim, plane):
+    '''
+    Rotates the simulation into the specified plane.
+
+    Args:
+        sim (Simulation): The REBOUND Simulation containing the star and planets that will experience a flyby.
+        plane (str, int): The plane defining the orientation of the star: None, 'invariable', 'ecliptic', or int.
+
+    Returns:
+        rotation (Rotation): The rotation that was applied to the simulation.
+    '''
+    int_types = (int, _np.integer)
+    rotation = _rebound.Rotation.to_new_axes(newz=[0,0,1])
+    if plane is not None:
+        # Move the system into the chosen plane of reference. TODO: Make sure the angular momentum calculations don't include other flyby stars.
+        if plane == 'invariable': rotation = _rebound.Rotation.to_new_axes(newz=sim.angular_momentum())
+        elif plane == 'ecliptic': rotation = _rebound.Rotation.to_new_axes(newz=calculate_angular_momentum(sim)[3]) # Assumes Earth is particle 3. 0-Sun, 1-Mecury, 2-Venus, 3-Earth, ...
+        elif isinstance(plane, int_types):
+            p = sim.particles[int(plane)]
+            rotation = (_rebound.Rotation.orbit(Omega=p.Omega, inc=p.inc, omega=p.omega)).inverse()
+    sim.rotate(rotation)
+    return rotation
 
 # Implemented from StackOverflow: https://stackoverflow.com/a/14314054
 def moving_average(a, n=3, method=None) :
@@ -176,8 +203,20 @@ def hist10(arr, bins=10, normalize=False, density=False, wfac=1):
     else: return x,y,w
 
 def unit_vector(vector):
-    """ Returns the unit vector of the vector."""
-    return vector / _np.linalg.norm(vector)
+    """ 
+    Returns the unit vector of the vector.
+    Fails if the vector is a list of Quantity objects.
+    
+    Args:
+      vector (array): The vector to convert to a unit vector.
+
+    Returns:
+      vector (array): The unit vector of the vector.
+    """
+    try:
+        if len(vector.shape) > 1: return vector / _np.linalg.norm(vector, axis=1)[:,None]
+        else: return vector / _np.linalg.norm(vector)
+    except AttributeError: return vector / _np.linalg.norm(vector)
 
 def angle_between(v1, v2):
     """ Returns the angle in radians between vectors 'v1' and 'v2'. Implemented from [StackOverflow](https://stackoverflow.com/a/13849249/71522).
@@ -187,7 +226,7 @@ def angle_between(v1, v2):
       v2 (array): The second vector.
     
     Returns:
-      theta (float): The angle between the two vectors in radians.
+      theta (float): The angle between the two vectors in units of radians.
     
     Example:
       ```python
@@ -198,7 +237,7 @@ def angle_between(v1, v2):
     """
     v1_u = unit_vector(v1)
     v2_u = unit_vector(v2)
-    return _np.arccos(_np.clip(_np.dot(v1_u, v2_u), -1.0, 1.0))
+    return _np.arccos(_np.dot(v1_u, v2_u.T))
 
 def mod2pi(f):
     '''Converts an angle to the range [0, 2pi). Implemented from REBOUND using Numpy to handle vectorization.'''
@@ -235,7 +274,6 @@ def M_to_f(e, M):
   '''Converts mean anomaly to true anomaly. Implemented from REBOUND using Numpy to handle vectorization.'''
   E = M_to_E(e, M)
   return E_to_f(e, E)
-
 
 ############################################################
 ############### Properties and Elements ####################
@@ -363,12 +401,12 @@ def gravitational_mu(sim, star=None, star_mass=None):
     '''
     # Convert the units of the REBOUND Simulation into Astropy Units.
     units = rebound_units(sim)
-    G = (sim.G * units['length']**3 / units['mass'] / units['time']**2)
+    G = (sim.G * units.length**3 / units.mass / units.time**2)
     if star is not None and star_mass is not None: raise Exception('Cannot define both star and star_mass.')
-    elif star is not None and star_mass is None: star_mass = verify_unit(star.mass, units['mass'])
-    elif star is None and star_mass is not None: star_mass = verify_unit(star_mass, units['mass'])
+    elif star is not None and star_mass is None: star_mass = verify_unit(star.mass, units.mass)
+    elif star is None and star_mass is not None: star_mass = verify_unit(star_mass, units.mass)
     else: raise Exception('Either star or star_mass must be defined.')
-    return G * (system_mass(sim)  * units['mass'] + star_mass)
+    return G * (system_mass(sim) * units.mass + star_mass)
 
 def calculate_periastron(sim, star):
     '''
@@ -438,7 +476,7 @@ def hyperbolic_elements(sim, star, rmax, values_only=False):
     l = semilatus_rectum(a=a, e=e) # Compute the semi-latus rectum of the hyperbolic orbit to get the true anomaly
 
     rmax = verify_unit(rmax, _u.au)
-    if star.N > 1: rmax = _np.array(star.N * [rmax.value]) << rmax.unit
+    if star.N > 1 and not isList(rmax): rmax = _np.array(star.N * [rmax.value]) << rmax.unit
     with _warnings.catch_warnings():
       _warnings.simplefilter("error")
       # Make sure that the value for rmax is sufficiently large.
@@ -463,6 +501,107 @@ def hyperbolic_elements(sim, star, rmax, values_only=False):
     if values_only: return {'m':star.m.value, 'a':a.value, 'e':e.value, 'inc':star.inc.value, 'omega':star.omega.value, 'Omega':star.Omega.value, 'f':-f.value}
     return {'m':star.m, 'a':a, 'e':e, 'inc':star.inc, 'omega':star.omega, 'Omega':star.Omega, 'f':-f, 'T':Tperi}
 
+def hyperbolic_plane(sim, star):
+    '''
+      Calculate the plane of the hyperbolic orbit of the flyby star using the position and velocity vectors of the flyby star when the star is a perihelion.
+      
+      Args:
+        sim (Simulation): The simulation with two bodies, a central star and a planet.
+        star (Star): The star that is flying by.
+
+      Returns:
+        AB (dict): The normalized vectors defining the plane of the hyperbolic orbit. The vectors are `A` and `B` which are unit vectors in the direction of the perihelion and the ascending node, respectively.
+    '''
+    e = calculate_eccentricity(sim, star)
+    
+    cO = _np.cos(star.Omega)
+    sO = _np.sin(star.Omega)
+    co = _np.cos(star.omega)
+    so = _np.sin(star.omega)
+    ci = _np.cos(star.inc)
+    si = _np.sin(star.inc)
+
+    cf = _np.cos(0)
+    sf = _np.sin(0)
+    A = unit_vector([(cO*(co*cf-so*sf) - sO*(so*cf+co*sf)*ci), (sO*(co*cf-so*sf) + cO*(so*cf+co*sf)*ci), (so*cf+co*sf)*si])
+    B = unit_vector([((e+cf)*(-ci*co*sO - cO*so) - sf*(co*cO - ci*so*sO)), ((e+cf)*(ci*co*cO - sO*so)  - sf*(co*sO + ci*so*cO)), ((e+cf)*co*si - sf*si*so)])
+    
+    return {'A': A, 'B': B}
+
+def cartesian_elements(sim, star, rmax, values_only=False):
+    '''
+      Returns the Cartesian elements in the Heliocentric frame, based on the total mass of the REBOUND Simulation.
+      Implemented from REBOUND using Numpy to handle vectorization.
+
+      Args:
+      sim (Simulation): The simulation with two bodies, a central star and a planet.
+      star (Star): The star that is flying by.
+      rmax (float): The starting distance of the flyby star. Defaults to units of AU.
+      values_only (bool): Whether to return only the values of the hyperbolic orbital elements. If True, then the results can be used to add a new particle to a REBOUND Simulation. Defaults to False.
+
+    Returns:
+      elements (dict): A dictionary containing the hyperbolic orbital elements: `{m, a, e, inc, omega, Omega, f, T}`.
+      values_only (dict): A dictionary containing the hyperbolic orbital elements: `m`, `a`, `e`, `inc`, `omega`, `Omega`, `f`.
+
+    Raises:
+      RuntimeError: If the value for `rmax` is smaller than the impact parameter, `b`.
+
+    Example:
+      ```python
+      import rebound
+      import airball
+      sim = rebound.Simulation()
+      sim.add(m=1)
+      sim.add(m=5e-5, a=30)
+      star = airball.Star(m=1, b=500, v=5)
+      elements = hyperbolic_elements(sim, star, rmax=100)
+      ```
+    '''
+    units = rebound_units(sim)
+    G = (sim.G * units.length**3 / units.mass / units.time**2)
+
+    sim.move_to_hel()
+    primary = sim.com()
+    sim.move_to_com()
+    elements = hyperbolic_elements(sim, star, rmax=rmax, values_only=False)
+    m,a,e,inc,omega,Omega,f = elements['m'], elements['a'], elements['e'], elements['inc'], elements['omega'], elements['Omega'], elements['f']
+    if _np.any(e < 0.): raise ValueError('Eccentricity must be greater than or equal to zero.')
+    if _np.any(e > 1.):
+        if _np.any(a > 0.):
+            raise ValueError('Bound orbit (a > 0) must have e < 1.')
+    else:
+        if _np.any(a < 0.):
+            raise ValueError('Unbound orbit (a < 0) must have e > 1.')
+    if _np.any(e*_np.cos(f) < -1.):
+        raise ValueError('Unbound orbit can\'t have f set beyond the range allowed by the asymptotes set by the parabola.')
+    if primary.m < 1e-15:
+        raise ValueError('Primary has no mass.')
+
+    r = a*(1-e*e)/(1 + e*_np.cos(f))
+    v0 = _np.sqrt(G*(m + primary.m*units.mass)/a/(1.-e*e))  # in this form it works for elliptical and hyperbolic orbits
+
+    cO = _np.cos(Omega)
+    sO = _np.sin(Omega)
+    co = _np.cos(omega)
+    so = _np.sin(omega)
+    cf = _np.cos(f)
+    sf = _np.sin(f)
+    ci = _np.cos(inc)
+    si = _np.sin(inc)
+
+    # Murray & Dermott Eq 2.122
+    x = primary.x * units.length + r*(cO*(co*cf-so*sf) - sO*(so*cf+co*sf)*ci)
+    y = primary.y * units.length + r*(sO*(co*cf-so*sf) + cO*(so*cf+co*sf)*ci)
+    z = primary.z * units.length + r*(so*cf+co*sf)*si
+
+    # Murray & Dermott Eq. 2.36 after applying the 3 rotation matrices from Sec. 2.8 to the velocities in the orbital plane
+    vx = primary.vx * units.length/units.time + v0*((e+cf)*(-ci*co*sO - cO*so) - sf*(co*cO - ci*so*sO))
+    vy = primary.vy * units.length/units.time + v0*((e+cf)*(ci*co*cO - sO*so)  - sf*(co*sO + ci*so*cO))
+    vz = primary.vz * units.length/units.time + v0*((e+cf)*co*si - sf*si*so)
+
+    if values_only: return {'m':m.value, 'x':x.value, 'y':y.value, 'z':z.value, 'vx':vx.value, 'vy':vy.value, 'vz':vz.value}
+    return {'m':m, 'x':x, 'y':y, 'z':z, 'vx':vx, 'vy':vy, 'vz':vz, 'T':elements['T']}
+
 def impulse_gradient(star):
     '''Calculate the impulse gradient for a flyby star, $\\frac{2 G M}{v b^2}$.'''
     G = (1 * _u.au**3 / _u.solMass / _u.yr2pi**2)
@@ -472,6 +611,11 @@ def impulse_gradient(star):
 ############# Stellar Environment Functions ################
 ############################################################
 
+def maxwell_boltzmann_dispersion_from_scale(scale):
+    '''
+        Converts velocity dispersion (variance) $\\sigma$ to scale factor $a$ for [Maxwell-Boltzmann distributions](https://en.wikipedia.org/wiki/Maxwell-Boltzmann_distribution), $\\sigma = a \\sqrt{\\frac{(3\\pi - 8)}{\\pi}}$.
+    '''
+    return scale * _np.sqrt((3.0*_np.pi - 8.0)/(_np.pi))
 
 def maxwell_boltzmann_scale_from_dispersion(sigma):
     '''
