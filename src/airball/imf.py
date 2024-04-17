@@ -5,12 +5,33 @@ from . import units as _u
 from . import tools as _tools
 
 class Distribution():
-  def __init__(self, mass_function, **kwargs):
+  '''
+  Base class for defining a probability distribution function.
+  This class is used to wrap a probability distribution function and its parameters into a single object.
+
+  Args:
+    mass_function (function): Probability distribution function.
+    args (list): List of arguments for the probability distribution function.
+
+  Returns:
+    pdf (float or ndarray): Probability density at the given mass value(s).
+  
+  Example:
+    ```python
+    import airball
+    mf = airball.imf.Distribution(lambda x, A: A * x, [1])
+    imf = airball.IMF(0.1, 100, mass_function=mf)
+    imf.random_mass()
+    ```
+
+  '''
+
+  def __init__(self, mass_function, args):
     self.mass_function = mass_function
-    self.params = kwargs
+    self.params = args
   
   def __call__(self, x):
-    return self.mass_function(x, **self.params)
+    return self.mass_function(x, *self.params)
 
 class chabrier_2003_single(Distribution):
   """
@@ -33,8 +54,7 @@ class chabrier_2003_single(Distribution):
     ```
   """
   def __init__(self, A=0.158):
-    kwargs = {k: v for k, v in locals().items() if k not in ('self', '__class__')}
-    super().__init__(self._chabrier_2003_single, **kwargs)
+    super().__init__(self._chabrier_2003_single, [A])
   
   def _chabrier_2003_single(self, x, A=0.158):
     return (A / x) * _np.exp(-((_np.log10(x) - _np.log10(0.079)) ** 2) / (2 * 0.69 ** 2))
@@ -60,8 +80,7 @@ class salpeter_1955(Distribution):
     ```
   """
   def __init__(self, A):
-    kwargs = {k: v for k, v in locals().items() if k not in ('self', '__class__')}
-    super().__init__(self._salpeter_1955, **kwargs)
+    super().__init__(self._salpeter_1955, [A])
   
   def _salpeter_1955(self, x, A):
     return A * x ** -2.3
@@ -84,7 +103,7 @@ class default_mass_function(Distribution):
     ```
   '''
   def __init__(self):
-    super().__init__(self._default_mass_function)
+    super().__init__(self._default_mass_function, [])
   
   def _default_mass_function(self, x):
     chabrier03 = chabrier_2003_single(A=0.158)
@@ -119,8 +138,7 @@ class power_law(Distribution):
     pdf (float or ndarray): Probability density at the given mass value(s).
   '''
   def __init__(self, alpha, A):
-    kwargs = {k: v for k, v in locals().items() if k not in ('self', '__class__')}
-    super().__init__(self._power_law, **kwargs)
+    super().__init__(self._power_law, [alpha, A])
   
   def _power_law(self, x, alpha, A):
     return A * x ** alpha
@@ -142,8 +160,7 @@ class broken_power_law(Distribution):
     pdf (float or ndarray): Probability density at the given mass value(s).
   '''
   def __init__(self, alpha, beta, A, x_0):
-    kwargs = {k: v for k, v in locals().items() if k not in ('self', '__class__')}
-    super().__init__(self._broken_power_law, **kwargs)
+    super().__init__(self._broken_power_law, [alpha, beta, A, x_0])
 
   def _broken_power_law(self, x, alpha, beta, A, x_0):
     return _np.where(x < x_0, A * x ** alpha, A * x_0 ** (beta - alpha) * x ** beta)
@@ -164,8 +181,7 @@ class lognormal(Distribution):
     pdf (float or ndarray): Probability density at the given mass value(s).
   '''
   def __init__(self, mu, sigma, A):
-    kwargs = {k: v for k, v in locals().items() if k not in ('self', '__class__')}
-    super().__init__(self._lognormal, **kwargs)
+    super().__init__(self._lognormal, [mu, sigma, A])
   
   def _lognormal(self, x, mu, sigma, A):
     return A * _np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
@@ -184,8 +200,7 @@ class loguniform(Distribution):
     pdf (float or ndarray): Probability density at the given mass value(s).
   '''
   def __init__(self, A):
-    kwargs = {k: v for k, v in locals().items() if k not in ('self', '__class__')}
-    super().__init__(self._loguniform, **kwargs)
+    super().__init__(self._loguniform, [A])
 
   def _loguniform(self, x, A):
     return A / x
