@@ -32,15 +32,15 @@ class StellarEnvironment:
       units (airball.units.UnitSet, optional): The units used in the environment. Default is None.
       object_name (str, optional): The name of the object in the environment. Default is None.
       seed (int, optional): The seed fixing the random star generator. Default is None so it's always random.
-      
+
     Example:
       ```python
       import airball
       my_env = airball.StellarEnvironment(stellar_density=10, velocity_dispersion=20, lower_mass_limit=0.08, upper_mass_limit=8, name='My Environment')
       my_star = my_env.random_star()
-      ```  
+      ```
 
-    If a `maximum_impact_parameter` is not given, AIRBALL attempts to estimate a reasonable one. 
+    If a `maximum_impact_parameter` is not given, AIRBALL attempts to estimate a reasonable one.
     The Maximum Impact Parameter is radius defining the outer limit of the sphere of influence around a stellar system.
     There are predefined subclasses for the LocalNeighborhood, a generic OpenCluster, a generic GlobularCluster, and the Milky Way center GalacticBulge and GalacticCore.
   '''
@@ -68,16 +68,16 @@ class StellarEnvironment:
   def random_stars(self, size=1, **kwargs):
     '''
       Computes a random star from a stellar environment.
-      
+
       Args:
         size (int or tuple): The number of stars to generate. If size is a tuple, it is interpreted as array dimensions. Default: 1.
-      
+
       Keyword Args:
         include_orientation (bool, optional): If True, the orientation of the star is randomly generated. Otherwise, the orientation of the stars are zero. Default: True.
         maximum_impact_parameter (float, optional): The maximum impact parameter of the star. If None, the maximum impact parameter is estimated. Default: None.
         seed (int, optional): The random seed to use. If None is given then it is random every time. Default: None.
 
-      Returns: 
+      Returns:
         stars (Star or Stars): A Star object or Stars object (if size > 1) with the randomly generated masses, impact parameters, velocities, and orientations in a heliocentric model.
 
       Example:
@@ -138,7 +138,7 @@ class StellarEnvironment:
     '''
     kwargs = {'stellar_density':self.density, 'velocity_dispersion':self.velocity_dispersion, 'lower_mass_limit':self.lower_mass_limit, 'upper_mass_limit':self.upper_mass_limit, 'mass_function':self.IMF.initial_mass_function, 'maximum_impact_parameter':self.maximum_impact_parameter, 'name':self.name, 'UNIT_SYSTEM':self.UNIT_SYSTEM, 'object_name':self.object_name, 'seed':self.seed, 'number_imf_samples':self.IMF.number_samples}
     return type(self)(**kwargs)
-  
+
   def __eq__(self, other):
     # Overrides the default implementation
     if isinstance(other, StellarEnvironment):
@@ -156,7 +156,7 @@ class StellarEnvironment:
     return hash(data)
 
   def summary(self, returned=False):
-    ''' 
+    '''
     Prints a compact summary of the current stats of the Stellar Environment object.
     '''
     s = f"<{self.__module__}.{type(self).__name__} object at {hex(id(self))}"
@@ -166,10 +166,10 @@ class StellarEnvironment:
     s += ">"
     if returned: return s
     else: print(s)
-  
+
   def __str__(self):
     return self.summary(returned=True)
-  
+
   def __repr__(self):
     return self.summary(returned=True)
 
@@ -178,7 +178,7 @@ class StellarEnvironment:
   def object_unit(self):
     '''The unit of the object (star) in the environment.'''
     return self.units['object']
-  
+
   @property
   def object_name(self):
     '''
@@ -186,7 +186,7 @@ class StellarEnvironment:
       value (str): The name of the object (star) in the environment.
     '''
     return self.units['object'].to_string()
-  
+
   @object_name.setter
   def object_name(self, value):
     self.units.object = _u.def_unit(value, _u.stars)
@@ -326,8 +326,8 @@ class StellarEnvironment:
 
         The interaction cross section $σ = πb^2$ considers gravitational focussing where $b = q \\sqrt(1 + \\frac{2GM}{q v_∞^2})$ determined by the median mass of the environment, the maximum impact parameter, and the relative velocity at infinity derived from the velocity dispersion.
     '''
-    return _tools.encounter_rate(self._density, _tools.maxwell_boltzmann_mean_from_dispersion(self.velocity_dispersion), self._maximum_impact_parameter, self.median_mass, unit_set=self.units).to(self.units['object']/self.units['time'])
-  
+    return _tools.encounter_rate(self._density, self.velocity_mean, self._maximum_impact_parameter, self.median_mass, unit_set=self.units).to(self.units['object']/self.units['time'])
+
   def cumulative_encounter_times(self, size):
     '''
     Returns the cumulative time from t=0 for when to expect the next flyby encounters.
@@ -346,7 +346,7 @@ class StellarEnvironment:
         my_env.cumulative_encounter_times(10) # returns an array of 10 cumulative encounter times.
         ```
     '''
-    if isinstance(size, tuple): 
+    if isinstance(size, tuple):
       size = tuple([int(i) for i in size])
       result = _np.cumsum(_exponential.rvs(scale=1/self.encounter_rate, size=size), axis=1) << self.units['time']
       result -= result[:, 0][:, None]
@@ -356,7 +356,7 @@ class StellarEnvironment:
       result = _np.cumsum(_exponential.rvs(scale=1/self.encounter_rate, size=size)) << self.units['time']
       result -= result[0]
       return result
-  
+
   def encounter_times(self, size):
     '''
     Returns the time between encounters for when to the expect the next flyby encounters.
@@ -375,7 +375,7 @@ class StellarEnvironment:
         my_env.encounter_times(10) # returns an array of 10 encounter times.
         ```
     '''
-    if isinstance(size, tuple): 
+    if isinstance(size, tuple):
       size = tuple([int(i) for i in size])
       return _exponential.rvs(scale=1/self.encounter_rate, size=size) << self.units['time']
     else:
@@ -406,7 +406,7 @@ class LocalNeighborhood(StellarEnvironment):
     This is a `StellarEnvironment` subclass for the Local Neighborhood.
     It encapsulates the relevant data for a static stellar environment representing the local neighborhood of the solar system.
 
-    The stellar density is 0.14 $\\rm{pc}^{-3}$ defined by [Bovy (2017)](https://ui.adsabs.harvard.edu/abs/2017MNRAS.470.1360B/abstract). 
+    The stellar density is 0.14 $\\rm{pc}^{-3}$ defined by [Bovy (2017)](https://ui.adsabs.harvard.edu/abs/2017MNRAS.470.1360B/abstract).
     The velocity distribution is defined using a Maxwell-Boltzmann distribution where the velocity dispersion is 20 km/s, defined by [Binnery & Tremaine (2008)](https://ui.adsabs.harvard.edu/abs/2008gady.book.....B/abstract) where the $v_\\rm{rms} \\sim 50$ km/s and [Bailer-Jones et al. (2018)](https://ui.adsabs.harvard.edu/abs/2018A%26A...616A..37B/abstract) so that 90% of stars have v < 100 km/s with an encounter rate of ~20 stars/Myr within 1 pc. However, a more accurate representation of the velocity distribution in the solar neighborhood is a triaxial Gaussian distribution, but that has not been implemented here.
     The mass limits is defined to between 0.08-8 solar masses using Equation (17) from [Chabrier (2003)](https://ui.adsabs.harvard.edu/abs/2003PASP..115..763C/abstract) for single stars when m < 1 and a power-law model from [Bovy (2017)](https://ui.adsabs.harvard.edu/abs/2017MNRAS.470.1360B/abstract) for stars m ≥ 1 to account for depleted stars due to stellar evolution.
 
