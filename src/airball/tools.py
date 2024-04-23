@@ -4,10 +4,6 @@ import joblib as _joblib
 import warnings as _warnings
 from .units import UnitSet as _UnitSet
 from . import units as _u
-from mpmath import mp as _mp
-
-# Set the precision
-_mp.dps = 50  # 50 digits of precision
 
 twopi = 2.*_np.pi
 

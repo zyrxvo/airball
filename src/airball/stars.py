@@ -849,7 +849,7 @@ class Stars(MutableMapping):
       _pickle.dump(self, pfile, protocol=_pickle.HIGHEST_PROTOCOL)
 
   @classmethod
-  def _load(cls, filename, init=False):
+  def _load(cls, filename):
     """
     Load an instance of the Stars class from a file using pickle.
 
@@ -866,7 +866,8 @@ class Stars(MutableMapping):
       ```
     """
     if not isinstance(filename, str): raise ValueError('Filename must be a string.')
-    return _pickle.load(open(filename, 'rb'))
+    with open(filename, 'rb') as pfile:
+      return _pickle.load(pfile)
 
   def stats(self, returned=False):
     '''
