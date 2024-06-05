@@ -437,7 +437,7 @@ class Stars(MutableMapping):
           # Value 'uniform' for key is valid, now generate an array of values for key.
           quantityValue = (2.0*_np.pi * _uniform.rvs(size=self.shape) - _np.pi) * self.units['angle']
         # Value is not a string, check if length matches other key values.
-        elif _np.shape(value) != self.shape: raise ListLengthException(f'Difference of {_np.shape(value)} and {self.shape} for {k}.')
+        elif len(value) != len(self): raise ListLengthException(f'Difference of {len(value)} and {len(self)} for {k}.')
         # Length of value matches other key values, check if value is a list.
         elif isinstance(value, list):
           # Value is a list, try to turn list of Quantities into a ndarray Quantity.
@@ -698,7 +698,25 @@ class Stars(MutableMapping):
       `[m.value, b.value, v.value, inc.value, omega.value, Omega.value]`
     '''
     return _np.array([self.m.value, self.b.value, self.v.value, self.inc.value, self.omega.value, self.Omega.value])
- 
+  
+  @property
+  def param_dict(self):
+    '''
+      A dictionary of the values of the parameters of the Stars including: Mass, "m"; Impact Parameter, "b"; Velocity, "v"; Inclination, "inc"; Argument of the Periastron, "omega"; and Longitude of the Ascending Node, "Omega".
+
+      `{"m": stars.m, "b": stars.b, "v": stars.v, "inc": stars.inc, "omega": stars.omega, "Omega": stars.Omega}`
+    '''
+    return {"m": self.m, "b": self.b, "v": self.v, "inc": self.inc, "omega": self.omega, "Omega": self.Omega}
+  
+  @property
+  def labels(self):
+    '''
+      A list of labels for the parameters of the Stars in order of: Mass, m; Impact Parameter, b; Velocity, v; Inclination, inc; Argument of the Periastron, omega; and Longitude of the Ascending Node, Omega
+
+      `["Mass", "Impact Parameter", "Velocity", "Inclination", "Argument of the Periastron", "Longitude of the Ascending Node"]`
+    '''
+    return ["Mass", "Impact Parameter", "Velocity", "Inclination", "Argument of the Periastron", "Longitude of the Ascending Node"]
+  
   def eccentricity(self, sim):
     '''
     The eccentricity of the Stars, alias for `e(sim)`.
@@ -876,7 +894,7 @@ class Stars(MutableMapping):
     '''
     s = f"<{self.__module__}.{type(self).__name__} object at {hex(id(self))}, "
     s += f"N={f'{self.N:,.0f}' if len(self.shape) == 1 else self.shape}"
-    if self.N > 0: s += f", m= {_np.min(self.m.value):,.2f}-{_np.max(self.m.value):,.2f} {self.units['mass']}"
+    if self.N > 0: s += f", m= {_np.min(self.m.value):,.3f}-{_np.max(self.m.value):,.3f} {self.units['mass']}"
     if self.N > 0: s += f", b= {_np.min(self.b.value):,.0f}-{_np.max(self.b.value):,.0f} {self.units['length']}"
     if self.N > 0: s += f", v= {_np.min(self.v.value):,.0f}-{_np.max(self.v.value):,.0f} {self.units['velocity']}"
     s += f"{f', Environment={self.environment.name}' if self.environment is not None else ''}"
@@ -978,6 +996,9 @@ class Stars(MutableMapping):
     if isinstance(other, Stars):
       if self.N == 0 and other.N == 0: return Stars()
       else: return Stars(m=_np.concatenate((self.m, other.m)), b=_np.concatenate((self.b, other.b)), v=_np.concatenate((self.v, other.v)), inc=_np.concatenate((self.inc, other.inc)), omega=_np.concatenate((self.omega, other.omega)), Omega=_np.concatenate((self.Omega, other.Omega)))
+    elif isinstance(other, Star):
+      if self.N == 0 and other.N == 0: return Stars()
+      else: return Stars(m=_np.concatenate((self.m, [other.m])), b=_np.concatenate((self.b, [other.b])), v=_np.concatenate((self.v, [other.v])), inc=_np.concatenate((self.inc, [other.inc])), omega=_np.concatenate((self.omega, [other.omega])), Omega=_np.concatenate((self.Omega, [other.Omega])))
     return NotImplemented
 
 ################################
