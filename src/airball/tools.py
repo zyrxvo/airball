@@ -465,6 +465,7 @@ def hyperbolic_elements(sim, star, rmax, values_only=False):
       sim.add(m=5e-5, a=30)
       star = airball.Star(m=1, b=500, v=5)
       elements = hyperbolic_elements(sim, star, rmax=100)
+      print(elements['a'])
       ```
     """
     e = calculate_eccentricity(sim, star)
