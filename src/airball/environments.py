@@ -4,6 +4,7 @@ from scipy.stats import uniform as _uniform
 from scipy.stats import maxwell as _maxwell
 from scipy.stats import expon as _exponential
 from scipy.optimize import fminbound as _fminbound
+import pickle as _pickle
 
 from . import units as _u
 from . import imf as _imf
@@ -21,14 +22,14 @@ class StellarEnvironment:
     Initializing a StellarEnvironment instance.
 
     Args:
-      stellar_density (float): The stellar density of the environment.
-      velocity_dispersion (float): The velocity dispersion in the environment.
-      lower_mass_limit (float): The lower mass limit for stars in the environment.
-      upper_mass_limit (float): The upper mass limit for stars in the environment.
-      mass_function (callable, optional): A function that defines the mass distribution of stars. Default is None.
-      maximum_impact_parameter (float, optional): The maximum impact parameter defining the outer limit of the sphere of influence around a stellar system. If not provided, AIRBALL attempts to estimate a reasonable one. Default is None.
+      stellar_density (float): The stellar density of the environment. Default units are stars/pc^3.
+      velocity_dispersion (float): The velocity dispersion in the environment. Default units are km/s.
+      lower_mass_limit (float): The lower mass limit for stars in the environment. Default units are solar masses.
+      upper_mass_limit (float): The upper mass limit for stars in the environment. Default units are solar masses.
+      mass_function (callable, optional): A function that defines the mass distribution of stars. Default is None. If None, the mass function is defined by the Chabrier (2003) IMF for stars with mass < 1 solar mass and the Salpeter (1955) IMF for stars with mass >= 1 solar mass.
+      maximum_impact_parameter (float, optional): The maximum impact parameter defining the outer limit of the sphere of influence around a stellar system. If not provided, AIRBALL attempts to estimate a reasonable one. Default is None. Default units are AU.
       name (str, optional): The name of the environment. Default is None.
-      UNIT_SYSTEM (list, optional): The unit system used in the environment. Default is an empty list.
+      UNIT_SYSTEM (list, optional): The unit system used in the environment. Default is an empty list. If not provided, the default unit system assigns 'length': AU, 'time': Myr, 'mass': solar mass, 'angle': radians, 'velocity': km/s, 'object': stars, and 'density': stars/pc^3.
       units (airball.units.UnitSet, optional): The units used in the environment. Default is None.
       object_name (str, optional): The name of the object in the environment. Default is None.
       seed (int, optional): The seed fixing the random star generator. Default is None so it's always random.
@@ -38,13 +39,22 @@ class StellarEnvironment:
       import airball
       my_env = airball.StellarEnvironment(stellar_density=10, velocity_dispersion=20, lower_mass_limit=0.08, upper_mass_limit=8, name='My Environment')
       my_star = my_env.random_star()
+      my_env.stats()
       ```
 
     If a `maximum_impact_parameter` is not given, AIRBALL attempts to estimate a reasonable one.
     The Maximum Impact Parameter is radius defining the outer limit of the sphere of influence around a stellar system.
     There are predefined subclasses for the LocalNeighborhood, a generic OpenCluster, a generic GlobularCluster, and the Milky Way center GalacticBulge and GalacticCore.
   '''
-  def __init__(self, stellar_density, velocity_dispersion, lower_mass_limit, upper_mass_limit, mass_function=None, maximum_impact_parameter=None, name=None, UNIT_SYSTEM=[], units=None, object_name=None, seed=None, number_imf_samples=100):
+  def __init__(self, filename=None, stellar_density=None, velocity_dispersion=None, lower_mass_limit=None, upper_mass_limit=None, mass_function=None, maximum_impact_parameter=None, name=None, UNIT_SYSTEM=[], units=None, object_name=None, seed=None, number_imf_samples=100):
+    # Initialize StellarEnvironment from file.
+    if filename is not None and isinstance(filename, str):
+      try:
+        loaded = StellarEnvironment._load(filename)
+        self.__dict__ = loaded.__dict__
+      except: raise Exception('Invalid filename.')
+      return
+
     # Check to see if an stars object unit is defined in the given UNIT_SYSTEM and if the user defined a different name for the objects.
     self.units = units if isinstance(units, _u.UnitSet) else _u.UnitSet(UNIT_SYSTEM)
     objectUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(_u.stars)]
@@ -52,8 +62,15 @@ class StellarEnvironment:
     elif objectUnit == [] and object_name is None: self.units.object = _u.stars
     else: self.units.object = objectUnit[0]
 
-    self.density = stellar_density
-    self.velocity_dispersion = velocity_dispersion
+    if stellar_density is not None:
+      self.density = stellar_density
+    else: raise AssertionError('Stellar Density must be defined.')
+    if velocity_dispersion is not None:
+      self.velocity_dispersion = velocity_dispersion
+    else: raise AssertionError('Velocity Dispersion must be defined.')
+
+    if lower_mass_limit is None: raise AssertionError('Lower Mass Limit must be defined.')
+    if upper_mass_limit is None: raise AssertionError('Upper Mass Limit must be defined.')
 
     self._upper_mass_limit = upper_mass_limit.to(self.units['mass']) if _tools.isQuantity(upper_mass_limit) else upper_mass_limit * self.units['mass']
     self._lower_mass_limit = lower_mass_limit.to(self.units['mass']) if _tools.isQuantity(lower_mass_limit) else lower_mass_limit * self.units['mass']
@@ -138,6 +155,45 @@ class StellarEnvironment:
     '''
     kwargs = {'stellar_density':self.density, 'velocity_dispersion':self.velocity_dispersion, 'lower_mass_limit':self.lower_mass_limit, 'upper_mass_limit':self.upper_mass_limit, 'mass_function':self.IMF.initial_mass_function, 'maximum_impact_parameter':self.maximum_impact_parameter, 'name':self.name, 'UNIT_SYSTEM':self.UNIT_SYSTEM, 'object_name':self.object_name, 'seed':self.seed, 'number_imf_samples':self.IMF.number_samples}
     return type(self)(**kwargs)
+
+  def save(self, filename):
+    """
+    Save the current instance of the StellarEnvironment class to a file using pickle.
+
+    Args:
+      filename (str): The name of the file to save the instance to. The file will be saved in binary format.
+
+    Example:
+      ```python
+      import airball
+      se = airball.OpenCluster()
+      se.save('open_cluster.se')
+      ```
+    """
+    if not isinstance(filename, str): raise ValueError('Filename must be a string.')
+    with open(filename, 'wb') as pfile:
+      _pickle.dump(self, pfile, protocol=_pickle.HIGHEST_PROTOCOL)
+
+  @classmethod
+  def _load(cls, filename):
+    """
+    Load an instance of the StellarEnvironment class from a file using pickle.
+
+    Args:
+      filename (str): The name of the file to load the instance from. The file should be in binary format, pickled.
+
+    Returns:
+      loaded_stars (StellarEnvironment): The loaded instance of the StellarEnvironment class.
+
+    Example:
+      ```python
+      import airball
+      stars = airball.StellarEnvironment('open_cluster.stars')
+      ```
+    """
+    if not isinstance(filename, str): raise ValueError('Filename must be a string.')
+    with open(filename, 'rb') as pfile:
+      return _pickle.load(pfile)
 
   def __eq__(self, other):
     # Overrides the default implementation
