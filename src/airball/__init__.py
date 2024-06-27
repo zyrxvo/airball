@@ -10,4 +10,4 @@ from .stars import (Star, Stars)
 from .units import (UnitSet)
 from .units import GravConst as G
 
-__version__ = 'v0.8.0'
+__version__ = 'v0.8.1'
