@@ -43,7 +43,7 @@ class Star:
 
       ```python
       import airball
-      star = airball.Star(m=1.0, b=1.0, v=1.0, inc='uniform', omega='uniform', Omega='uniform')
+      star = airball.Star(m=1.0, b=1.0, v=1.0, inc='isotropic', omega='isotropic', Omega='isotropic')
       ```
 
       ```python
@@ -51,12 +51,12 @@ class Star:
       star = airball.Star(m=1.0, b=1.0, v=1.0)
       ```
   '''
-  def __init__(self, m, b, v, inc='uniform', omega='uniform', Omega='uniform', UNIT_SYSTEM=[], **kwargs) -> None:
+  def __init__(self, m, b, v, inc='isotropic', omega='isotropic', Omega='isotropic', UNIT_SYSTEM=[]) -> None:
     self.units = _u.UnitSet(UNIT_SYSTEM)
 
-    if inc == 'uniform' or inc == None: inc = 2.0*_np.pi * _uniform.rvs() - _np.pi
-    if omega == 'uniform' or omega == None: omega = 2.0*_np.pi * _uniform.rvs() - _np.pi
-    if Omega == 'uniform' or Omega == None: Omega = 2.0*_np.pi * _uniform.rvs() - _np.pi
+    if inc == 'isotropic' or inc == None: inc = 2*_np.arcsin(_np.sqrt(_uniform.rvs(size=1)))
+    if omega == 'isotropic' or omega == None: omega = _uniform.rvs(loc=0, scale=(2.0*_np.pi), size=1)
+    if Omega == 'isotropic' or Omega == None: Omega = _uniform.rvs(loc=-_np.pi, scale=(2.0*_np.pi), size=1)
 
     self.mass = m
     self.impact_parameter = b
@@ -291,8 +291,8 @@ class Stars(MutableMapping):
       import airball
       stars_from_params1 = airball.Stars(m=[1.0, 1.0, 1.0], b=[1.0, 1.0, 1.0], v=[1.0, 1.0, 1.0], inc=[0.0, 0.0, 0.0], omega=[0.0, 0.0, 0.0], Omega=[0.0, 0.0, 0.0])
       stars_from_params2 = airball.Stars(m=[1.0, 1.0, 1.0], b=[1.0, 1.0, 1.0], v=[1.0, 1.0, 1.0]) # random orientation angles
-      stars_from_params3 = airball.Stars(m=[1.0, 1.0, 1.0], b=[1.0, 1.0, 1.0], v=[1.0, 1.0, 1.0], inc='uniform', omega='uniform', Omega='uniform') # random orientation angles
-      stars_from_params4 = airball.Stars(m=1, b=200, v=5, omega=0, Omega=0, size=100) # 100 identical stars with random inclinations
+      stars_from_params3 = airball.Stars(m=1, b=200, v=5, omega=0, Omega=0, size=100) # 100 identical stars with isotropically random inclinations
+      stars_from_params4 = airball.Stars(m=[1.0, 1.0, 1.0], b=[1.0, 1.0, 1.0], v=[1.0, 1.0, 1.0], inc='uniform', omega='uniform', Omega='uniform') # uniformly random orientation angles
       ```
 
       ```python
@@ -319,13 +319,25 @@ class Stars(MutableMapping):
       except KeyError: 
         self.units = _u.UnitSet()
 
-    # Initialize Stars from file.
-    if filename is not None and isinstance(filename, str):
-      try:
-        loaded = Stars._load(filename)
-        self.__dict__ = loaded.__dict__
-      except: raise Exception('Invalid filename.')
-      return
+    if filename is not None:
+      # Initialize Stars from file.
+      if isinstance(filename, str):
+        try:
+          loaded = Stars._load(filename)
+          self.__dict__ = loaded.__dict__
+        except: raise Exception('Invalid filename.')
+        return
+      # If filename is a Star object, then initialize Stars with the same parameters.
+      elif isinstance(filename, Star):
+        self._shape = (kwargs.get('size', 1),)
+        self._m = (_np.ones(self.shape) * filename.m) << self.units['mass']
+        self._b = (_np.ones(self.shape) * filename.b) << self.units['length']
+        self._v = (_np.ones(self.shape) * filename.v) << self.units['velocity']
+        self._inc = (_np.ones(self.shape) * filename.inc) << self.units['angle']
+        self._omega = (_np.ones(self.shape) * filename.omega) << self.units['angle']
+        self._Omega = (_np.ones(self.shape) * filename.Omega) << self.units['angle']
+        self.environment = None
+        return
     
     # If nothing is specified, return an empty Stars object.
     if not kwargs: 
@@ -425,7 +437,7 @@ class Stars(MutableMapping):
       if self._shape is not None:
         if quantityValue.shape != self._shape: raise ListLengthException(f'Difference of {quantityValue.shape} and {self._shape} for {k}.')
       else: self._shape = quantityValue.shape
-        
+
     for k in ['inc', 'omega', 'Omega']:
       try:
         # Check to see if was key is given.
@@ -433,9 +445,14 @@ class Stars(MutableMapping):
           # Check to see if value for key is string.
         if isinstance(value, str):
           # Value is a string, check to see if value for key is valid.
-          if value != 'uniform': raise InvalidValueForKeyException()
-          # Value 'uniform' for key is valid, now generate an array of values for key.
-          quantityValue = (2.0*_np.pi * _uniform.rvs(size=self.shape) - _np.pi) * self.units['angle']
+          # Values 'isotropic' or 'uniform' for key are valid, now generate an array of values for key.
+          if value == 'isotropic':
+            # Set the distributions for the orientation angles.
+            if k == 'inc': quantityValue = 2.0*_np.arcsin(_np.sqrt(_uniform.rvs(size=self.shape))) << self.units['angle']
+            elif k == 'omega': quantityValue = _uniform.rvs(loc=0, scale=(2.0*_np.pi), size=self.shape) << self.units['angle']
+            elif k == 'Omega': quantityValue = _uniform.rvs(loc=-_np.pi, scale=(2.0*_np.pi), size=self.shape) << self.units['angle']
+          elif value == 'uniform':  quantityValue = _uniform.rvs(loc=-_np.pi, scale=(2.0*_np.pi), size=self.shape) << self.units['angle']
+          else: raise InvalidValueForKeyException()
         # Value is not a string, check if length matches other key values.
         elif len(value) != len(self): raise ListLengthException(f'Difference of {len(value)} and {len(self)} for {k}.')
         # Length of value matches other key values, check if value is a list.
@@ -452,9 +469,11 @@ class Stars(MutableMapping):
           except: quantityValue = value * self.units['angle']
         # Value implements __len__, but is not a list or ndarray.
         else: raise IncompatibleListException()
-      # Key does not exist, assume the user wants an array of values to automatically be generated.
+      # Key does not exist, assume the user wants an array of values to automatically be generated isotropically.
       except KeyError: 
-        quantityValue = (2.0*_np.pi * _uniform.rvs(size=self.shape) - _np.pi) * self.units['angle']
+        if k == 'inc': quantityValue = 2.0*_np.arcsin(_np.sqrt(_uniform.rvs(size=self.shape))) << self.units['angle']
+        elif k == 'omega': quantityValue = _uniform.rvs(loc=0, scale=(2.0*_np.pi), size=self.shape) << self.units['angle']
+        elif k == 'Omega': quantityValue = _uniform.rvs(loc=-_np.pi, scale=(2.0*_np.pi), size=self.shape) << self.units['angle']
       # Value is not a list, so assume it is an int or float and generate an ndarray of the given value.
       except TypeError: 
         value = value.to(self.units['angle']) if _tools.isQuantity(value) else value * self.units['angle']
