@@ -191,7 +191,7 @@ class loguniform(Distribution):
   Loguniform IMF.
   This function calculates the probability density for a given mass value (x) based on a loguniform IMF.
   
-  $$PDF(x) = \\frac{A}{x}$$
+  $$PDF(x) = A\\frac{x_0}{x}$$
   
   Args:
     A (float, optional): Normalization factor.
