@@ -11,7 +11,7 @@ twopi = 2.*_np.pi
 ################### Helper Functions #######################
 ############################################################
 
-def rotate_into_plane(sim, plane):
+def rotate_into_plane(sim, plane='invariable'):
     '''
     Rotates the simulation into the specified plane.
 
@@ -731,5 +731,5 @@ def isList(l):
 
 def isQuantity(var):
     '''Determines if an object is an Astropy Quantity. Used for Stellar Environment initializations.'''
-    return isinstance(var, _u.quantity.Quantity)
+    return isinstance(var, _u.Quantity)
 
