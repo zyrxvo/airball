@@ -80,7 +80,7 @@ class StellarEnvironment:
 
     self.name = name if name is not None else 'Stellar Environment'
     self.short_name = self.name.replace(' ', '')
-    self.seed = seed if seed is not None else None #_np.random.randint(0, int(2**32 - 1))
+    self.seed = seed if seed is not None else None
 
   def random_stars(self, size=1, **kwargs):
     '''
@@ -109,22 +109,19 @@ class StellarEnvironment:
 
     include_orientation = kwargs.get('include_orientation', True)
     maximum_impact_parameter = kwargs.get('maximum_impact_parameter')
-    seed = kwargs.get('seed')
+    self.seed = kwargs.get('seed', self.seed)
 
-    self.seed = seed
-    if self.seed != None: _np.random.seed(self.seed)
-
-    v = _maxwell.rvs(scale=_tools.maxwell_boltzmann_scale_from_dispersion(self.velocity_dispersion), size=size) << self.units['velocity'] # Relative velocity of the star at infinity.
+    v = _maxwell.rvs(scale=_tools.maxwell_boltzmann_scale_from_dispersion(self.velocity_dispersion), size=size, random_state=self.seed) << self.units['velocity'] # Relative velocity of the star at infinity.
 
     max_impact = maximum_impact_parameter if maximum_impact_parameter is not None else self.maximum_impact_parameter
-    b = max_impact * _np.sqrt(_uniform.rvs(size=size)) # Impact parameter of the star.
+    b = max_impact * _np.sqrt(_uniform.rvs(size=size, random_state=self.seed)) # Impact parameter of the star.
 
-    m = self.IMF.random_mass(size=size) # Mass of the star.
+    m = self.IMF.random_mass(size=size, seed=self.seed) # Mass of the star.
 
     zeros = _np.zeros(size)
-    inc = (2*_np.arcsin(_np.sqrt(_uniform.rvs(size=size)))) << self.units['angle'] if include_orientation else zeros
-    ω = (_uniform.rvs(loc=0, scale=(2.0*_np.pi), size=size)) << self.units['angle'] if include_orientation else zeros
-    Ω = (_uniform.rvs(loc=-_np.pi, scale=(2.0*_np.pi), size=size)) << self.units['angle'] if include_orientation else zeros
+    inc = (2*_np.arcsin(_np.sqrt(_uniform.rvs(size=size, random_state=self.seed)))) << self.units['angle'] if include_orientation else zeros
+    ω = (_uniform.rvs(loc=0, scale=(2.0*_np.pi), size=size, random_state=self.seed)) << self.units['angle'] if include_orientation else zeros
+    Ω = (_uniform.rvs(loc=-_np.pi, scale=(2.0*_np.pi), size=size, random_state=self.seed)) << self.units['angle'] if include_orientation else zeros
 
     if isinstance(size, tuple): return _Stars(m=m, b=b, v=v, inc=inc, omega=ω, Omega=Ω, UNIT_SYSTEM=self.UNIT_SYSTEM, environment=self)
     elif size > 1: return _Stars(m=m, b=b, v=v, inc=inc, omega=ω, Omega=Ω, UNIT_SYSTEM=self.UNIT_SYSTEM, environment=self)

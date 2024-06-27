@@ -1,6 +1,7 @@
 import numpy as _np
 import types as _types
 from scipy.integrate import quad as _quad
+from scipy.stats import uniform as _uniform
 from . import units as _u
 from . import tools as _tools
 
@@ -294,13 +295,12 @@ class IMF():
       imf.random_mass()
       ```
     """
-    if 'seed' in kwargs: self.seed = kwargs['seed']
-    if self.seed != None: _np.random.seed(self.seed)
-    
+    self.seed = kwargs.get('seed', self.seed)
+
     if isinstance(size, tuple): size = tuple([int(i) for i in size])
     else: size = int(size)
 
-    rand_masses = _np.interp(_np.random.uniform(size=size), self._CDF, self._masses) * self.unit
+    rand_masses = _np.interp(_uniform.rvs(size=size, random_state=self.seed), self._CDF, self._masses) * self.unit
     if isinstance(size, tuple): return rand_masses
     elif size > 1: return rand_masses
     else: return rand_masses[0]
