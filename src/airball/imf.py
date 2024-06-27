@@ -118,7 +118,7 @@ class uniform(Distribution):
   $$PDF(x) = 1$$
   '''
   def __init__(self):
-    super().__init__(self._uniform)
+    super().__init__(self._uniform, [])
   
   def _uniform(self, x):
     return x * 0 + 1
@@ -194,16 +194,17 @@ class loguniform(Distribution):
   $$PDF(x) = \\frac{A}{x}$$
   
   Args:
-    A (float): Normalization factor.
+    A (float, optional): Normalization factor.
+    x0 (float, optional): Location to apply the normalization factor.
     
   Returns:
     pdf (float or ndarray): Probability density at the given mass value(s).
   '''
-  def __init__(self, A):
-    super().__init__(self._loguniform, [A])
+  def __init__(self, A=1, x0=1):
+    super().__init__(self._loguniform, [A, x0])
 
-  def _loguniform(self, x, A):
-    return A / x
+  def _loguniform(self, x, A=1, x0=1):
+    return x0 * A / x
 
 class IMF():
   """
