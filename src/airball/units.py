@@ -7,6 +7,7 @@ stars = _u.def_unit('stars')
 _u.add_enabled_units([yr2pi, yrtwopi])
 _u.add_enabled_aliases({'msun': _u.solMass})
 
+GravConst = 1 * (_u.au**3/_u.solMass/yr2pi**2)
 
 def isUnit(var):
     '''Determines if an object is an Astropy Quantity. Used for Stellar Environment initializations.'''
