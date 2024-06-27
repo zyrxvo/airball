@@ -195,7 +195,17 @@ class StellarEnvironment:
   def __eq__(self, other):
     # Overrides the default implementation
     if isinstance(other, StellarEnvironment):
-        return (self.density == other.density and self.velocity_dispersion == other.velocity_dispersion and self.lower_mass_limit == other.lower_mass_limit and self.upper_mass_limit == other.upper_mass_limit and self.IMF == other.IMF and self.maximum_impact_parameter == other.maximum_impact_parameter and self.name == self.name and self.units == other.units and self.object_name == other.object_name and self.seed == other.seed)
+        attrs = ['density', 'velocity_dispersion', 'lower_mass_limit', 'upper_mass_limit', 'IMF', 'maximum_impact_parameter', 'name', 'units', 'object_name', 'seed']
+        equal = True
+        for attr in attrs:
+          equal_attribute = getattr(self, attr) == getattr(other, attr)
+          if equal_attribute == False:
+            if _tools.isQuantity(getattr(self, attr)):
+              equal_attribute = getattr(self, attr).value == getattr(other, attr).value
+              equal_attribute = equal_attribute and getattr(self, attr).unit.is_equivalent(getattr(other, attr).unit)
+          if equal_attribute == False: return False
+          equal = equal and equal_attribute
+        return equal
     else:
       return NotImplemented
 

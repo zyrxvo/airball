@@ -996,9 +996,17 @@ class Stars(MutableMapping):
   def __eq__(self, other):
     # Overrides the default implementation
     if isinstance(other, Stars):
-        data = (_np.all(self.m == other.m) and _np.all(self.b == other.b) and _np.all(self.v == other.v) and _np.all(self.inc == other.inc) and _np.all(self.omega == other.omega) and _np.all(self.Omega == other.Omega))
-        properties = (self.N == other.N and self.shape == self.shape and self.units == other.units and self.environment == other.environment)
-        return data and properties
+        attrs = ['m', 'b', 'v', 'inc', 'omega', 'Omega', 'N', 'shape', 'units', 'environment']
+        equal = True
+        for attr in attrs:
+          equal_attribute = _np.all(getattr(self, attr) == getattr(other, attr))
+          if equal_attribute == False:
+            if _tools.isQuantity(getattr(self, attr)):
+              equal_attribute = _np.all(getattr(self, attr).value == getattr(other, attr).value)
+              equal_attribute = equal_attribute and _np.all(getattr(self, attr).unit.is_equivalent(getattr(other, attr).unit))
+          if equal_attribute == False: return False
+          equal = equal and equal_attribute
+        return equal
     return NotImplemented
 
   def __hash__(self):

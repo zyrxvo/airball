@@ -34,6 +34,12 @@ class Distribution():
   def __call__(self, x):
     return self.mass_function(x, *self.params)
 
+  def __eq__(self, other):
+    if isinstance(other, Distribution):
+      return self.mass_function == other.mass_function and self.params == other.params
+    else:
+      return NotImplemented
+
 class chabrier_2003_single(Distribution):
   """
   Chabrier 2003 IMF for single stars.
@@ -110,6 +116,10 @@ class default_mass_function(Distribution):
     chabrier03 = chabrier_2003_single(A=0.158)
     salpeter55 = salpeter_1955(A=chabrier03(1))
     return _np.where(x < 1, chabrier03(x), salpeter55(x))
+  
+  def __eq__(self, other):
+    if isinstance(other, default_mass_function): return True
+    else: return NotImplemented
 
 class uniform(Distribution):
   '''
@@ -123,6 +133,10 @@ class uniform(Distribution):
   
   def _uniform(self, x):
     return x * 0 + 1
+  
+  def __eq__(self, other):
+    if isinstance(other, uniform): return True
+    else: return NotImplemented
 
 class power_law(Distribution):
   '''
