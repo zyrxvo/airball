@@ -3,7 +3,8 @@ import numpy as _np
 from scipy.stats import uniform as _uniform
 from scipy.stats import maxwell as _maxwell
 from scipy.stats import expon as _exponential
-from scipy.optimize import fminbound as _fminbound
+# from scipy.optimize import fminbound as _fminbound
+from scipy.interpolate import interp1d as _interp
 import pickle as _pickle
 
 from . import units as _u
@@ -110,18 +111,19 @@ class StellarEnvironment:
     include_orientation = kwargs.get('include_orientation', True)
     maximum_impact_parameter = kwargs.get('maximum_impact_parameter')
     self.seed = kwargs.get('seed', self.seed)
+    seed = _np.random.randint(0, int(2**32 - 6)) if self.seed is None else self.seed
 
-    v = _maxwell.rvs(scale=_tools.maxwell_boltzmann_scale_from_dispersion(self.velocity_dispersion), size=size, random_state=self.seed) << self.units['velocity'] # Relative velocity of the star at infinity.
+    v = _maxwell.rvs(scale=_tools.maxwell_boltzmann_scale_from_dispersion(self.velocity_dispersion), size=size, random_state=(seed+1)) << self.units['velocity'] # Relative velocity of the star at infinity.
 
     max_impact = maximum_impact_parameter if maximum_impact_parameter is not None else self.maximum_impact_parameter
-    b = max_impact * _np.sqrt(_uniform.rvs(size=size, random_state=self.seed)) # Impact parameter of the star.
+    b = max_impact * _np.sqrt(_uniform.rvs(size=size, random_state=(seed+2))) # Impact parameter of the star.
 
-    m = self.IMF.random_mass(size=size, seed=self.seed) # Mass of the star.
+    m = self.IMF.random_mass(size=size, seed=(seed+3)) # Mass of the star.
 
     zeros = _np.zeros(size)
-    inc = (2*_np.arcsin(_np.sqrt(_uniform.rvs(size=size, random_state=self.seed)))) << self.units['angle'] if include_orientation else zeros
-    ω = (_uniform.rvs(loc=0, scale=(2.0*_np.pi), size=size, random_state=self.seed)) << self.units['angle'] if include_orientation else zeros
-    Ω = (_uniform.rvs(loc=-_np.pi, scale=(2.0*_np.pi), size=size, random_state=self.seed)) << self.units['angle'] if include_orientation else zeros
+    inc = (2*_np.arcsin(_np.sqrt(_uniform.rvs(size=size, random_state=(seed+4))))) << self.units['angle'] if include_orientation else zeros
+    ω = (_uniform.rvs(loc=0, scale=(2.0*_np.pi), size=size, random_state=(seed+5))) << self.units['angle'] if include_orientation else zeros
+    Ω = (_uniform.rvs(loc=-_np.pi, scale=(2.0*_np.pi), size=size, random_state=(seed+6))) << self.units['angle'] if include_orientation else zeros
 
     if isinstance(size, tuple): return _Stars(m=m, b=b, v=v, inc=inc, omega=ω, Omega=Ω, UNIT_SYSTEM=self.UNIT_SYSTEM, environment=self)
     elif size > 1: return _Stars(m=m, b=b, v=v, inc=inc, omega=ω, Omega=Ω, UNIT_SYSTEM=self.UNIT_SYSTEM, environment=self)
@@ -285,14 +287,13 @@ class StellarEnvironment:
     if value is not None:
       self._maximum_impact_parameter = value.to(self.units['length']) if _tools.isQuantity(value) else value * self.units['length']
     else:
-      # TODO: Convert from fminbound to interpolation
       sim = _rebound.Simulation()
       sim.add(m=1.0)
       sim.add(m=5.2e-05, a=30.2, e=0.013) # Use Neptune as a test planet.
-      _f = lambda b: _np.log10(_np.abs(1e-16 - _np.abs(_analytic.relative_energy_change(sim, _Star(self.upper_mass_limit, b * self.units['length'], _np.sqrt(2.0)*_tools.maxwell_boltzmann_mean_from_dispersion(self.velocity_dispersion))))))
-      bs = _np.logspace(1, 6, 1000)
-      b0 = bs[_np.argmin(_f(bs))]
-      self._maximum_impact_parameter = _fminbound(_f, b0/5, 5*b0) * self.units['length']
+      _f = lambda b: _np.abs(_analytic.relative_energy_change(sim, _Stars(m=self.upper_mass_limit, b=b << self.units.length, v=_np.sqrt(2.0)*_tools.maxwell_boltzmann_mean_from_dispersion(self.velocity_dispersion)), averaged=True))
+      bs = _np.logspace(1, 6, 1000) << _u.au
+      _g = _interp(_f(bs), bs, fill_value='extrapolate')
+      self._maximum_impact_parameter = _g(1e-16) << self.units.length
 
   @property
   def density(self):
