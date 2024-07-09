@@ -3,4 +3,5 @@ mkdocs-material
 mkdocs-jupyter
 mkdocstrings
 mkdocstrings-python
+mkdocs-exclude
 #git+git://github.com/hannorein/mkdocs-jupyter
