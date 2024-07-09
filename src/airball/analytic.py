@@ -5,6 +5,7 @@ from scipy.special import j0 as _j0,jv as _jv
 
 from . import tools as _tools
 from . import units as _u
+from . import constants as _c
 from .core import add_star_to_sim, _rotate_into_plane
 
 ############################################################
@@ -171,7 +172,7 @@ def energy_change_close_encounter_estimate(sim, star, particle_index=1):
         x,y,z = _np.asarray(_joblib.Parallel(n_jobs=-1)(_joblib.delayed(process_star)(sim, this_star, index) for this_star in star)).T
     c = _tools.cartesian_elements(sim, star, rmax=0)
     dat = _np.array([c['x'].value, c['y'].value, c['z'].value]).T << units.length
-    G = (sim.G * units.length**3 / units.mass / units.time**2) # Newton's Gravitational constant
+    G = _c.G.decompose(units.UNIT_SYSTEM) # Newton's Gravitational constant
 
     m1, m2 = sim.particles[0].m * units.mass, sim.particles[index].m * units.mass # redefine the masses for convenience
     m3 = star.m
@@ -459,7 +460,7 @@ def eccentricity_change_impulsive_estimate(sim, star, particle_index=1):
     '''
     An analytical estimate for the change in eccentricity of an eccentric binary system due to a flyby star. From Equation (28) of [Heggie & Rasio (1996)](https://ui.adsabs.harvard.edu/abs/1996MNRAS.282.1064H/abstract). The orbital element angles of the flyby star are determined with respect to the plane defined by the binary orbit.
     
-    The base assumptions are that the flyby is coplanar, $q_\star \gg a$, and $v_\star \gg v_\mathrm{planet}$. It may work outside of this regime, but it is not guaranteed.
+    The base assumptions are that the flyby is coplanar, $q_\\star \\gg a$, and $v_\\star \\gg v_\\mathrm{planet}$. It may work outside of this regime, but it is not guaranteed.
     
     TODO:
         Make sure that the time of perihelion is calculated correctly and that the phase of the planet is correct.
