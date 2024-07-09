@@ -3,7 +3,6 @@ import numpy as _np
 from scipy.stats import uniform as _uniform
 from scipy.stats import maxwell as _maxwell
 from scipy.stats import expon as _exponential
-# from scipy.optimize import fminbound as _fminbound
 from scipy.interpolate import interp1d as _interp
 import pickle as _pickle
 
