@@ -1,4 +1,5 @@
 import numpy as _np
+import warnings as _warnings
 import types as _types
 from scipy.integrate import quad as _quad
 from scipy.stats import uniform as _uniform
@@ -27,9 +28,10 @@ class Distribution():
 
   '''
 
-  def __init__(self, mass_function, args):
+  def __init__(self, mass_function, args, unit):
     self.mass_function = mass_function
     self.params = args
+    self.unit = unit
   
   def __call__(self, x):
     return self.mass_function(x, *self.params)
@@ -60,11 +62,12 @@ class chabrier_2003_single(Distribution):
     imf.random_mass()
     ```
   """
-  def __init__(self, A=0.158):
-    super().__init__(self._chabrier_2003_single, [A])
+  def __init__(self, A=0.158, unit=_u.solMass):
+    x_0 = 0.079 * _u.solMass.to(unit)
+    super().__init__(self._chabrier_2003_single, [x_0, A], unit)
   
-  def _chabrier_2003_single(self, x, A=0.158):
-    return (A / x) * _np.exp(-((_np.log10(x) - _np.log10(0.079)) ** 2) / (2 * 0.69 ** 2))
+  def _chabrier_2003_single(self, x, x_0, A=0.158):
+    return (A / x) * _np.exp(-((_np.log10(x) - _np.log10(x_0)) ** 2) / (2 * 0.69 ** 2))
 
 class salpeter_1955(Distribution):
   """
@@ -86,8 +89,8 @@ class salpeter_1955(Distribution):
     imf.random_mass()
     ```
   """
-  def __init__(self, A):
-    super().__init__(self._salpeter_1955, [A])
+  def __init__(self, A, unit=_u.solMass):
+    super().__init__(self._salpeter_1955, [A], unit)
   
   def _salpeter_1955(self, x, A):
     return A * x ** -2.3
@@ -109,13 +112,14 @@ class default_mass_function(Distribution):
     imf.random_mass()
     ```
   '''
-  def __init__(self):
-    super().__init__(self._default_mass_function, [])
+  def __init__(self, unit=_u.solMass):
+    x_0 = (1*_u.solMass).to(unit).value
+    super().__init__(self._default_mass_function, [x_0], unit)
   
-  def _default_mass_function(self, x):
+  def _default_mass_function(self, x, x_0):
     chabrier03 = chabrier_2003_single(A=0.158)
     salpeter55 = salpeter_1955(A=chabrier03(1))
-    return _np.where(x < 1, chabrier03(x), salpeter55(x))
+    return _np.where(x < x_0, chabrier03(x), salpeter55(x))
   
   def __eq__(self, other):
     if isinstance(other, default_mass_function): return True
@@ -128,8 +132,8 @@ class uniform(Distribution):
   
   $$PDF(x) = 1$$
   '''
-  def __init__(self):
-    super().__init__(self._uniform, [])
+  def __init__(self, unit=_u.solMass):
+    super().__init__(self._uniform, [], unit)
   
   def _uniform(self, x):
     return x * 0 + 1
@@ -152,8 +156,8 @@ class power_law(Distribution):
   Returns:
     pdf (float or ndarray): Probability density at the given mass value(s).
   '''
-  def __init__(self, alpha, A):
-    super().__init__(self._power_law, [alpha, A])
+  def __init__(self, alpha, A, unit=_u.solMass):
+    super().__init__(self._power_law, [alpha, A], unit)
   
   def _power_law(self, x, alpha, A):
     return A * x ** alpha
@@ -174,12 +178,13 @@ class broken_power_law(Distribution):
   Returns:
     pdf (float or ndarray): Probability density at the given mass value(s).
   '''
-  def __init__(self, alpha, beta, A, x_0):
-    super().__init__(self._broken_power_law, [alpha, beta, A, x_0])
+  def __init__(self, alpha, beta, A, x_0, unit=_u.solMass):
+    x_0 = _tools.verify_unit(x_0, unit).value
+    super().__init__(self._broken_power_law, [alpha, beta, A, x_0], unit)
 
   def _broken_power_law(self, x, alpha, beta, A, x_0):
-    return _np.where(x < x_0, A * x ** alpha, A * x_0 ** (beta - alpha) * x ** beta)
-
+    return _np.where(x < x_0, A * x ** alpha, A * x_0 ** (alpha-beta) * x ** beta)
+    
 class lognormal(Distribution):
   '''
   Lognormal IMF.
@@ -195,11 +200,13 @@ class lognormal(Distribution):
   Returns:
     pdf (float or ndarray): Probability density at the given mass value(s).
   '''
-  def __init__(self, mu, sigma, A):
-    super().__init__(self._lognormal, [mu, sigma, A])
+  def __init__(self, mu, sigma, A, unit=_u.solMass):
+    mu = _tools.verify_unit(mu, unit).value
+    sigma = _tools.verify_unit(sigma, unit).value
+    super().__init__(self._lognormal, [mu, sigma, A], unit)
   
   def _lognormal(self, x, mu, sigma, A):
-    return A * _np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))
+    return (A * _np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))).value
 
 class loguniform(Distribution):
   '''
@@ -210,16 +217,17 @@ class loguniform(Distribution):
   
   Args:
     A (float, optional): Normalization factor.
-    x0 (float, optional): Location to apply the normalization factor.
+    x_0 (float, optional): Location to apply the normalization factor.
     
   Returns:
     pdf (float or ndarray): Probability density at the given mass value(s).
   '''
-  def __init__(self, A=1, x0=1):
-    super().__init__(self._loguniform, [A, x0])
+  def __init__(self, A=1, x_0=1, unit=_u.solMass):
+    x_0 = _tools.verify_unit(x_0, unit).value
+    super().__init__(self._loguniform, [A, x_0], unit)
 
-  def _loguniform(self, x, A=1, x0=1):
-    return x0 * A / x
+  def _loguniform(self, x, A, x_0):
+    return x_0 * A / x
 
 class IMF():
   """
@@ -263,6 +271,9 @@ class IMF():
     # Determine the probability distribution function (PDF) based on the given mass function or default to a piecewise Chabrier 2003 and Salpeter 1955
     if mass_function is None: mass_function = default_mass_function()
     elif not isinstance(mass_function, (_types.FunctionType, Distribution)): raise ValueError('mass_function must be a function or a Distribution object.')
+    if isinstance(mass_function, Distribution) and mass_function.unit != self.unit: 
+        _warnings.warn('Mass function unit does not match IMF unit. Setting mass function unit with IMF unit.')
+        mass_function.unit = self.unit
     self.initial_mass_function = mass_function
 
     # Recalculate the IMF properties based on the updated parameters
@@ -283,9 +294,9 @@ class IMF():
     mass values, and IMF values based on the current min_mass, max_mass, and PDF.
     """
     # Calculate the normalization factor for the PDF
-    self.normalization_factor = _quad(self._probability_density_function, self._min_mass.value, self._max_mass.value)[0]
+    self.normalization_factor = _quad(self._probability_density_function, self.min_mass.value, self.max_mass.value)[0]
     # Generate logarithmically spaced mass values between min_mass and max_mass
-    self._masses = _np.logspace(_np.log10(self._min_mass.value), _np.log10(self._max_mass.value), self.number_samples)
+    self._masses = _np.logspace(_np.log10(self.min_mass.value), _np.log10(self.max_mass.value), self.number_samples)
     # Calculate the CDF for the mass values
     self._CDF = self._cumulative_distribution_function(self._masses)
 
@@ -341,7 +352,7 @@ class IMF():
     Args:
       value (float): New minimum mass value. Must be greater than 0. Units are assumed to be the same as the IMF unit.
     """
-    return self._min_mass
+    return self._min_mass << self.unit
 
   @min_mass.setter
   def min_mass(self, value):
@@ -359,7 +370,7 @@ class IMF():
     Args:
       value (float): New maximum mass value. Must be greater than minimum mass value. Units are assumed to be the same as the IMF unit.
     """
-    return self._max_mass
+    return self._max_mass << self.unit
 
   @max_mass.setter
   def max_mass(self, value):
@@ -374,7 +385,14 @@ class IMF():
     """
     Median mass value of the IMF.
     """
-    return _np.interp(0.5, self._CDF, self._masses) * self.unit
+    return _np.interp(0.5, self._CDF, self._masses) << self.unit
+  
+  @property
+  def mass_range(self):
+    """
+    Median mass value of the IMF.
+    """
+    return [self.min_mass, self.max_mass] << self.unit
   
   @property
   def seed(self):
