@@ -4,6 +4,7 @@ import joblib as _joblib
 import warnings as _warnings
 from .units import UnitSet as _UnitSet
 from . import units as _u
+from . import constants as _c
 
 twopi = 2.*_np.pi
 
@@ -33,6 +34,37 @@ def rotate_into_plane(sim, plane='invariable'):
             rotation = (_rebound.Rotation.orbit(Omega=p.Omega, inc=p.inc, omega=p.omega)).inverse()
     sim.rotate(rotation)
     return rotation
+
+def timestep_for_perihelion_resolution(sim):
+    '''
+    Calculate the timestep required to resolve the perihelion of the orbiting bodies, see [Hernandez, Zeebe, & Hadden (2023)](https://ui.adsabs.harvard.edu/abs/2022MNRAS.510.4302H/abstract).
+
+    $$\\tau_f = \\frac{2\\pi}{16} \\sqrt{\\frac{(1-e)^3}{1+e} \\frac{a^3}{GM} }$$
+
+    Args:
+        sim (Simulation): a REBOUND Simulation.
+
+    Returns:
+        timestep (float): The timestep required to resolve the perihelion of the orbiting bodies. If there are no orbiting bodies, then NAN is returned.
+
+    Example:
+        ```python
+        import rebound
+        import airball
+        sim = rebound.Simulation()
+        sim.add(m=1)
+        sim.add(m=5e-5, a=30)
+        print(airball.tools.timestep_for_perihelion_resolution(sim)) # 63.73977
+        ```
+    '''
+    orbs = sim.orbits()
+    ai = _np.asarray([o.a for o in orbs])
+    ei = _np.asarray([o.e for o in orbs])
+    ei[ei >= 1] = _np.nan # Ignore parabolic and hyperbolic orbits
+    ai[ai < 0] = _np.nan # Ignore parabolic and hyperbolic orbits
+    mi = _np.sum([o.m for o in sim.particles])
+    if _np.all(_np.isnan(ai)) and _np.all(_np.isnan(ei)): return _np.nan
+    else: return _np.nanmin((_u.twopi * _np.sqrt(((ai * _u.au)**3 * (1-ei)**3)/(_c.G * mi*_u.solMass * (1+ei)))/16.0).to(_u.yr2pi).value)
 
 # Implemented from StackOverflow: https://stackoverflow.com/a/14314054
 def moving_average(a, n=3, method=None) :
@@ -725,7 +757,7 @@ def verify_unit(value, unit):
 def isList(l):
     '''Determines if an object is a list or numpy array.'''
     if isinstance(l,(list,_np.ndarray)): 
-       if isinstance(l, _u.quantity.Quantity) and _np.shape(l) == (): return False
+       if isinstance(l, _u.Quantity) and _np.shape(l) == (): return False
        else: return True
     else: return False
 
