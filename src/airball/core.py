@@ -15,7 +15,7 @@ def flyby(sim, star, **kwargs):
     """
     Simulate a stellar flyby to a REBOUND simulation.
 
-    Because REBOUND Simulations are C structs underneath the Python, this function can pass the simulation by reference. Meaning, any changes made inside this function to the REBOUND simulation are permanent. This can be avoided by specifying `overwrite=False`. If any pointers have been assigned to the simulation, then the default `overwrite=True` is recommended.
+    Because REBOUND Simulations are C structs underneath the Python, this function can pass the simulation by reference. Meaning, any changes made inside this function to the REBOUND simulation are permanent. This can be avoided by specifying `overwrite=False`. If any pointers have been assigned to the simulation, then the default `overwrite=True` is recommended so that the connections between the simulation and the pointers remain intact.
 
     Args:
         sim (Simulation): The simulation (star and planets) that will experience the flyby star.
@@ -42,9 +42,12 @@ def flyby(sim, star, **kwargs):
         airball.flyby(sim, star, rmax=4e5, hash='newstar')
         ```
     """
+    
     if kwargs.get('hybrid', False): return hybrid_flyby(sim, star, **kwargs)
     else:
-        if sim.integrator == 'whfast': _warnings.warn("Did you intend to use the hybrid method with WHFast? WHFast may not correctly resolve close encounters.", RuntimeWarning)
+        if sim.integrator == 'whfast': 
+            _warnings.warn("Did you intend to use the hybrid method with WHFast? WHFast may not correctly resolve close encounters.", RuntimeWarning)
+        
         overwrite = kwargs.get('overwrite', True)
         if not overwrite: sim = sim.copy()
         hash = kwargs.get('hash', 'flybystar')
@@ -58,6 +61,8 @@ def flyby(sim, star, **kwargs):
 def flybys(sims, stars, **kwargs):
     '''
         Run serial flybys in parallel.
+
+        This function uses `joblib` underneath to run the flybys in parallel. This is useful for running multiple flybys at once. Because of how `joblib` handles memory during parallelization, this function will manually overwrite the necessary data in the simulation objects if `overwrite=True`, otherwise it will return new simulation objects. Because of these limitations, if any pointers have been assigned to the simulation(s), then the connections between the simulation(s) and the pointers will always be lost. If you require access to pointers during integration then see the [Multiple Flybys](../../examples/multiple-flybys/#memory-management-with-pointers-using-joblib) example for more details.
 
         Args:
             sims (list of Simulations): A list of REBOUND simulations to integrate flybys with. If only one simulation is given, then AIRBALL will duplicate it to match the number of Stars given.
@@ -183,19 +188,18 @@ def hybrid_flyby(sim, star, **kwargs):
 
     # Integrate the flyby. Start at the current time and go to twice the time to periapsis.
     switch, tIAS15 = _time_to_periapsis_from_crossover_point(sim, sim_units, star_elements=star_vars, crossoverFactor=kwargs.get('crossoverFactor', None), index=kwargs.get('particle_index', None))
+    dt = _tools.timestep_for_perihelion_resolution(sim)
+    if _np.isnan(dt): dt = sim.dt
     if switch:
         t_switch = sim.t + tperi - tIAS15.value
         t_switch_back = sim.t + tperi + tIAS15.value
         t_end = sim.t + 2*tperi
 
-        dt = sim.dt
-        dt_frac = sim.dt/sim.particles[1].P
-
-        _integrate_with_whckl(sim, t_switch, dt, dt_frac)
+        _integrate_with_whckl(sim, t_switch, dt)
         _integrate_with_ias15(sim, t_switch_back)
-        _integrate_with_whckl(sim, t_end, dt, dt_frac)
+        _integrate_with_whckl(sim, t_end, dt)
 
-    else: _integrate_with_whckl(sim, tmax=(sim.t + 2*tperi), dt=sim.dt, dt_frac=sim.dt/sim.particles[1].P)
+    else: _integrate_with_whckl(sim, tmax=(sim.t + 2*tperi), dt=dt)
 
     # Remove the flyby star.
     remove_star_from_sim(sim, hash=hash)
@@ -205,6 +209,8 @@ def hybrid_flyby(sim, star, **kwargs):
 def hybrid_flybys(sims, stars, **kwargs):
     '''
         Run serial flybys in parallel.
+
+        This function uses `joblib` underneath to run the flybys in parallel. This is useful for running multiple flybys at once. Because of how `joblib` handles memory during parallelization, this function will manually overwrite the necessary data in the simulation objects if `overwrite=True`, otherwise it will return new simulation objects. Because of these limitations, if any pointers have been assigned to the simulation(s), then the connections between the simulation(s) and the pointers will always be lost. If you require access to pointers during integration then see the [Multiple Flybys](../../examples/multiple-flybys/#memory-management-with-pointers-using-joblib) example for more details.
 
         Args:
             sims (list of Simulations): REBOUND simulations to integrate flybys with. If only one simulation is given, then AIRBALL will duplicate it to match the number of Stars given.
@@ -289,8 +295,8 @@ def successive_flybys(sim, stars, **kwargs):
 
         Because REBOUND Simulations are C structs underneath the Python, this function can pass the simulation by reference.
         Meaning, any changes made inside this function to the REBOUND simulation are permanent. This can be avoided by specifying overwrite=False.
-        This function assumes that you are using a WHFAST integrator with REBOUND.
-        Uses IAS15 (instead of WHFast) for the closest approach if b < planet_a * crossoverFactor
+        
+        This function assumes that you are using the WHCKL integrator with REBOUND and uses IAS15 (instead of WHCKL) for the closest approach if q_star < planet_a * crossoverFactor
 
         Args:
             sim (Simulation): REBOUND Simulation that will experience the flyby stars
@@ -507,7 +513,7 @@ def remove_star_from_sim(sim, hash):
 
 def _time_to_periapsis_from_crossover_point(sim, sim_units, star_elements, crossoverFactor=None, index=None):
     '''
-        Compute the time to periapsis from crossover point.
+        Compute the time to periapsis from crossover point. The default is to use 100 times the largest semi-major axis of the bound orbits in the system. However, this can be overridden by specifying a crossoverFactor and/or an index.
 
         Args:
             sim (Simulation): The REBOUND Simulation containing the star and planets that will experience a flyby.
@@ -562,7 +568,7 @@ def _integrate_with_ias15(sim, tmax):
     sim.gravity = 'basic'
     sim.integrate(tmax)
 
-def _integrate_with_whckl(sim, tmax, dt, dt_frac):
+def _integrate_with_whckl(sim, tmax, dt):
     '''
         Integrate a REBOUND simulation with WHCKL.
 
@@ -576,15 +582,9 @@ def _integrate_with_whckl(sim, tmax, dt, dt_frac):
     sim.ri_whfast.safe_mode = 0
     sim.ri_whfast.recalculate_coordinates_this_timestep = 1
     sim.integrator_synchronize()
-
-    orbs = sim.orbits()
-    ai = _np.asarray([o.a for o in orbs])
-    ai[ai < 0] = _np.inf
-    ei = _np.asarray([o.e for o in orbs])
-    mi = _np.sum([o.m for o in sim.particles])
-    sim.dt = _np.min((_u.twopi * _np.sqrt(((ai * _u.au)**3 * (1-ei)**3)/(_u.GravConst * mi*_u.solMass * (1+ei)))/16.0).to(_u.yr2pi).value)
-    # if sim.particles[1].P > 0: sim.dt = dt_frac*sim.particles[1].P
-    # else: sim.dt = dt
+    dtperi = _tools.timestep_for_perihelion_resolution(sim)
+    if _np.isnan(dtperi): sim.dt = dt
+    else: sim.dt = dtperi
 
     sim.integrate(tmax)
     sim.ri_whfast.recalculate_coordinates_this_timestep = 1
