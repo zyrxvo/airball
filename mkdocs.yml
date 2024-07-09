@@ -15,6 +15,7 @@ nav:
     - 'Units': api/units.md
   - 'Examples': 
     - 'Overview': examples/index.md
+    - 'Getting Started': examples/getting-started.ipynb
     - 'Basics': examples/basics.ipynb
     - 'IMF': examples/imf.ipynb
     - 'Stellar Environments': examples/stellar-environments.ipynb
@@ -67,6 +68,13 @@ extra:
 plugins:
   - search
   - mkdocs-jupyter
+  - exclude:
+      glob:
+        - docs/examples/.ipynb_checkpoints/*
+        - docs/examples/examples_data/*
+        - "*.c"
+        - "*.h"
+        - "*.o"
   - mkdocstrings:
       default_handler: python
       handlers:
