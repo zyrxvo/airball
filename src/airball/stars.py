@@ -51,12 +51,16 @@ class Star:
       star = airball.Star(m=1.0, b=1.0, v=1.0)
       ```
   '''
-  def __init__(self, m, b, v, inc='isotropic', omega='isotropic', Omega='isotropic', UNIT_SYSTEM=[]) -> None:
+  def __init__(self, m, b, v, inc='isotropic', omega='isotropic', Omega='isotropic', UNIT_SYSTEM=[], **kwargs) -> None:
     self.units = _u.UnitSet(UNIT_SYSTEM)
 
-    if inc == 'isotropic' or inc == None: inc = 2*_np.arcsin(_np.sqrt(_uniform.rvs(size=1)))
-    if omega == 'isotropic' or omega == None: omega = _uniform.rvs(loc=0, scale=(2.0*_np.pi), size=1)
-    if Omega == 'isotropic' or Omega == None: Omega = _uniform.rvs(loc=-_np.pi, scale=(2.0*_np.pi), size=1)
+    seed = kwargs.get('seed', _np.random.randint(0, int(2**32 - 3)))
+    if inc == 'isotropic' or inc == None: inc = 2*_np.arcsin(_np.sqrt(_uniform.rvs(size=1, random_state=seed+1)))[0]
+    if omega == 'isotropic' or omega == None: omega = _uniform.rvs(loc=0, scale=(2.0*_np.pi), size=1, random_state=seed+2)[0]
+    if Omega == 'isotropic' or Omega == None: Omega = _uniform.rvs(loc=-_np.pi, scale=(2.0*_np.pi), size=1, random_state=seed+3)[0]
+    if inc == 'uniform' or inc == None: inc = _uniform.rvs(loc=-_np.pi, scale=(2.0*_np.pi), size=1, random_state=seed+1)[0]
+    if omega == 'uniform' or omega == None: omega = _uniform.rvs(loc=-_np.pi, scale=(2.0*_np.pi), size=1, random_state=seed+2)[0]
+    if Omega == 'uniform' or Omega == None: Omega = _uniform.rvs(loc=-_np.pi, scale=(2.0*_np.pi), size=1, random_state=seed+3)[0]
 
     self.mass = m
     self.impact_parameter = b
@@ -369,12 +373,13 @@ class Stars(MutableMapping):
         self._shape = (len(kwargs[key]),)
       except Exception as err: raise err
 
-    if 'size' in kwargs and self.N != 0: raise OverspecifiedParametersException('If lists are given then size cannot be specified.')
-    elif 'size' in kwargs:
+    # if 'size' in kwargs and self.N != 0: 
+    #   raise OverspecifiedParametersException('If lists are given then size cannot be specified.')
+    if 'size' in kwargs:
       if isinstance(kwargs['size'], tuple): 
         self._shape = tuple([int(i) for i in kwargs['size']])
       else: self._shape = (int(kwargs['size']),)
-    elif self.N == 0: raise UnspecifiedParameterException('If no lists of parameters are given then size must be specified.')
+    elif self.N == 0: self._shape = () #raise UnspecifiedParameterException('If no lists of parameters are given then size must be specified.')
     else: pass # No errors or issues, continue.
 
 
@@ -438,7 +443,8 @@ class Stars(MutableMapping):
         if quantityValue.shape != self._shape: raise ListLengthException(f'Difference of {quantityValue.shape} and {self._shape} for {k}.')
       else: self._shape = quantityValue.shape
 
-    for k in ['inc', 'omega', 'Omega']:
+    seed = kwargs.get('seed', _np.random.randint(0, int(2**32 - 3)))
+    for seedOffset,k in enumerate(['inc', 'omega', 'Omega']):
       try:
         # Check to see if was key is given.
         value = kwargs[k]
@@ -448,10 +454,10 @@ class Stars(MutableMapping):
           # Values 'isotropic' or 'uniform' for key are valid, now generate an array of values for key.
           if value == 'isotropic':
             # Set the distributions for the orientation angles.
-            if k == 'inc': quantityValue = 2.0*_np.arcsin(_np.sqrt(_uniform.rvs(size=self.shape))) << self.units['angle']
-            elif k == 'omega': quantityValue = _uniform.rvs(loc=0, scale=(2.0*_np.pi), size=self.shape) << self.units['angle']
-            elif k == 'Omega': quantityValue = _uniform.rvs(loc=-_np.pi, scale=(2.0*_np.pi), size=self.shape) << self.units['angle']
-          elif value == 'uniform':  quantityValue = _uniform.rvs(loc=-_np.pi, scale=(2.0*_np.pi), size=self.shape) << self.units['angle']
+            if k == 'inc': quantityValue = 2.0*_np.arcsin(_np.sqrt(_uniform.rvs(size=self.shape, random_state=(seed+seedOffset)))) << self.units['angle']
+            elif k == 'omega': quantityValue = _uniform.rvs(loc=0, scale=(2.0*_np.pi), size=self.shape, random_state=(seed+seedOffset)) << self.units['angle']
+            elif k == 'Omega': quantityValue = _uniform.rvs(loc=-_np.pi, scale=(2.0*_np.pi), size=self.shape, random_state=(seed+seedOffset)) << self.units['angle']
+          elif value == 'uniform':  quantityValue = _uniform.rvs(loc=-_np.pi, scale=(2.0*_np.pi), size=self.shape, random_state=(seed+seedOffset)) << self.units['angle']
           else: raise InvalidValueForKeyException()
         # Value is not a string, check if length matches other key values.
         elif len(value) != len(self): raise ListLengthException(f'Difference of {len(value)} and {len(self)} for {k}.')
@@ -471,9 +477,9 @@ class Stars(MutableMapping):
         else: raise IncompatibleListException()
       # Key does not exist, assume the user wants an array of values to automatically be generated isotropically.
       except KeyError: 
-        if k == 'inc': quantityValue = 2.0*_np.arcsin(_np.sqrt(_uniform.rvs(size=self.shape))) << self.units['angle']
-        elif k == 'omega': quantityValue = _uniform.rvs(loc=0, scale=(2.0*_np.pi), size=self.shape) << self.units['angle']
-        elif k == 'Omega': quantityValue = _uniform.rvs(loc=-_np.pi, scale=(2.0*_np.pi), size=self.shape) << self.units['angle']
+        if k == 'inc': quantityValue = 2.0*_np.arcsin(_np.sqrt(_uniform.rvs(size=self.shape, random_state=(seed+seedOffset)))) << self.units['angle']
+        elif k == 'omega': quantityValue = _uniform.rvs(loc=0, scale=(2.0*_np.pi), size=self.shape, random_state=(seed+seedOffset)) << self.units['angle']
+        elif k == 'Omega': quantityValue = _uniform.rvs(loc=-_np.pi, scale=(2.0*_np.pi), size=self.shape, random_state=(seed+seedOffset)) << self.units['angle']
       # Value is not a list, so assume it is an int or float and generate an ndarray of the given value.
       except TypeError: 
         value = value.to(self.units['angle']) if _tools.isQuantity(value) else value * self.units['angle']
