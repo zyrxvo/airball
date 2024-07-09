@@ -8,6 +8,5 @@ from .analytic import (relative_energy_change, energy_change_adiabatic_estimate,
 from .imf import (IMF)
 from .stars import (Star, Stars)
 from .units import (UnitSet)
-from .units import GravConst as G
 
-__version__ = 'v0.8.1'
+__version__ = 'v0.8.2'

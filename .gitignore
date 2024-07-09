@@ -13,6 +13,7 @@ docs/examples/librebound.so
 
 # Distribution / packaging
 bin/
+site/
 build/
 develop-eggs/
 dist/
