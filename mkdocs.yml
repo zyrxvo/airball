@@ -51,8 +51,7 @@ markdown_extensions:
   - pymdownx.highlight
   - pymdownx.inlinehilite
   - pymdownx.superfences
-  - pymdownx.arithmatex:
-      generic: true
+  - pymdownx.arithmatex
   - wikilinks
 extra_javascript:
   - javascripts/config.js
