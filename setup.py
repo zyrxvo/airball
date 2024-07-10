@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="airball",
-    version="0.8.2",
+    version="0.8.3",
     author="Garett Brown",
     author_email="astro@gbrown.ca",
     description="A package for running and managing flybys using REBOUND",

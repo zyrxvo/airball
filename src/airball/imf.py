@@ -239,7 +239,7 @@ class IMF():
     max_mass (float): Maximum mass value of the IMF range.
     mass_function (function, optional): Mass function to use for the IMF. Default is a piecewise Chabrier 2003 and Salpeter 1955.
     unit (Unit, optional): Unit of mass. Default is solar masses.
-    number_samples (float, optional): Number of samples to use for interpolating the CDF. Default is 100.
+    number_samples (float, optional): Number of samples to use for interpolating the CDF. Default is 1000.
     seed (float, optional): Value to seed the random number generator with. Default is None.
 
   Attributes:
@@ -256,7 +256,7 @@ class IMF():
     IMF (function): Initial mass function (IMF) of the IMF.
   """
 
-  def __init__(self, min_mass, max_mass, mass_function=None, unit=_u.solMass, number_samples=100, seed=None):
+  def __init__(self, min_mass, max_mass, mass_function=None, unit=_u.solMass, number_samples=1000, seed=None):
     self._number_samples = int(number_samples)
     self._seed = seed
     self.unit = unit if _u.isUnit(unit) else _u.solMass
@@ -284,8 +284,11 @@ class IMF():
   def _probability_density_function(self, x): return _np.vectorize(self._pdf_)(x)
   def _npdf_(self, x): return self._pdf_(x) / self.normalization_factor
   def _normalized_probability_density_function(self, x): return _np.vectorize(self._npdf_)(x)
-  def _cdf_(self, x): return _np.where(x < self.min_mass.value, 0, _np.where(x > self.max_mass.value, 1,  _quad(self._normalized_probability_density_function, self.min_mass.value, x)[0]))
-  def _cumulative_distribution_function(self, x): return _np.vectorize(self._cdf_)(x)
+  def _cumulative_distribution_function(self, x):
+    res = [_quad(self._normalized_probability_density_function, x[ii-1], x[ii])[0] for ii in range(1, len(x))]
+    res = _np.concatenate(([0], res))
+    res = _np.cumsum(res)
+    return res
 
   def _recalculate(self):
     """
@@ -296,7 +299,7 @@ class IMF():
     # Calculate the normalization factor for the PDF
     self.normalization_factor = _quad(self._probability_density_function, self.min_mass.value, self.max_mass.value)[0]
     # Generate logarithmically spaced mass values between min_mass and max_mass
-    self._masses = _np.logspace(_np.log10(self.min_mass.value), _np.log10(self.max_mass.value), self.number_samples)
+    self._masses = _np.geomspace(self.min_mass, self.max_mass, self.number_samples).value
     # Calculate the CDF for the mass values
     self._CDF = self._cumulative_distribution_function(self._masses)
 
@@ -325,12 +328,12 @@ class IMF():
     if isinstance(size, tuple): size = tuple([int(i) for i in size])
     else: size = int(size)
 
-    rand_masses = _np.interp(_uniform.rvs(size=size, random_state=self.seed), self._CDF, self._masses) * self.unit
+    rand_masses = _np.interp(_uniform.rvs(size=size, random_state=self.seed), self._CDF, self._masses) << self.unit
     if isinstance(size, tuple): return rand_masses
     elif size > 1: return rand_masses
     else: return rand_masses[0]
 
-  def masses(self, number_samples, endpoint=True):
+  def masses(self, number_samples, endpoint=True, unitless=True):
     """
     Convenience function for generating an array of mass values logarithmically spanning the IMF range.
 
@@ -341,7 +344,8 @@ class IMF():
     Returns:
       masses (ndarray): numpy array of mass values logarithmically spanning the IMF range.
     """
-    return _np.logspace(_np.log10(self._min_mass.value), _np.log10(self._max_mass.value), int(number_samples), endpoint=endpoint)
+    if unitless: return _np.geomspace(self.min_mass, self.max_mass, int(number_samples), endpoint=endpoint).value
+    else: return _np.geomspace(self.min_mass, self.max_mass, int(number_samples), endpoint=endpoint)
 
   @property
   def min_mass(self):
