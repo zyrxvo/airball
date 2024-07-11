@@ -46,7 +46,11 @@ class UnitSet():
 
   def __init__(self, UNIT_SYSTEM=[]) -> None:
     self._units = {'length': _u.au, 'time': _u.Myr, 'mass': _u.solMass, 'angle': _u.rad, 'velocity': _u.km/_u.s, 'object': stars, 'density': stars/_u.pc**3}
-    self.UNIT_SYSTEM = UNIT_SYSTEM
+    if isinstance(UNIT_SYSTEM, list):
+      self.UNIT_SYSTEM = UNIT_SYSTEM
+    elif isinstance(UNIT_SYSTEM, UnitSet):
+      self.UNIT_SYSTEM = UNIT_SYSTEM.UNIT_SYSTEM
+    else: raise ValueError('UNIT_SYSTEM must be a list of Astropy Units.')
     pass
 
   @property

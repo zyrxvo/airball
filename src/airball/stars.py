@@ -217,6 +217,51 @@ class Star:
     star_e = _np.sqrt(1 + (numerator/mu)**2.)
     return self.b * _np.sqrt((star_e - 1.0)/(star_e + 1.0))
  
+  def save(self, filename):
+    """
+    Save the current instance of the Star class to a file using pickle.
+
+    Args:
+      filename (str): The name of the file to save the instance to. The file will be saved in binary format.
+
+    Example:
+      ```python
+      import airball
+      star = airball.Star(m=1, b=250, v=1)
+      star.save('my_special.star')
+      ```
+    """
+    if not isinstance(filename, str): raise ValueError('Filename must be a string.')
+    with open(filename, 'wb') as pfile:
+      _pickle.dump(self, pfile, protocol=_pickle.HIGHEST_PROTOCOL)
+
+  @classmethod
+  def from_file(cls, filename):
+    """
+    Load an instance of the Star class from a file using pickle.
+
+    Args:
+      filename (str): The name of the file to load the instance from. The file should be in binary format, pickled.
+
+    Returns:
+      loaded_star (Star): The loaded instance of the Star class.
+
+    Example:
+      ```python
+      import airball
+      stars = airball.Star.from_file('my_special.star')
+      ```
+    """
+    try:
+      if not isinstance(filename, str): raise ValueError('Filename must be a string.')
+      with open(filename, 'rb') as pfile:
+        pickled = _pickle.load(pfile)
+      dic = pickled.__dict__
+      newStar = Star(m=dic['_mass'], b=dic['_impact_parameter'], v=dic['_velocity'], inc=dic['_inclination'], omega=dic['_argument_periastron'], Omega=dic['_longitude_ascending_node'], UNIT_SYSTEM=dic['units'])
+    except: raise Exception('Invalid filename.')
+    return newStar
+    
+
   def stats(self, returned=False):
     # Prints a summary of the current stats of the Star.
     s = f"<{self.__module__}.{type(self).__name__} object at {hex(id(self))}, "
