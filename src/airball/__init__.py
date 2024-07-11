@@ -9,4 +9,4 @@ from .imf import (IMF)
 from .stars import (Star, Stars)
 from .units import (UnitSet)
 
-__version__ = 'v0.8.3'
+__version__ = 'v0.8.4'
