@@ -161,17 +161,10 @@ def energy_change_close_encounter_estimate(sim, star, particle_index=1):
     index = int(particle_index)
     units = _tools.rebound_units(sim)
     
-    def process_star(this_sim, this_star, this_index):
-        s = this_sim.copy()
-        add_star_to_sim(s, this_star, hash='flybystar', rmax=0, plane=this_index) # Initialize Star at perihelion
-        return _tools.unit_vector(s.particles['flybystar'].xyz << units.length)
-    
-    if star.N == 1:
-        x,y,z = process_star(sim, star, index)
-    else:
-        x,y,z = _np.asarray(_joblib.Parallel(n_jobs=-1)(_joblib.delayed(process_star)(sim, this_star, index) for this_star in star)).T
     c = _tools.cartesian_elements(sim, star, rmax=0)
+    vx,vy,vz = c['vx'], c['vy'], c['vz']
     dat = _np.array([c['x'].value, c['y'].value, c['z'].value]).T << units.length
+    x,y,z = _tools.unit_vector(dat).T
     G = _c.G.decompose(units.UNIT_SYSTEM) # Newton's Gravitational constant
 
     m1, m2 = sim.particles[0].m * units.mass, sim.particles[index].m * units.mass # redefine the masses for convenience
@@ -179,10 +172,7 @@ def energy_change_close_encounter_estimate(sim, star, particle_index=1):
     M12 = m1 + m2 # total mass of the binary system
     M23 = m2 + m3 # total mass of the second and third bodies
 
-    V = star.v # velocity of the star
-
-    
-    vx,vy,vz = sim.particles[index].vxyz << (units.length/units.time)
+    V = _np.sqrt(vx*vx + vy*vy + vz*vz) # compute the velocity of the flyby star at perihelion
 
     with _u.set_enabled_equivalencies(_u.dimensionless_angles()):
         cosϕ = 1.0/_np.sqrt(1.0 + (((star.b**2.0)*(V**4.0))/((G*M23)**2.0)).decompose())
