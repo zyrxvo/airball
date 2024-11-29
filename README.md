@@ -4,7 +4,7 @@
 
 AIRBALL is a package for running and managing flybys using [REBOUND](https://github.com/hannorein/rebound). It is an extension to REBOUND, the popular N-body integrator.
 
-*AIRBALL is currently in alpha testing. The APIs are subject to change without warning or backwards compatibility. Feedback and feature requests are very welcome.*
+*AIRBALL is currently in beta testing. Feedback and feature requests are very welcome.*
 
 ## Features
 
@@ -33,7 +33,7 @@ The following packages should automatically be installed along with AIRBALL:
 
 ## Contributors
 
-* Garett Brown, University of Toronto, <garett.brown@mail.utoronto.ca>
+* Garett Brown, University of Toronto, <astro@gbrown.ca>
 * Hanno Rein, University of Toronto, <hanno@hanno-rein.de>
 * Hasaan Mohsin, University of Toronto, <hasaan.mohsin@mail.utoronto.ca>
 * Ryan Chao-Ming Lam, University of Waterloo, <ryan.lam1@uwaterloo.ca>
