@@ -125,6 +125,32 @@ class default_mass_function(Distribution):
     if isinstance(other, default_mass_function): return True
     else: return NotImplemented
 
+class kroupa_1993(Distribution):
+  """
+  Kroupa et al. (1993) IMF for single stars.
+  This function calculates the probability density for a given mass value (x) based on the (Kroupa et al. (1993))[https://ui.adsabs.harvard.edu/abs/1993MNRAS.262..545K/abstract] IMF equation.
+
+  $$PDF(x) = x_0 + \\frac{0.19 x^{1.55} + 0.05 x^{0.6}}{(1-x)^{0.58}}$$
+
+  Args:
+    A (float): Normalization factor.
+
+  Returns:
+    pdf (float or ndarray): Probability density at the given mass value(s).
+  
+  Example:
+    ```python
+    import airball
+    imf = airball.IMF(0.1, 100, mass_function=airball.imf.salpeter_1955(A=1))
+    imf.random_mass()
+    ```
+  """
+  def __init__(self, x_0, unit=_u.solMass):
+    super().__init__(self._kroupa_1993, [x_0], unit)
+  
+  def _kroupa_1993(self, x, x_0):
+    return x_0 + (0.19 * x**(1.55) + 0.05 * x**(0.6))/(1-x)**(0.58)
+
 class uniform(Distribution):
   '''
   Uniform IMF.
