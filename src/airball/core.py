@@ -449,7 +449,7 @@ def _rotate_into_plane(sim, plane):
 
 def add_star_to_sim(sim, star, hash, **kwargs):
     '''
-    Adds a Star to a REBOUND Simulation in the specified plane. Because REBOUND Simulations are C structs underneath Python, this function passes the simulation by reference and modifiese the simulation in place.
+    Adds a Star to a REBOUND Simulation in the specified plane. Because REBOUND Simulations are C structs underneath Python, this function passes the simulation by reference and modifies the simulation in place.
 
     Args:
         sim (Simulation): The REBOUND Simulation containing the star and planets that will experience a flyby.
@@ -481,7 +481,7 @@ def add_star_to_sim(sim, star, hash, **kwargs):
     stellar_elements = _tools.hyperbolic_elements(sim, star, rmax, values_only=True)
 
     plane = kwargs.get('plane')
-    if plane is not None: rotation = _rotate_into_plane(sim, plane)
+    if plane is not None: rotation = _tools.rotate_into_plane(sim, plane)
 
     if kwargs.get('helio', False): sim.add(**stellar_elements, hash=hash, primary=sim.particles[0])
     else: sim.add(**stellar_elements, hash=hash)
