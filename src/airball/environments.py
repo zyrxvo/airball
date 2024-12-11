@@ -7,6 +7,7 @@ from scipy.interpolate import interp1d as _interp
 import pickle as _pickle
 
 from . import units as _u
+from . import constants as _c
 from . import imf as _imf
 from .imf import IMF as _IMF
 from .stars import Star as _Star
@@ -389,7 +390,10 @@ class StellarEnvironment:
 
         The interaction cross section $σ = πb^2$ considers gravitational focussing where $b = q \\sqrt(1 + \\frac{2GM}{q v_∞^2})$ determined by the median mass of the environment, the maximum impact parameter, and the relative velocity at infinity derived from the velocity dispersion.
     '''
-    return _tools.encounter_rate(self._density, self.velocity_mean, self._maximum_impact_parameter, self.median_mass, unit_set=self.units).to(self.units['object']/self.units['time'])
+    total_mass = self.median_mass + 1. * self.units.mass # Assume a 1 solar mass system experiencing a flyby.
+    mu = _c.G * total_mass
+    q_max = _tools.vinf_and_b_to_q(mu, self._maximum_impact_parameter, self.velocity_mean)
+    return _tools.encounter_rate(n=self._density, v=self.velocity_mean, q=q_max, total_mass=total_mass, unit_set=self.units).to(self.units['object']/self.units['time'])
 
   def cumulative_encounter_times(self, size):
     '''

@@ -379,6 +379,26 @@ def vinf_and_b_to_e(mu, star_b, star_v):
     numerator = star_b * star_v**2.
     return _np.sqrt(1 + (numerator/mu)**2.) * _u.dimensionless_unscaled
 
+
+def vinf_and_b_to_q(mu, star_b, star_v):
+    '''
+        Using the impact parameter to convert from the relative velocity at infinity between the two stars to the eccentricity of the flyby star. Equation (2) from [Spurzem et al. (2009)](https://ui.adsabs.harvard.edu/abs/2009ApJ...697..458S/abstract)
+
+        Args:
+          mu (Quantity): The total mass of the system (Sun, planets, and flyby star) times the gravitational constant G
+          star_b (Quantity): The impact parameter, `b`, of the flyby star. Default units are AU.
+          star_v (Quantity): The relative velocity at infinity between the central star and the flyby star (hyperbolic excess velocity). Default units are km/s.
+        
+        Returns:
+          star_e (Quantity): The eccentricity of the flyby star.
+    '''
+
+    mu = verify_unit(mu, (_u.au**3)/(_u.yr2pi**2))
+    star_b = verify_unit(star_b, _u.au)
+    star_v = verify_unit(star_v, _u.km/_u.s)
+
+    return ((mu/star_v**2) * (_np.sqrt(1 + (star_b**2 * star_v**4)/(mu**2)) - 1)).to(_u.au)
+
 def vinf_and_q_to_e(mu, star_q, star_v):
     '''
         Using the perihelion to convert from the relative velocity at infinity between the two stars to the eccentricity of the flyby star.
@@ -392,6 +412,7 @@ def vinf_and_q_to_e(mu, star_q, star_v):
           star_e (Quantity): The eccentricity of the flyby star.
     '''
 
+    mu = verify_unit(mu, (_u.au**3)/(_u.yr2pi**2))
     star_q = verify_unit(star_q, _u.au)
     star_vinf = verify_unit(star_v, _u.km/_u.s)
     return (1 + star_q * star_vinf * star_vinf / mu) * _u.dimensionless_unscaled
@@ -672,33 +693,33 @@ def maxwell_boltzmann_mode_from_dispersion(sigma):
     scale = maxwell_boltzmann_scale_from_dispersion(sigma)
     return scale * _np.sqrt(2.0)
 
-def cross_section(mu, R, v, unit_set=_UnitSet()):
+def q2b(mu, q, v, unit_set=_UnitSet()):
     '''
-        The cross-section with gravitational focusing, $σ = πb^2$ considers gravitational focussing where $b = q \\sqrt(1 + \\frac{2GM}{q v_∞^2})$ is the impact parameter, $q$ is the perihelion, $v_∞$ is the relative velocity at infinity, and $M$ is the mass of the flyby star.
+        Converting from the perihelion $q$ to the impact parameter $b$ considers gravitational focussing where $b = q \\sqrt(1 + \\frac{2GM}{q v_∞^2})$ is the impact parameter, $q$ is the perihelion, $v_∞$ is the relative velocity at infinity, and $M$ is the total mass of the flyby star and system experiencing the flyby encounter.
 
-        $$\\sigma = \\pi R^2 \\left(1 + \\frac{2GM}{Rv^2}\\right)$$
+        $$b = q \\sqrt\\left(1 + \\frac{2GM}{qv^2}\\right)$$
         
         Args:
-          mu (quantity): The mass of flyby star (default units: solMass)
+          mu (Quantity): The total mass of the system (Sun, planets, and flyby star) times the gravitational constant G
           R (float): The maximum interaction radius (default units: AU)
           v (float): The typical velocity from the distribution (default units: km/s)
           unit_set (airball.units.UnitSet): The set of units to use for the calculation (default [UnitSet][airball.units.UnitSet] units)
     '''
 
     v = verify_unit(v, unit_set.velocity)
-    R = verify_unit(R, unit_set.length)
+    q = verify_unit(q, unit_set.length)
     mu = verify_unit(mu, unit_set.length**3 / unit_set.time**2)
 
-    return (_np.pi * R**2) * (1 + 2*mu/(R * v**2))
+    return _np.sqrt(q**2 + (2*mu*q)/(v**2))
 
-def encounter_rate(n, v, R, M, unit_set=_UnitSet()):
+def encounter_rate(n, v, q, M, unit_set=_UnitSet()):
     '''
         The expected flyby encounter rate within an stellar environment,  $\\Gamma = ⟨nσv⟩$
         
         Args:
           n (float): The stellar number density (default units: $\\rm{pc}^{-3}$)
-          v (float): The average velocity  (default units: km/s)
-          R (float): The interaction radius (default units: AU)
+          v (float): The average velocity at infinity of the flyby (default units: km/s)
+          q (float): The periastron distance of the flyby (default units: AU)
           M (float): The total mass of all the objects in the system such as the Sun, planets, star, etc. (default units: $M_\\odot$)
           unit_set (airball.units.UnitSet): The set of units to use for the calculation (default [UnitSet][airball.units.UnitSet] units)
         
@@ -707,16 +728,15 @@ def encounter_rate(n, v, R, M, unit_set=_UnitSet()):
     '''
     n = verify_unit(n, unit_set.density)
     v = verify_unit(v, unit_set.velocity)
-    R = verify_unit(R, unit_set.length)
+    q = verify_unit(q, unit_set.length)
     M = verify_unit(M, unit_set.mass)
 
-    # Newton's gravitational constant in units of Msun, AU, and Years/2pi (G ~ 1).
-    G = (1 * unit_set.length**3 / unit_set.mass / unit_set.time**2)
-    sun_mass = 1 * _u.solMass # mass of the Sun in units of Msun
+    mu = _c.G*M # gravitational parameter of the system
 
-    mu = G * (M + sun_mass) # gravitational parameter of the system
+    b = q2b(mu, q, v, unit_set)
+    # b = vinf_and_q_to_b(mu, q, v)
 
-    return n * v * cross_section(mu, R, v, unit_set)
+    return (n * v * _np.pi * b**2).to(unit_set.object/unit_set.time) #cross_section(mu, q, v, unit_set)
 
 
 ############################################################
