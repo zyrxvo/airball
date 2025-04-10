@@ -143,6 +143,7 @@ class StellarEnvironment:
     s += "Velocity Scale:      {0:12.4g} \n".format(self.velocity_dispersion)
     s += "Mass Range:            {0:6.4g} - {1:1.4g}\n".format(self.lower_mass_limit.value, self.upper_mass_limit)
     s += "Median Mass:         {0:12.4g} \n".format(self.median_mass)
+    s += "Mean Mass:           {0:12.4g} \n".format(self.mean_mass)
     s += "Max Impact Param:    {0:12.4g} \n".format(self.maximum_impact_parameter)
     s += "Encounter Rate:      {0:12.4g} \n".format(self.encounter_rate)
     s += "------------------------------------------"
@@ -274,6 +275,13 @@ class StellarEnvironment:
       The median mass of the environment's initial mass function (IMF).
     '''
     return self.IMF.median_mass.to(self.units['mass'])
+  
+  @property
+  def mean_mass(self):
+    '''
+      The mean mass of the environment's initial mass function (IMF).
+    '''
+    return self.IMF.mean_mass.to(self.units['mass'])
 
   @property
   def maximum_impact_parameter(self):
@@ -390,7 +398,7 @@ class StellarEnvironment:
 
         The interaction cross section $σ = πb^2$ considers gravitational focussing where $b = q \\sqrt(1 + \\frac{2GM}{q v_∞^2})$ determined by the median mass of the environment, the maximum impact parameter, and the relative velocity at infinity derived from the velocity dispersion.
     '''
-    total_mass = self.median_mass + 1. * self.units.mass # Assume a 1 solar mass system experiencing a flyby.
+    total_mass = self.mean_mass + 1. * self.units.mass # Assume a 1 solar mass system experiencing a average mass flyby.
     mu = _c.G * total_mass
     q_max = _tools.vinf_and_b_to_q(mu, self._maximum_impact_parameter, self.velocity_mean)
     return _tools.encounter_rate(n=self._density, v=self.velocity_mean, q=q_max, M=total_mass, unit_set=self.units).to(self.units['object']/self.units['time'])
