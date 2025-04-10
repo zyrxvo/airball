@@ -68,6 +68,33 @@ class chabrier_2003_single(Distribution):
   
   def _chabrier_2003_single(self, x, x_0, A=0.158):
     return (A / x) * _np.exp(-((_np.log10(x) - _np.log10(x_0)) ** 2) / (2 * 0.69 ** 2))
+  
+class chabrier_2005_single(Distribution):
+  """
+  Chabrier 2005 IMF for single stars.
+  This function calculates the probability density for a given mass value (x) based on Equation (1) of Chabrier 2005 for an IMF for single stars.
+
+  $$PDF(x) =  \\frac{A}{x} \\exp\\left[-\\frac{(\\log_{10}(x) - \\log_{10}(0.2))^2 }{ 2 \\cdot 0.55^2}\\right]$$
+
+  Args:
+    A (float, optional): Normalization factor. Default is 0.093.
+
+  Returns:
+    pdf (float or ndarray): Probability density at the given mass value(s).
+
+  Example:
+    ```python
+    import airball
+    imf = airball.IMF(0.01, 100, mass_function=airball.imf.chabrier_2005_single(A=0.093))
+    imf.random_mass()
+    ```
+  """
+  def __init__(self, A=0.093, unit=_u.solMass):
+    x_0 = 0.2 * _u.solMass.to(unit)
+    super().__init__(self._chabrier_2005_single, [x_0, A], unit)
+  
+  def _chabrier_2005_single(self, x, x_0, A=0.093):
+    return (A / x) * _np.exp(-((_np.log10(x) - _np.log10(x_0)) ** 2) / (2 * 0.55 ** 2))
 
 class salpeter_1955(Distribution):
   """
@@ -232,7 +259,7 @@ class lognormal(Distribution):
     super().__init__(self._lognormal, [mu, sigma, A], unit)
   
   def _lognormal(self, x, mu, sigma, A):
-    return (A * _np.exp(-(x - mu) ** 2 / (2 * sigma ** 2))).value
+    return (A * _np.exp(-(_np.log10(x) - mu) ** 2 / (2 * sigma ** 2)))
 
 class loguniform(Distribution):
   '''
@@ -258,7 +285,7 @@ class loguniform(Distribution):
 class IMF():
   """
   Class representing an Initial Mass Function (IMF).
-  It generates random masses based on a given mass function and provides various properties and methods for manipulating and analyzing the IMF.
+  It generates random masses based on a given mass function (dN/dM) and provides various properties and methods for manipulating and analyzing the IMF.
 
   Args:
     min_mass (float): Minimum mass value of the IMF range.
@@ -310,6 +337,8 @@ class IMF():
   def _probability_density_function(self, x): return _np.vectorize(self._pdf_)(x)
   def _npdf_(self, x): return self._pdf_(x) / self.normalization_factor
   def _normalized_probability_density_function(self, x): return _np.vectorize(self._npdf_)(x)
+  def _exp_val_(self, x): return x * self._npdf_(x)
+  def _expectation_value(self, x): return _np.vectorize(self._exp_val_)(x)
   def _cumulative_distribution_function(self, x):
     res = [_quad(self._normalized_probability_density_function, x[ii-1], x[ii])[0] for ii in range(1, len(x))]
     res = _np.concatenate(([0], res))
@@ -416,6 +445,13 @@ class IMF():
     Median mass value of the IMF.
     """
     return _np.interp(0.5, self._CDF, self._masses) << self.unit
+  
+  @property
+  def mean_mass(self):
+    """
+    Mean mass value of the IMF.
+    """
+    return _quad(self._expectation_value, self.min_mass.value, self.max_mass.value)[0] << self.unit
   
   @property
   def mass_range(self):
