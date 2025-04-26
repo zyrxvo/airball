@@ -593,7 +593,7 @@ def add_star_to_sim(sim, star, hash, **kwargs):
     # Because a new particle was added, we need to tell REBOUND to recalculate the coordinates if WHFast is being used.
     if sim.integrator == "whfast":
         sim.ri_whfast.recalculate_coordinates_this_timestep = 1
-    sim.integrator_synchronize()  # For good measure.
+    sim.synchronize()  # For good measure.
 
     if plane is not None:
         sim.rotate(rotation.inverse())
@@ -621,7 +621,7 @@ def remove_star_from_sim(sim, hash):
     # Because a particle was removed, we need to tell REBOUND to recalculate the coordinates if WHFast is being used and to synchronize.
     if sim.integrator == "whfast":
         sim.ri_whfast.recalculate_coordinates_this_timestep = 1
-    sim.integrator_synchronize()
+    sim.synchronize()
     sim.move_to_com()  # Readjust the system back into the centre of mass/momentum frame for integrating.
     # Because REBOUND Simulations are C structs underneath Python, this function passes the simulation by reference.
 
@@ -724,7 +724,7 @@ def _integrate_with_whckl(sim, tmax, dt):
     sim.integrator = "whckl"
     sim.ri_whfast.safe_mode = 0
     sim.ri_whfast.recalculate_coordinates_this_timestep = 1
-    sim.integrator_synchronize()
+    sim.synchronize()
     dtperi = _tools.timestep_for_perihelion_resolution(sim)
     if _np.isnan(dtperi):
         sim.dt = dt
@@ -733,7 +733,7 @@ def _integrate_with_whckl(sim, tmax, dt):
 
     sim.integrate(tmax)
     sim.ri_whfast.recalculate_coordinates_this_timestep = 1
-    sim.integrator_synchronize()
+    sim.synchronize()
 
 
 ############################################################
