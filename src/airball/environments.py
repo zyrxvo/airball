@@ -1,5 +1,6 @@
 import rebound as _rebound
 import numpy as _np
+from copy import deepcopy
 from scipy.stats import uniform as _uniform
 from scipy.stats import maxwell as _maxwell
 from scipy.stats import expon as _exponential
@@ -235,7 +236,7 @@ class StellarEnvironment:
                 m, b[0], v[0], inc[0], ω[0], Ω[0], UNIT_SYSTEM=self.UNIT_SYSTEM
             )
 
-    def random_star(self, size=1, **kwargs):
+    def random_star(self, size=1, **kwargs) -> _Star | _Stars:
         # Alias for `random_stars`
         return self.random_stars(size=size, **kwargs)
 
@@ -266,20 +267,7 @@ class StellarEnvironment:
         """
         Returns a deep copy of the current Stellar Environment.
         """
-        kwargs = {
-            "stellar_density": self.density,
-            "velocity_dispersion": self.velocity_dispersion,
-            "lower_mass_limit": self.lower_mass_limit,
-            "upper_mass_limit": self.upper_mass_limit,
-            "mass_function": self.IMF.initial_mass_function,
-            "maximum_impact_parameter": self.maximum_impact_parameter,
-            "name": self.name,
-            "UNIT_SYSTEM": self.UNIT_SYSTEM,
-            "object_name": self.object_name,
-            "seed": self.seed,
-            "number_imf_samples": self.IMF.number_samples,
-        }
-        return type(self)(**kwargs)
+        return deepcopy(self)
 
     def save(self, filename):
         """

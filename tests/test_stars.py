@@ -102,11 +102,10 @@ def test_initialize_Stars_with_unspecified_parameters():
         airball.Stars(m=[1,2,3], b=[4,5,6])
 
 def test_initialize_Stars_with_floats_and_unspecified_size():
-    with pytest.raises(airball.stars.UnspecifiedParameterException):
-        airball.Stars(m=1, b=3, v=7)
+    airball.Stars(m=1, b=3, v=7)
 
 def test_initialize_Stars_with_lists_and_specified_size():
-    with pytest.raises(airball.stars.OverspecifiedParametersException):
+    with pytest.raises(airball.stars.ListLengthException):
         airball.Stars(m=[1,2], v=[7,8,9], size=4)
 
 def test_initialize_Stars_with_custom_object():

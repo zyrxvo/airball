@@ -28,7 +28,7 @@ def test_add_star():
 def test_add_star_to_empty_sim():
     star = airball.Star(m=1, b=1, v=1, inc=0, omega=0, Omega=0)
     sim = rebound.Simulation()
-    with pytest.raises(AttributeError):
+    with pytest.raises(ValueError, match="Primary has no mass."):
         airball.add_star_to_sim(sim, star, rmax=1e5, hash='star')
 
 def test_remove_star():

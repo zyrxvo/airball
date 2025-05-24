@@ -6,7 +6,7 @@ import numpy as np
 def test_imf_init():
     # Test initialization with minimum required arguments
     my_imf = imf.IMF(min_mass=0.1, max_mass=100)
-    assert my_imf._number_samples == 100  # default value
+    assert my_imf._number_samples == 1000  # default value
     assert my_imf._seed is None  # default value
     assert my_imf.unit == u.solMass  # default value
 

@@ -35,6 +35,13 @@ docs = [
 [tool.uv]
 default-groups = ["dev", "docs"]
 
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+]
+
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -48,7 +55,6 @@ exclude = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/airball"]
-
 
 [tool.hatch.version]
 path = "src/airball/__init__.py"

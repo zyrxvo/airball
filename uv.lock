@@ -43,7 +43,7 @@ requires-dist = [
     { name = "astropy" },
     { name = "joblib" },
     { name = "numpy" },
-    { name = "rebound", specifier = ">=4.0.3" },
+    { name = "rebound", specifier = ">=4.4.7" },
     { name = "scipy" },
 ]
 

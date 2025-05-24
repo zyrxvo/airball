@@ -1,6 +1,7 @@
 import numpy as _np
 import warnings as _warnings
 import types as _types
+from copy import deepcopy
 from scipy.integrate import quad as _quad
 from scipy.stats import uniform as _uniform
 from . import units as _u
@@ -36,6 +37,16 @@ class Distribution:
 
     def __call__(self, x):
         return self.mass_function(x, *self.params)
+    
+    def __hash__(self):
+        data = []
+        for d in sorted(self.__dict__.items()):
+            try:
+                data.append((d[0], tuple(d[1])))
+            except:
+                data.append(d)
+        data = tuple(data)
+        return hash(data)
 
     def __eq__(self, other):
         if isinstance(other, Distribution):
@@ -169,6 +180,16 @@ class default_mass_function(Distribution):
             return True
         else:
             return NotImplemented
+    
+    def __hash__(self):
+        data = []
+        for d in sorted(self.__dict__.items()):
+            try:
+                data.append((d[0], hash(d[1])))
+            except:
+                data.append(d)
+        data = tuple(data)
+        return hash(data)
 
 
 class kroupa_1993(Distribution):
@@ -197,6 +218,12 @@ class kroupa_1993(Distribution):
 
     def _kroupa_1993(self, x, x_0):
         return x_0 + (0.19 * x ** (1.55) + 0.05 * x ** (0.6)) / (1 - x) ** (0.58)
+    
+    def __eq__(self, other):
+        return super().__eq__(other)
+    
+    def __hash__(self):
+        return super().__hash__()
 
 
 class uniform(Distribution):
@@ -630,18 +657,40 @@ class IMF:
     @property
     def IMF(self):
         return self.imf
+    
+
+    def copy(self):
+        """
+        Returns a deep copy of the IMF.
+        """
+        return deepcopy(self)
 
     def __eq__(self, other):
         # Overrides the default implementation
         if isinstance(other, IMF):
-            return (
-                self.min_mass == other.min_mass
-                and self.max_mass == other.max_mass
-                and self.initial_mass_function == other.initial_mass_function
-                and self.unit == other.unit
-                and self.number_samples == other.number_samples
-                and self.seed == other.seed
-            )
+            attrs = [
+                "min_mass",
+                "max_mass",
+                "initial_mass_function",
+                "unit",
+                "number_samples",
+                "seed",
+            ]
+            equal = True
+            for attr in attrs:
+                equal_attribute = getattr(self, attr) == getattr(other, attr)
+                if equal_attribute == False:
+                    if _tools.isQuantity(getattr(self, attr)):
+                        equal_attribute = (
+                            getattr(self, attr).value == getattr(other, attr).value
+                        )
+                        equal_attribute = equal_attribute and getattr(
+                            self, attr
+                        ).unit.is_equivalent(getattr(other, attr).unit)
+                if equal_attribute == False:
+                    return False
+                equal = equal and equal_attribute
+            return equal
         else:
             return NotImplemented
 
@@ -650,9 +699,9 @@ class IMF:
         data = []
         for d in sorted(self.__dict__.items()):
             try:
-                data.append((d[0], tuple(d[1])))
-            except:
-                data.append(d)
+                data.append((d[0], hash(d[1])))
+            except TypeError as e:
+                pass
         data = tuple(data)
         return hash(data)
 

@@ -1,6 +1,7 @@
 import numpy as _np
 import rebound as _rebound
 import pickle as _pickle
+from copy import deepcopy as _deepcopy
 from scipy.stats import uniform as _uniform
 from . import environments as _env
 from . import tools as _tools
@@ -57,12 +58,12 @@ class Star:
 
     def __init__(
         self,
-        m,
-        b,
-        v,
-        inc="isotropic",
-        omega="isotropic",
-        Omega="isotropic",
+        m: float | _u.Quantity,
+        b: float | _u.Quantity,
+        v: float | _u.Quantity,
+        inc: float | _u.Quantity | str = "isotropic",
+        omega: float | _u.Quantity | str = "isotropic",
+        Omega: float | _u.Quantity | str ="isotropic",
         UNIT_SYSTEM=[],
         **kwargs,
     ) -> None:
@@ -287,6 +288,10 @@ class Star:
             raise ValueError("Filename must be a string.")
         with open(filename, "wb") as pfile:
             _pickle.dump(self, pfile, protocol=_pickle.HIGHEST_PROTOCOL)
+    
+    def copy(self):
+        """Returns a deep copy of the Star object."""
+        return _deepcopy(self)
 
     @classmethod
     def from_file(cls, filename):
@@ -1110,9 +1115,7 @@ class Stars(MutableMapping):
 
     def copy(self):
         """Returns a deep copy of the Stars."""
-        newstars = self[:]
-        newstars.environment = self.environment.copy()
-        return newstars
+        return _deepcopy(self)
 
     def sort(self, key, sim=None, argsort=False):
         # Alias for `sortby`.
