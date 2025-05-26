@@ -20,4 +20,3 @@ The following documentation was automatically generated from the docstrings.
 ::: airball.core.concurrent_flybys
 
 ::: airball.core.add_star_to_sim
-
