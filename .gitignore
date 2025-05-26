@@ -3,6 +3,10 @@
 __pycache__/
 pyrightconfig.json
 .vscode/
+htmlcov/
+.pytest_cache/
+.venv/
+.ruff_cache
 .coverage
 
 # Example Data
