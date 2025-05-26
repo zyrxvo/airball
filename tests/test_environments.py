@@ -1,15 +1,10 @@
-import pytest
 import airball
+import pytest
 
-################################################
 ################################################
 ##########  INITIALIZATION TESTS  ##############
 ################################################
-################################################
 
-def test_preset_environment_initialization():
-    oc = airball.OpenCluster()
-    ln = airball.LocalNeighborhood()
-    gc = airball.GlobularCluster()
-    gb = airball.GalacticBulge()
-    gk = airball.GalacticCore()
+@pytest.mark.parametrize("env", (airball.OpenCluster(), airball.LocalNeighborhood(), airball.GlobularCluster(), airball.GalacticBulge(), airball.GalacticCore()))
+def test_preset_environment_initialization(env):
+    assert env is not None
