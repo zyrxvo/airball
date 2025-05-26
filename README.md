@@ -9,10 +9,10 @@ AIRBALL is a package for running and managing flybys using [REBOUND](https://git
 ## Features
 
 * Logic for handling the geometry of adding, running, and removing a flyby object in a REBOUND simulation.
-* Stellar environments for generating and managing randomly generated stars from different stellar environments throughout the galaxy. 
-* Initial mass functions for quickly generating samples from probability distributions. 
+* Stellar environments for generating and managing randomly generated stars from different stellar environments throughout the galaxy.
+* Initial mass functions for quickly generating samples from probability distributions.
 * Astropy.units integration to help you manage the mess of units and scales.
-* Interactive examples for teaching and exploring AIRBALL’s functionality. 
+* Interactive examples for teaching and exploring AIRBALL’s functionality.
 
 ## Installation
 
@@ -37,9 +37,9 @@ The following packages should automatically be installed along with AIRBALL:
 * Hanno Rein, University of Toronto, <hanno@hanno-rein.de>
 * Hasaan Mohsin, University of Toronto, <hasaan.mohsin@mail.utoronto.ca>
 * Ryan Chao-Ming Lam, University of Waterloo, <ryan.lam1@uwaterloo.ca>
-* Aleksey Generozov, Linda He, Ivy Shi, and others. 
+* Aleksey Generozov, Linda He, Ivy Shi, and others.
 
-AIRBALL is open source and you are invited to contribute to this project! 
+AIRBALL is open source and you are invited to contribute to this project!
 
 ## Acknowledgments
 

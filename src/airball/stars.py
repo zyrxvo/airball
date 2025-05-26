@@ -63,7 +63,7 @@ class Star:
         v: float | _u.Quantity,
         inc: float | _u.Quantity | str = "isotropic",
         omega: float | _u.Quantity | str = "isotropic",
-        Omega: float | _u.Quantity | str ="isotropic",
+        Omega: float | _u.Quantity | str = "isotropic",
         UNIT_SYSTEM=[],
         **kwargs,
     ) -> None:
@@ -288,7 +288,7 @@ class Star:
             raise ValueError("Filename must be a string.")
         with open(filename, "wb") as pfile:
             _pickle.dump(self, pfile, protocol=_pickle.HIGHEST_PROTOCOL)
-    
+
     def copy(self):
         """Returns a deep copy of the Star object."""
         return _deepcopy(self)

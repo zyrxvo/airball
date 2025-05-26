@@ -6,7 +6,7 @@ from scipy.special import j0 as _j0, jv as _jv
 from . import tools as _tools
 from . import units as _u
 from . import constants as _c
-from .core import add_star_to_sim, _rotate_into_plane
+from .core import _rotate_into_plane
 
 ############################################################
 ################## Energy Estimates ########################
@@ -820,7 +820,7 @@ def inclination_change_adiabatic_estimate(sim, star, averaged=False, particle_in
     index = int(particle_index)
 
     unit_set = _tools.rebound_units(sim)
-    t0 = sim.t * unit_set["time"]
+    # t0 = sim.t * unit_set["time"]
     G = sim.G * unit_set["length"] ** 3 / unit_set["mass"] / unit_set["time"] ** 2
 
     p = sim.particles
@@ -835,21 +835,15 @@ def inclination_change_adiabatic_estimate(sim, star, averaged=False, particle_in
     mu = G * (_tools.system_mass(sim) * unit_set["mass"] + m3)
     es = _tools.calculate_eccentricity(sim, star)
 
-    a, e = (
-        p[index].a * unit_set["length"],
-        p[index].e,
-    )  # redefine the orbital elements of the planet for convenience
+    # redefine the orbital elements of the planet for convenience
+    a, e = p[index].a * unit_set["length"], p[index].e
 
-    w, W, i = (
-        star.omega,
-        star.Omega,
-        star.inc,
-    )  # redefine the orientation elements of the flyby star for convenience
+    # redefine the orientation elements of the flyby star for convenience
+    W, i = star.Omega, star.inc
 
+    # compute the periapsis of the flyby star
     V = star.v
-    q = (
-        -mu + _np.sqrt(mu**2.0 + star.b**2.0 * V**4.0)
-    ) / V**2.0  # compute the periapsis of the flyby star
+    q = (-mu + _np.sqrt(mu**2.0 + star.b**2.0 * V**4.0)) / V**2.0
 
     # Case: Non-Circular Binary
 

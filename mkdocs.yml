@@ -13,7 +13,7 @@ nav:
     - 'Analytic Estimates': api/analytic.md
     - 'Tools': api/tools.md
     - 'Units': api/units.md
-  - 'Examples': 
+  - 'Examples':
     - 'Overview': examples/index.md
     - 'Getting Started': examples/getting-started.ipynb
     - 'Basics': examples/basics.ipynb
@@ -56,7 +56,7 @@ markdown_extensions:
 extra_javascript:
   - javascripts/config.js
   - https://polyfill.io/v3/polyfill.min.js?features=es6
-  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js      
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 extra:
   social:
     - icon: fontawesome/brands/mastodon

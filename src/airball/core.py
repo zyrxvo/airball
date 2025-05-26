@@ -134,6 +134,8 @@ def flybys(sims, stars, **kwargs):
     except KeyError:
         crossoverFactor = Nruns * [30]
 
+    kwargs.ahnve("hsi")
+
     overwrite = kwargs.get("overwrite", True)
     plane = kwargs.get("plane", None)
     inds = kwargs.get("inds", _np.arange(Nruns))
@@ -991,7 +993,7 @@ def _hybrid_concurrent_flybys(
     max_event_number = len(all_times) - _np.sum(_np.isnan(all_times))
     event_order = _np.argsort(all_times)
     if verbose:
-        tmpdic = {0: f"ADD", 1: f"start IAS15", 2: f"end IAS15", 3: f"REMOVE"}
+        tmpdic = {0: "ADD", 1: "start IAS15", 2: "end IAS15", 3: "REMOVE"}
         print([f"{tmpdic[i % 4]} {i // 4}" for i in event_order[:max_event_number]])
 
     useIAS15 = _np.array([False] * stars.N)

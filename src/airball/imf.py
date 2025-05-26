@@ -37,7 +37,7 @@ class Distribution:
 
     def __call__(self, x):
         return self.mass_function(x, *self.params)
-    
+
     def __hash__(self):
         data = []
         for d in sorted(self.__dict__.items()):
@@ -180,7 +180,7 @@ class default_mass_function(Distribution):
             return True
         else:
             return NotImplemented
-    
+
     def __hash__(self):
         data = []
         for d in sorted(self.__dict__.items()):
@@ -218,10 +218,10 @@ class kroupa_1993(Distribution):
 
     def _kroupa_1993(self, x, x_0):
         return x_0 + (0.19 * x ** (1.55) + 0.05 * x ** (0.6)) / (1 - x) ** (0.58)
-    
+
     def __eq__(self, other):
         return super().__eq__(other)
-    
+
     def __hash__(self):
         return super().__hash__()
 
@@ -657,7 +657,6 @@ class IMF:
     @property
     def IMF(self):
         return self.imf
-    
 
     def copy(self):
         """
@@ -700,12 +699,12 @@ class IMF:
         for d in sorted(self.__dict__.items()):
             try:
                 data.append((d[0], hash(d[1])))
-            except TypeError as e:
+            except TypeError:
                 pass
         data = tuple(data)
         return hash(data)
 
-    def summary(self, returned=False):
+    def summary(self, *, returned=False) -> str | None:
         """
         Prints a compact summary of the current stats of the Stellar Environment object.
         """
