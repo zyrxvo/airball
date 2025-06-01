@@ -383,20 +383,12 @@ class IMF:
         self.unit = unit if _u.isUnit(unit) else _u.solMass
 
         # Convert min_mass and max_mass to specified unit if they are Quantity objects, otherwise assume they are already in the correct unit
-        self._min_mass = (
-            min_mass.to(self.unit)
-            if _tools.isQuantity(min_mass)
-            else min_mass * self.unit
-        )
+        self._min_mass = (min_mass << self.unit)
         if self._min_mass.value <= 0:
             raise ValueError(
                 "Cannot have minimum mass value be less than or equal to 0."
             )
-        self._max_mass = (
-            max_mass.to(self.unit)
-            if _tools.isQuantity(max_mass)
-            else max_mass * self.unit
-        )
+        self._max_mass = (max_mass << self.unit)
         if self._max_mass <= self._min_mass:
             raise ValueError(
                 "Cannot have maximum mass value be less than or equal to minimum mass."
@@ -406,7 +398,7 @@ class IMF:
                 "Cannot have maximum mass value be less than or equal to 0."
             )
 
-        # Determine the probability distribution function (PDF) based on the given mass function or default to a piecewise Chabrier 2003 and Salpeter 1955
+        # Determine the probability distribution function (PDF) based on the given mass function or default to Chabrier (2003).
         if mass_function is None:
             mass_function = default_mass_function()
         elif not isinstance(mass_function, (_types.FunctionType, Distribution)):
@@ -414,10 +406,8 @@ class IMF:
                 "mass_function must be a function or a Distribution object."
             )
         if isinstance(mass_function, Distribution) and mass_function.unit != self.unit:
-            _warnings.warn(
-                "Mass function unit does not match IMF unit. Setting mass function unit with IMF unit."
-            )
-            mass_function.unit = self.unit
+            raise ValueError("Mass function unit does not match IMF unit.")
+
         self.initial_mass_function = mass_function
 
         # Recalculate the IMF properties based on the updated parameters
