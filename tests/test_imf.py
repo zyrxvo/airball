@@ -1,6 +1,8 @@
-import pytest
 import astropy.units as u
-import airball.imf as imf
+import pytest
+
+from airball import imf
+
 
 def test_imf_default_init():
     """Test initialization with minimum required arguments"""
@@ -8,6 +10,7 @@ def test_imf_default_init():
     assert my_imf._number_samples == 1000  # default value
     assert my_imf._seed is None  # default value
     assert my_imf.unit == u.solMass  # default value
+
 
 @pytest.mark.parametrize("seed", (None, 100, 1000))
 @pytest.mark.parametrize("number_samples", (10, 100, 500))
@@ -26,7 +29,7 @@ def test_imf_init(max_mass, mass_function, unit, number_samples, seed):
         seed=seed,
     )
     assert my_imf.max_mass == max_mass << unit
-    assert my_imf._number_samples == number_samples  
+    assert my_imf._number_samples == number_samples
     assert my_imf._seed == seed
     assert my_imf.unit == unit
 
