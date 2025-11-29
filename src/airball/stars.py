@@ -1,6 +1,7 @@
 import numpy as _np
 import rebound as _rebound
 import pickle as _pickle
+from pathlib import Path
 from copy import deepcopy as _deepcopy
 from scipy.stats import uniform as _uniform
 from . import environments as _env
@@ -284,8 +285,8 @@ class Star:
           star.save('my_special.star')
           ```
         """
-        if not isinstance(filename, str):
-            raise ValueError("Filename must be a string.")
+        if not isinstance(filename, (str, Path)):
+            raise ValueError("Filename must be a string or Path.")
         with open(filename, "wb") as pfile:
             _pickle.dump(self, pfile, protocol=_pickle.HIGHEST_PROTOCOL)
 
@@ -311,8 +312,8 @@ class Star:
           ```
         """
         try:
-            if not isinstance(filename, str):
-                raise ValueError("Filename must be a string.")
+            if not isinstance(filename, (str, Path)):
+                raise ValueError("Filename must be a string or Path.")
             with open(filename, "rb") as pfile:
                 pickled = _pickle.load(pfile)
             dic = pickled.__dict__
@@ -450,7 +451,7 @@ class Stars(MutableMapping):
 
         if filename is not None:
             # Initialize Stars from file.
-            if isinstance(filename, str):
+            if isinstance(filename, (str, Path)):
                 try:
                     loaded = Stars._load(filename)
                     self.__dict__ = loaded.__dict__
@@ -1239,8 +1240,8 @@ class Stars(MutableMapping):
           stars.save('open_cluster.stars')
           ```
         """
-        if not isinstance(filename, str):
-            raise ValueError("Filename must be a string.")
+        if not isinstance(filename, (str, Path)):
+            raise ValueError("Filename must be a string or Path.")
         with open(filename, "wb") as pfile:
             _pickle.dump(self, pfile, protocol=_pickle.HIGHEST_PROTOCOL)
 
@@ -1261,8 +1262,8 @@ class Stars(MutableMapping):
           stars = airball.Stars('open_cluster.stars')
           ```
         """
-        if not isinstance(filename, str):
-            raise ValueError("Filename must be a string.")
+        if not isinstance(filename, (str, Path)):
+            raise ValueError("Filename must be a string or Path.")
         with open(filename, "rb") as pfile:
             return _pickle.load(pfile)
 
