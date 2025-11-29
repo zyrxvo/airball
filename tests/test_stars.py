@@ -1,11 +1,12 @@
+import numpy as np
 import pytest
+
 import airball
 import airball.units as u
-import numpy as np
 
 ################################################
 ################################################
-##########  INITIALIZATION TESTS  ##############
+# INITIALIZATION TESTS  ##############
 ################################################
 ################################################
 
@@ -18,18 +19,14 @@ def test_initialize_Stars_with_lists():
 
 
 def test_initialize_Stars_with_ndarrays():
-    stars = airball.Stars(
-        m=np.array([1, 2, 3]), b=np.array([4, 5, 6]), v=np.array([7, 8, 9])
-    )
+    stars = airball.Stars(m=np.array([1, 2, 3]), b=np.array([4, 5, 6]), v=np.array([7, 8, 9]))
     assert np.all(stars.m == np.array([1, 2, 3]) * u.solMass)
     assert np.all(stars.b == np.array([4, 5, 6]) * u.au)
     assert np.all(stars.v == np.array([7, 8, 9]) * u.km / u.s)
 
 
 def test_initialize_Stars_with_lists_and_units():
-    stars = airball.Stars(
-        m=[1, 2, 3] * u.solMass, b=[4, 5, 6] * u.au, v=[7, 8, 9] * u.km / u.s
-    )
+    stars = airball.Stars(m=[1, 2, 3] * u.solMass, b=[4, 5, 6] * u.au, v=[7, 8, 9] * u.km / u.s)
     assert np.all(stars.m == np.array([1, 2, 3]) * u.solMass)
     assert np.all(stars.b == np.array([4, 5, 6]) * u.au)
     assert np.all(stars.v == np.array([7, 8, 9]) * u.km / u.s)
@@ -39,9 +36,7 @@ def test_initialize_Stars_with_lists_and_units():
         b=[4 * u.au, 5 * u.au, 6 * u.au],
         v=[7 * u.km / u.s, 8 * u.km / u.s, 9 * u.km / u.s],
     )
-    assert np.all(
-        stars.m == np.array([1, 1.90918846793865, 3.003489348850793]) * u.solMass
-    )
+    assert np.all(stars.m == np.array([1, 1.90918846793865, 3.003489348850793]) * u.solMass)
     assert np.all(stars.b == np.array([4, 5, 6]) * u.au)
     assert np.all(stars.v == np.array([7, 8, 9]) * u.km / u.s)
 
@@ -58,9 +53,7 @@ def test_initialize_Stars_with_ndarrays_and_units():
 
 
 def test_initialize_Stars_with_lists_and_shapes():
-    stars = airball.Stars(
-        m=[[1, 2, 3], [1, 2, 3]], b=[[4, 5, 6], [4, 5, 6]], v=[[7, 8, 9], [7, 8, 9]]
-    )
+    stars = airball.Stars(m=[[1, 2, 3], [1, 2, 3]], b=[[4, 5, 6], [4, 5, 6]], v=[[7, 8, 9], [7, 8, 9]])
     assert np.all(stars.m == np.array([[1, 2, 3], [1, 2, 3]]) * u.solMass)
     assert np.all(stars.b == np.array([[4, 5, 6], [4, 5, 6]]) * u.au)
     assert np.all(stars.v == np.array([[7, 8, 9], [7, 8, 9]]) * u.km / u.s)
@@ -242,7 +235,7 @@ def test_initialize_Stars_with_large_ndarrays():
 
 ################################################
 ################################################
-##########  INDEXING AND SLICING TESTS  ########
+# INDEXING AND SLICING TESTS  ########
 ################################################
 ################################################
 
@@ -280,7 +273,7 @@ def test_access_multidimensional_Stars_using_ints():
 
 ################################################
 ################################################
-##########  EQUALITY TESTS  ####################
+# EQUALITY TESTS  ####################
 ################################################
 ################################################
 
