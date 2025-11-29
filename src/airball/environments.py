@@ -19,7 +19,8 @@ from .stars import Stars as _Stars
 
 
 class StellarEnvironment:
-    """This is the AIRBALL StellarEnvironment class.
+    """AIRBALL StellarEnvironment class.
+
     It encapsulates the relevant data for a static stellar environment.
 
     Initializing a StellarEnvironment instance.
