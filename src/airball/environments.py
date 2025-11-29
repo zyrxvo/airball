@@ -1,5 +1,6 @@
 import rebound as _rebound
 import numpy as _np
+from pathlib import Path
 from copy import deepcopy
 from scipy.stats import uniform as _uniform
 from scipy.stats import maxwell as _maxwell
@@ -283,8 +284,8 @@ class StellarEnvironment:
           se.save('open_cluster.se')
           ```
         """
-        if not isinstance(filename, str):
-            raise ValueError("Filename must be a string.")
+        if not isinstance(filename, (str, Path)):
+            raise ValueError("Filename must be a string or Path.")
         with open(filename, "wb") as pfile:
             _pickle.dump(self, pfile, protocol=_pickle.HIGHEST_PROTOCOL)
 
@@ -305,8 +306,8 @@ class StellarEnvironment:
           stars = airball.StellarEnvironment('open_cluster.stars')
           ```
         """
-        if not isinstance(filename, str):
-            raise ValueError("Filename must be a string.")
+        if not isinstance(filename, (str, Path)):
+            raise ValueError("Filename must be a string or Path.")
         with open(filename, "rb") as pfile:
             return _pickle.load(pfile)
 

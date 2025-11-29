@@ -134,8 +134,6 @@ def flybys(sims, stars, **kwargs):
     except KeyError:
         crossoverFactor = Nruns * [30]
 
-    kwargs.ahnve("hsi")
-
     overwrite = kwargs.get("overwrite", True)
     plane = kwargs.get("plane", None)
     inds = kwargs.get("inds", _np.arange(Nruns))
