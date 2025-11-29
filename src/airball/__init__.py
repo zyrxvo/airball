@@ -3,7 +3,7 @@
 - A package for implementing flybys in [hannorein/rebound](https://github.com/hannorein/rebound)
 """
 
-__version__ = "v0.9.4"
+__version__ = "v0.9.5"
 
 from .core import (
     add_star_to_sim,
