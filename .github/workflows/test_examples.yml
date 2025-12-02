@@ -26,5 +26,5 @@ jobs:
       - name: Install AIRBALL and dependencies
         run: uv sync
 
-      - name: Run python tests
+      - name: Run Examples in Documentation
         run: uv run pytest tests/test_examples.py -vv -s --run-slow
