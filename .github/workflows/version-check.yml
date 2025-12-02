@@ -1,0 +1,63 @@
+name: Version Check
+
+on:
+  pull_request:
+    branches:
+      - main
+
+env:
+  UV_FROZEN: true
+  PYTHON_VERSION: "3.14"
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main_branch
+
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+        with:
+          path: current_branch
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Compare versions
+        run: |
+          uv run --python ${{ env.PYTHON_VERSION }} --with packaging python - <<EOF
+          import tomllib
+          from packaging import version
+          import sys
+          import os
+
+          def get_version(path):
+              try:
+                  with open(path, "rb") as f:
+                      data = tomllib.load(f)
+                  return data["project"]["version"]
+              except Exception as e:
+                  print(f"Error reading {path}: {e}")
+                  sys.exit(1)
+
+          print("Checking versions...")
+          if not os.path.exists("main_branch/pyproject.toml"):
+              print("main_branch/pyproject.toml not found. Assuming this is the first version.")
+              sys.exit(0)
+
+          main_ver_str = get_version("main_branch/pyproject.toml")
+          curr_ver_str = get_version("current_branch/pyproject.toml")
+
+          print(f"Main version: {main_ver_str}")
+          print(f"Current version: {curr_ver_str}")
+
+          if version.parse(curr_ver_str) <= version.parse(main_ver_str):
+              print("Error: Current version must be greater than main version.")
+              sys.exit(1)
+          else:
+              print("Success: Current version is greater than main version.")
+          EOF

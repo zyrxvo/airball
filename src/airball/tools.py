@@ -2,6 +2,10 @@ import numpy as _np
 import rebound as _rebound
 import joblib as _joblib
 import warnings as _warnings
+import platform
+import subprocess
+import shutil
+from pathlib import Path
 from .units import UnitSet as _UnitSet
 from . import units as _u
 from . import constants as _c
@@ -166,7 +170,7 @@ def save_as_simulationarchive(filename, sims, delete_file=True):
     Saves a list of REBOUND Simulations as a SimulationArchive.
     """
     for i, s in enumerate(sims):
-        s.save_to_file(filename, delete_file=(delete_file if i == 0 else False))
+        s.save_to_file(str(filename), delete_file=(delete_file if i == 0 else False))
 
 
 def notNone(a):
@@ -225,8 +229,10 @@ def hist(arr, bins=10, normalize=False, density=False, wfac=1):
       y (array): The histogram values.
       w (float): The width of the bins.
     """
+
     # """Return pairwise geometric means of adjacent elements."""
-    geometric_means = lambda a: _np.sqrt(a[1:] * a[:-1])
+    def geometric_means(a):
+        return _np.sqrt(a[1:] * a[:-1])
 
     astart = _np.min(arr)
     aend = _np.max(arr)
@@ -258,8 +264,10 @@ def hist10(arr, bins=10, normalize=False, density=False, wfac=1):
       y (array): The histogram values.
       w (float): The width of the bins.
     """
+
     # """Return pairwise geometric means of adjacent elements."""
-    geometric_means = lambda a: _np.sqrt(a[1:] * a[:-1])
+    def geometric_means(a):
+        return _np.sqrt(a[1:] * a[:-1])
 
     astart = _np.log10(_np.min(arr) / 2)
     aend = _np.log10(_np.max(arr) * 2)
@@ -603,12 +611,10 @@ def hyperbolic_elements(sim, star, rmax, values_only=False):
       ```
     """
     e = calculate_eccentricity(sim, star)
-    a = -star.b / _np.sqrt(
-        e**2.0 - 1.0
-    )  # Compute the semi-major axis of the flyby star
-    l = semilatus_rectum(
-        a=a, e=e
-    )  # Compute the semi-latus rectum of the hyperbolic orbit to get the true anomaly
+    # Compute the semi-major axis of the flyby star
+    a = -star.b / _np.sqrt(e**2.0 - 1.0)
+    # Compute the semi-latus rectum of the hyperbolic orbit to get the true anomaly
+    l = semilatus_rectum(a=a, e=e)  # noqa: E741
 
     rmax = verify_unit(rmax, _u.au)
     if star.N > 1 and not isList(rmax):
@@ -951,7 +957,7 @@ def rebound_units(sim):
     simunits = sim.units
 
     for unit in simunits:
-        if simunits[unit] == None:
+        if simunits[unit] is None:
             simunits[unit] = defrebunits[unit]
         else:
             simunits[unit] = _u.Unit(simunits[unit])
@@ -963,10 +969,10 @@ def verify_unit(value, unit):
     return value.to(unit) if isQuantity(value) else value << unit
 
 
-def isList(l):
+def isList(array):
     """Determines if an object is a list or numpy array."""
-    if isinstance(l, (list, _np.ndarray)):
-        if isinstance(l, _u.Quantity) and _np.shape(l) == ():
+    if isinstance(array, (list, _np.ndarray)):
+        if isinstance(array, _u.Quantity) and _np.shape(array) == ():
             return False
         else:
             return True
@@ -977,3 +983,89 @@ def isList(l):
 def isQuantity(var):
     """Determines if an object is an Astropy Quantity. Used for Stellar Environment initializations."""
     return isinstance(var, _u.Quantity)
+
+
+def link_c_heartbeat_with_rebound_c_library(filename: str, file_contents: str) -> str:
+    """Prepare a C-Hearbeat function for use.
+
+    - Temporarily download the most recent version of REBOUND.
+    - Checkout the version of REBOUND currently being used.
+    - Compile the REBOUND library
+    - Compile the C-Heartbeat function using the REBOUND header file.
+    - Link the REBOUND C-library generating a C-Hearbeat library.
+    """
+    ghash = _rebound.__githash__[:8]
+    TMP_DIR = Path.cwd() / f"__rebound_{ghash}"
+    # check if this has already been done
+    if not (Path.cwd() / filename).with_suffix(".so").exists():
+        TMP_DIR.mkdir(exist_ok=True, parents=True)
+        # Save C-heartbeat function into the directory.
+        (Path.cwd() / f"{filename}.c").write_text(file_contents)
+
+        kwargs = {"shell": False, "capture_output": True, "text": True, "check": False}
+        cmds = [
+            (
+                ["git", "clone", "https://github.com/hannorein/rebound.git", TMP_DIR],
+                Path.cwd(),
+            ),  # clone REBOUND
+            (["git", "pull"], TMP_DIR),  # use the active version of REBOUND
+            (
+                ["git", "reset", "--hard", _rebound.__githash__],
+                TMP_DIR,
+            ),  # use the active version of REBOUND
+            (["make"], TMP_DIR),  # compile REBOUND
+            (
+                ["cp", TMP_DIR / "librebound.so", Path.cwd()],
+                Path.cwd(),
+            ),  # copy the REBOUND C-library to the local directory
+            (
+                [
+                    "gcc",
+                    "-c",
+                    "-O3",
+                    "-fPIC",
+                    f"-I{TMP_DIR / 'rebound'}",
+                    f"{filename}.c",
+                    "-o",
+                    f"{filename}.o",
+                ],
+                Path.cwd(),
+            ),  # compile C-heartbeat function
+            (
+                [
+                    "gcc",
+                    "-shared",
+                    f"{filename}.o",
+                    "-o",
+                    f"{filename}.so",
+                    f"-L{TMP_DIR}",
+                    "-lrebound",
+                    "-Wl,-rpath,@loader_path",
+                ],
+                Path.cwd(),
+            ),  # link everything together
+        ]
+        # Tell macOS how to find the REBOUND C-library relative to the C-heartbeat function.
+        if platform.system().lower() == "darwin":
+            cmds.append(
+                (
+                    [
+                        "install_name_tool",
+                        "-change",
+                        "librebound.so",
+                        "@rpath/librebound.so",
+                        "multiple_flyby_heartbeat.so",
+                    ],
+                    Path.cwd(),
+                )
+            )
+        for cmd, cwd in cmds:
+            output = subprocess.run(cmd, cwd=cwd, **kwargs)
+            if output.returncode != 0:
+                print(output.stdout, output.stderr)
+    # remove the local copy of REBOUND.
+    shutil.rmtree(TMP_DIR, ignore_errors=True)
+    for tmp_file in Path.cwd().glob(f"{filename}.*"):
+        if tmp_file.suffix in {".c", ".o"}:
+            tmp_file.unlink(missing_ok=True)
+    return str((Path.cwd() / f"{filename}.so").resolve())
