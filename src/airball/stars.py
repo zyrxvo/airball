@@ -10,7 +10,7 @@ from . import units as _u
 
 try:
     from collections.abc import MutableMapping  # Required for Python>=3.9
-except:
+except:  # noqa: E722
     from collections import MutableMapping
 
 
@@ -71,27 +71,27 @@ class Star:
         self.units = _u.UnitSet(UNIT_SYSTEM)
 
         seed = kwargs.get("seed", _np.random.randint(0, int(2**32 - 3)))
-        if inc == "isotropic" or inc == None:
+        if inc == "isotropic" or inc is None:
             inc = (
                 2 * _np.arcsin(_np.sqrt(_uniform.rvs(size=1, random_state=seed + 1)))[0]
             )
-        if omega == "isotropic" or omega == None:
+        if omega == "isotropic" or omega is None:
             omega = _uniform.rvs(
                 loc=0, scale=(2.0 * _np.pi), size=1, random_state=seed + 2
             )[0]
-        if Omega == "isotropic" or Omega == None:
+        if Omega == "isotropic" or Omega is None:
             Omega = _uniform.rvs(
                 loc=-_np.pi, scale=(2.0 * _np.pi), size=1, random_state=seed + 3
             )[0]
-        if inc == "uniform" or inc == None:
+        if inc == "uniform" or inc is None:
             inc = _uniform.rvs(
                 loc=-_np.pi, scale=(2.0 * _np.pi), size=1, random_state=seed + 1
             )[0]
-        if omega == "uniform" or omega == None:
+        if omega == "uniform" or omega is None:
             omega = _uniform.rvs(
                 loc=-_np.pi, scale=(2.0 * _np.pi), size=1, random_state=seed + 2
             )[0]
-        if Omega == "uniform" or Omega == None:
+        if Omega == "uniform" or Omega is None:
             Omega = _uniform.rvs(
                 loc=-_np.pi, scale=(2.0 * _np.pi), size=1, random_state=seed + 3
             )[0]
@@ -175,7 +175,7 @@ class Star:
     def inclination(self):
         return self.inc
 
-    @inc.setter
+    @inclination.setter
     def inclination(self, value):
         self.inc = value
 
@@ -326,7 +326,7 @@ class Star:
                 Omega=dic["_longitude_ascending_node"],
                 UNIT_SYSTEM=dic["units"],
             )
-        except:
+        except:  # noqa: E722
             raise Exception("Invalid filename.")
         return newStar
 
@@ -374,7 +374,7 @@ class Star:
         for d in sorted(self.__dict__.items()):
             try:
                 data.append((d[0], tuple(d[1])))
-            except:
+            except:  # noqa: E722
                 data.append(d)
         data = tuple(data)
         return hash(data)
@@ -455,7 +455,7 @@ class Stars(MutableMapping):
                 try:
                     loaded = Stars._load(filename)
                     self.__dict__ = loaded.__dict__
-                except:
+                except:  # noqa: E722
                     raise Exception("Invalid filename.")
                 return
             # If filename is a Star object, then initialize Stars with the same parameters.
@@ -572,7 +572,7 @@ class Stars(MutableMapping):
                             << self.units[u]
                         )
                     # Value was not a list of Quantities, turn list into ndarray and make a Quantity.
-                    except:
+                    except:  # noqa: E722
                         quantityValue = _np.array(value) << self.units[u]
                 # Value was not a list, check to see if value is an ndarray.
                 elif isinstance(value, _np.ndarray):
@@ -580,7 +580,7 @@ class Stars(MutableMapping):
                     try:
                         quantityValue = value.to(self.units[u])
                     # ndarray is not a Quantity so turn ndarray into a Quantity.
-                    except:
+                    except:  # noqa: E722
                         quantityValue = value << self.units[u]
                 # Value implements __len__, but is not a list or ndarray.
                 else:
@@ -687,7 +687,7 @@ class Stars(MutableMapping):
                             * self.units["angle"]
                         )
                     # Value was not a list of Quantities, turn list into ndarray and make a Quantity.
-                    except:
+                    except:  # noqa: E722
                         quantityValue = _np.array(value) * self.units["angle"]
                 # Value was not a list, check to see if value is an ndarray.
                 elif isinstance(value, _np.ndarray):
@@ -695,7 +695,7 @@ class Stars(MutableMapping):
                     try:
                         quantityValue = value.to(self.units["angle"])
                     # ndarray is not a Quantity so turn ndarray into a Quantity.
-                    except:
+                    except:  # noqa: E722
                         quantityValue = value * self.units["angle"]
                 # Value implements __len__, but is not a list or ndarray.
                 else:
@@ -1485,7 +1485,7 @@ class Stars(MutableMapping):
             equal = True
             for attr in attrs:
                 equal_attribute = _np.all(getattr(self, attr) == getattr(other, attr))
-                if equal_attribute == False:
+                if not equal_attribute:
                     if _tools.isQuantity(getattr(self, attr)):
                         equal_attribute = _np.all(
                             getattr(self, attr).value == getattr(other, attr).value
@@ -1495,7 +1495,7 @@ class Stars(MutableMapping):
                                 getattr(other, attr).unit
                             )
                         )
-                if equal_attribute == False:
+                if not equal_attribute:
                     return False
                 equal = equal and equal_attribute
             return equal
@@ -1507,7 +1507,7 @@ class Stars(MutableMapping):
         for d in sorted(self.__dict__.items()):
             try:
                 data.append((d[0], tuple(d[1])))
-            except:
+            except:  # noqa: E722
                 data.append(d)
         data = tuple(data)
         return hash(data)

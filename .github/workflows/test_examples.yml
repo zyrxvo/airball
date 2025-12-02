@@ -1,0 +1,30 @@
+name: Test Examples
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_FROZEN: true
+
+jobs:
+  core-unit-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.9.10"
+          python-version: "3.14"
+
+      - name: Install AIRBALL and dependencies
+        run: uv sync
+
+      - name: Run Examples in Documentation
+        run: uv run pytest tests/test_examples.py -vv -s --run-slow
