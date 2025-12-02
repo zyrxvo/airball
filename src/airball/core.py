@@ -98,7 +98,7 @@ def flybys(sims, stars, **kwargs):
         Nruns = len(sims)
         if Nruns != len(stars):
             raise Exception("Sims and stars are unequal lengths")
-    except:
+    except:  # noqa: E722
         Nruns = len(stars)
         sims = [sims.copy() for _ in range(Nruns)]
 
@@ -284,7 +284,7 @@ def hybrid_flybys(sims, stars, **kwargs):
         Nruns = len(sims)
         if Nruns != len(stars):
             raise Exception("Sims and stars are unequal lengths")
-    except:
+    except:  # noqa: E722
         Nruns = len(stars)
         sims = [sims.copy() for _ in range(Nruns)]
 
@@ -406,7 +406,7 @@ def successive_flybys(sim, stars, **kwargs):
 
     # Do not overwrite given sim.
     overwrite = kwargs.get("overwrite", True)
-    if overwrite == False:
+    if not overwrite:
         sim = sim.copy()
     hashes = kwargs.get("hashes", [f"flybystar{i}" for i in range(stars.N)])
     saveSnapshots = kwargs.get("snapshots", False)
@@ -414,7 +414,7 @@ def successive_flybys(sim, stars, **kwargs):
     if saveSnapshots:
         snapshots.append(sim.copy())
     for i, star in enumerate(stars):
-        if overwrite == True:
+        if overwrite:
             flyby(sim, star, hash=hashes[i], **kwargs)
         else:
             sim = flyby(sim, star, hash=hashes[i], **kwargs)

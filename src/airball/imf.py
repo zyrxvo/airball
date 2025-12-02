@@ -1,5 +1,4 @@
 import numpy as _np
-import warnings as _warnings
 import types as _types
 from copy import deepcopy
 from scipy.integrate import quad as _quad
@@ -43,7 +42,7 @@ class Distribution:
         for d in sorted(self.__dict__.items()):
             try:
                 data.append((d[0], tuple(d[1])))
-            except:
+            except:  # noqa: E722
                 data.append(d)
         data = tuple(data)
         return hash(data)
@@ -178,15 +177,14 @@ class default_mass_function(Distribution):
     def __eq__(self, other):
         if isinstance(other, default_mass_function):
             return True
-        else:
-            return NotImplemented
+        return NotImplemented
 
     def __hash__(self):
         data = []
         for d in sorted(self.__dict__.items()):
             try:
                 data.append((d[0], hash(d[1])))
-            except:
+            except:  # noqa: E722
                 data.append(d)
         data = tuple(data)
         return hash(data)
@@ -243,8 +241,7 @@ class uniform(Distribution):
     def __eq__(self, other):
         if isinstance(other, uniform):
             return True
-        else:
-            return NotImplemented
+        return NotImplemented
 
 
 class power_law(Distribution):
@@ -383,12 +380,12 @@ class IMF:
         self.unit = unit if _u.isUnit(unit) else _u.solMass
 
         # Convert min_mass and max_mass to specified unit if they are Quantity objects, otherwise assume they are already in the correct unit
-        self._min_mass = (min_mass << self.unit)
+        self._min_mass = min_mass << self.unit
         if self._min_mass.value <= 0:
             raise ValueError(
                 "Cannot have minimum mass value be less than or equal to 0."
             )
-        self._max_mass = (max_mass << self.unit)
+        self._max_mass = max_mass << self.unit
         if self._max_mass <= self._min_mass:
             raise ValueError(
                 "Cannot have maximum mass value be less than or equal to minimum mass."
@@ -668,7 +665,7 @@ class IMF:
             equal = True
             for attr in attrs:
                 equal_attribute = getattr(self, attr) == getattr(other, attr)
-                if equal_attribute == False:
+                if not equal_attribute:
                     if _tools.isQuantity(getattr(self, attr)):
                         equal_attribute = (
                             getattr(self, attr).value == getattr(other, attr).value
@@ -676,7 +673,7 @@ class IMF:
                         equal_attribute = equal_attribute and getattr(
                             self, attr
                         ).unit.is_equivalent(getattr(other, attr).unit)
-                if equal_attribute == False:
+                if not equal_attribute:
                     return False
                 equal = equal and equal_attribute
             return equal
