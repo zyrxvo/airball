@@ -23,6 +23,8 @@ dev = [
     "pytest-cov >=6.0",
     "pre-commit >=4.0",
     "jedi-language-server>=0.45.1",
+    "matplotlib>=3.9.4",
+    "ipykernel>=6.31.0",
 ]
 docs = [
     "mkdocs>=1.5.2",
