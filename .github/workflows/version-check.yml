@@ -30,27 +30,29 @@ jobs:
       - name: Compare versions
         run: |
           uv run --python ${{ env.PYTHON_VERSION }} --with packaging python - <<EOF
-          import tomllib
-          from packaging import version
           import sys
-          import os
+          from pathlib import Path
+          from packaging import version
 
-          def get_version(path):
-              try:
-                  with open(path, "rb") as f:
-                      data = tomllib.load(f)
-                  return data["project"]["version"]
-              except Exception as e:
-                  print(f"Error reading {path}: {e}")
-                  sys.exit(1)
+          def get_version(path: Path) -> str:
+              for line in path.read_text(encoding="utf-8").splitlines():
+                  if "__version__" in line:
+                      return line.strip().split()[-1][1:-1]
 
           print("Checking versions...")
-          if not os.path.exists("main_branch/pyproject.toml"):
-              print("main_branch/pyproject.toml not found. Assuming this is the first version.")
-              sys.exit(0)
 
-          main_ver_str = get_version("main_branch/pyproject.toml")
-          curr_ver_str = get_version("current_branch/pyproject.toml")
+          main_branch = Path.cwd() / "main_branch/src/airball/__init__.py"
+          if not main_branch.exists():
+              print(f"Main branch {main_branch.relative_to(Path.cwd())} not found. Assuming this is the first version.")
+              sys.exit(1)
+
+          current_branch = Path.cwd() / "current_branch/src/airball/__init__.py"
+          if not current_branch.exists():
+              print(f"Failed to checkout current branch, {current_branch.relative_to(Path.cwd())} not found.")
+              sys.exit(1)
+
+          main_ver_str = get_version(main_branch)
+          curr_ver_str = get_version(current_branch)
 
           print(f"Main version: {main_ver_str}")
           print(f"Current version: {curr_ver_str}")
