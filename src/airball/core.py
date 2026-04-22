@@ -95,7 +95,7 @@ def flybys(sims, stars, **kwargs):
         Nruns = len(sims)
         if Nruns != len(stars):
             raise Exception("Sims and stars are unequal lengths")
-    except:
+    except:  # noqa: E722
         Nruns = len(stars)
         sims = [sims.copy() for _ in range(Nruns)]
 
@@ -128,8 +128,6 @@ def flybys(sims, stars, **kwargs):
             raise Exception("List arguments must be same length.")
     except KeyError:
         crossover_factor = Nruns * [30]
-
-    kwargs.ahnve("hsi")
 
     overwrite = kwargs.get("overwrite", True)
     plane = kwargs.get("plane")
@@ -277,7 +275,7 @@ def hybrid_flybys(sims, stars, **kwargs):
         Nruns = len(sims)
         if Nruns != len(stars):
             raise Exception("Sims and stars are unequal lengths")
-    except:
+    except:  # noqa: E722
         Nruns = len(stars)
         sims = [sims.copy() for _ in range(Nruns)]
 

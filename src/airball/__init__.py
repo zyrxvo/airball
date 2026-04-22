@@ -2,7 +2,7 @@
 - A package for implementing flybys in [hannorein/rebound](https://github.com/hannorein/rebound)
 """
 
-__version__ = "v0.9.4"
+__version__ = "v0.10.0"
 
 from .analytic import (
     eccentricity_change_adiabatic_estimate,

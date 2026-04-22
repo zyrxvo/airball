@@ -46,7 +46,7 @@ class Distribution:
         for d in sorted(self.__dict__.items()):
             try:
                 data.append((d[0], tuple(d[1])))
-            except:
+            except:  # noqa: E722
                 data.append(d)
         data = tuple(data)
         return hash(data)
@@ -187,7 +187,7 @@ class default_mass_function(Distribution):
         for d in sorted(self.__dict__.items()):
             try:
                 data.append((d[0], hash(d[1])))
-            except:
+            except:  # noqa: E722
                 data.append(d)
         data = tuple(data)
         return hash(data)
@@ -633,11 +633,11 @@ class IMF:
             equal = True
             for attr in attrs:
                 equal_attribute = getattr(self, attr) == getattr(other, attr)
-                if equal_attribute == False:
+                if not equal_attribute:
                     if _tools.isQuantity(getattr(self, attr)):
                         equal_attribute = getattr(self, attr).value == getattr(other, attr).value
                         equal_attribute = equal_attribute and getattr(self, attr).unit.is_equivalent(getattr(other, attr).unit)
-                if equal_attribute == False:
+                if not equal_attribute:
                     return False
                 equal = equal and equal_attribute
             return equal

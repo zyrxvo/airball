@@ -41,4 +41,4 @@ def test_imf_init_errors(min_mass, max_mass, number_samples):
     """Test initialization with invalid arguments"""
     if (min_mass * max_mass * number_samples) < 0:
         with pytest.raises(ValueError):
-            my_imf = imf.IMF(min_mass, max_mass, number_samples)
+            imf.IMF(min_mass, max_mass, number_samples)

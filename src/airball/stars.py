@@ -1,5 +1,6 @@
 import pickle as _pickle
 from copy import deepcopy as _deepcopy
+from pathlib import Path
 
 import numpy as _np
 import rebound as _rebound
@@ -167,7 +168,7 @@ class Star:
     def inclination(self):
         return self.inc
 
-    @inc.setter
+    @inclination.setter
     def inclination(self, value):
         self.inc = value
 
@@ -268,8 +269,8 @@ class Star:
           ```
 
         """
-        if not isinstance(filename, str):
-            raise ValueError("Filename must be a string.")
+        if not isinstance(filename, (str, Path)):
+            raise ValueError("Filename must be a string or Path.")
         with open(filename, "wb") as pfile:
             _pickle.dump(self, pfile, protocol=_pickle.HIGHEST_PROTOCOL)
 
@@ -296,8 +297,8 @@ class Star:
 
         """
         try:
-            if not isinstance(filename, str):
-                raise ValueError("Filename must be a string.")
+            if not isinstance(filename, (str, Path)):
+                raise ValueError("Filename must be a string or Path.")
             with open(filename, "rb") as pfile:
                 pickled = _pickle.load(pfile)
             dic = pickled.__dict__
@@ -310,7 +311,7 @@ class Star:
                 Omega=dic["_longitude_ascending_node"],
                 UNIT_SYSTEM=dic["units"],
             )
-        except:
+        except:  # noqa: E722
             raise Exception("Invalid filename.")
         return new_star
 
@@ -357,7 +358,7 @@ class Star:
         for d in sorted(self.__dict__.items()):
             try:
                 data.append((d[0], tuple(d[1])))
-            except:
+            except:  # noqa: E722
                 data.append(d)
         data = tuple(data)
         return hash(data)
@@ -448,11 +449,11 @@ class Stars(MutableMapping):
 
         if filename is not None:
             # Initialize Stars from file.
-            if isinstance(filename, str):
+            if isinstance(filename, (str, Path)):
                 try:
                     loaded = Stars._load(filename)
                     self.__dict__ = loaded.__dict__
-                except:
+                except:  # noqa: E722
                     raise Exception("Invalid filename.")
                 return
             # If filename is a Star object, then initialize Stars with the same parameters.
@@ -540,7 +541,7 @@ class Stars(MutableMapping):
             "Velocity, v, must be specified.",
         ]
 
-        for k, u, upe in zip(keys, units, unspecified_parameter_exceptions):
+        for k, u, upe in zip(keys, units, unspecified_parameter_exceptions, strict=False):
             try:
                 # Check to see if was key is given.
                 value = kwargs[k]
@@ -1165,8 +1166,8 @@ class Stars(MutableMapping):
           ```
 
         """
-        if not isinstance(filename, str):
-            raise ValueError("Filename must be a string.")
+        if not isinstance(filename, (str, Path)):
+            raise ValueError("Filename must be a string or Path.")
         with open(filename, "wb") as pfile:
             _pickle.dump(self, pfile, protocol=_pickle.HIGHEST_PROTOCOL)
 
@@ -1403,13 +1404,13 @@ class Stars(MutableMapping):
             equal = True
             for attr in attrs:
                 equal_attribute = _np.all(getattr(self, attr) == getattr(other, attr))
-                if equal_attribute == False:
+                if not equal_attribute:
                     if _tools.isQuantity(getattr(self, attr)):
                         equal_attribute = _np.all(getattr(self, attr).value == getattr(other, attr).value)
                         equal_attribute = equal_attribute and _np.all(
                             getattr(self, attr).unit.is_equivalent(getattr(other, attr).unit)
                         )
-                if equal_attribute == False:
+                if not equal_attribute:
                     return False
                 equal = equal and equal_attribute
             return equal
@@ -1421,7 +1422,7 @@ class Stars(MutableMapping):
         for d in sorted(self.__dict__.items()):
             try:
                 data.append((d[0], tuple(d[1])))
-            except:
+            except:  # noqa: E722
                 data.append(d)
         data = tuple(data)
         return hash(data)

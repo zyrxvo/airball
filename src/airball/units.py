@@ -1,7 +1,7 @@
 import math
 
 import astropy.units as _u
-from astropy.units import *
+from astropy.units import *  # noqa: F403
 
 twopi = math.tau
 yrtwopi = _u.def_unit("yrtwopi", _u.yr / twopi, format={"latex": r"(yr/2\pi)"})
@@ -113,7 +113,7 @@ class UnitSet:
         # Determines if the string representations of the units in each UnitSets are identical.
         if isinstance(other, UnitSet):
             result = True
-            for u1, u2 in zip(self, other):
+            for u1, u2 in zip(self, other, strict=False):
                 result = result and (u1.to_string() == u2.to_string())
             return result
         return NotImplemented
@@ -124,7 +124,7 @@ class UnitSet:
         for d in sorted(self.__dict__.items()):
             try:
                 data.append((d[0], tuple(d[1])))
-            except:
+            except:  # noqa: E722
                 data.append(d)
         data = tuple(data)
         return hash(data)

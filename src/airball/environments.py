@@ -1,5 +1,6 @@
 import pickle as _pickle
 from copy import deepcopy
+from pathlib import Path
 
 import numpy as _np
 import rebound as _rebound
@@ -76,7 +77,7 @@ class StellarEnvironment:
             try:
                 loaded = StellarEnvironment._load(filename)
                 self.__dict__ = loaded.__dict__
-            except:
+            except:  # noqa: E722
                 raise Exception("Invalid filename.")
             return
 
@@ -251,8 +252,8 @@ class StellarEnvironment:
           ```
 
         """
-        if not isinstance(filename, str):
-            raise ValueError("Filename must be a string.")
+        if not isinstance(filename, (str, Path)):
+            raise ValueError("Filename must be a string or Path.")
         with open(filename, "wb") as pfile:
             _pickle.dump(self, pfile, protocol=_pickle.HIGHEST_PROTOCOL)
 
@@ -274,8 +275,8 @@ class StellarEnvironment:
           ```
 
         """
-        if not isinstance(filename, str):
-            raise ValueError("Filename must be a string.")
+        if not isinstance(filename, (str, Path)):
+            raise ValueError("Filename must be a string or Path.")
         with open(filename, "rb") as pfile:
             return _pickle.load(pfile)
 
@@ -297,11 +298,11 @@ class StellarEnvironment:
             equal = True
             for attr in attrs:
                 equal_attribute = getattr(self, attr) == getattr(other, attr)
-                if equal_attribute == False:
+                if not equal_attribute:
                     if _tools.isQuantity(getattr(self, attr)):
                         equal_attribute = getattr(self, attr).value == getattr(other, attr).value
                         equal_attribute = equal_attribute and getattr(self, attr).unit.is_equivalent(getattr(other, attr).unit)
-                if equal_attribute == False:
+                if not equal_attribute:
                     return False
                 equal = equal and equal_attribute
             return equal
@@ -313,7 +314,7 @@ class StellarEnvironment:
         for d in sorted(self.__dict__.items()):
             try:
                 data.append((d[0], tuple(d[1])))
-            except:
+            except:  # noqa: E722
                 data.append(d)
         data = tuple(data)
         return hash(data)
@@ -390,17 +391,20 @@ class StellarEnvironment:
             sim = _rebound.Simulation()
             sim.add(m=1.0)
             sim.add(m=5.2e-05, a=30.2, e=0.013)  # Use Neptune as a test planet.
-            _f = lambda b: _np.abs(
-                _analytic.relative_energy_change(
-                    sim,
-                    _Stars(
-                        m=self.upper_mass_limit,
-                        b=b << self.units.length,
-                        v=_np.sqrt(2.0) * _tools.maxwell_boltzmann_mean_from_dispersion(self.velocity_dispersion),
-                    ),
-                    averaged=True,
+
+            def _f(b):
+                _np.abs(
+                    _analytic.relative_energy_change(
+                        sim,
+                        _Stars(
+                            m=self.upper_mass_limit,
+                            b=b << self.units.length,
+                            v=_np.sqrt(2.0) * _tools.maxwell_boltzmann_mean_from_dispersion(self.velocity_dispersion),
+                        ),
+                        averaged=True,
+                    )
                 )
-            )
+
             bs = _np.logspace(1, 6, 1000) << _u.au
             _g = _interp(_f(bs), bs, fill_value="extrapolate")
             self._maximum_impact_parameter = _g(1e-16) << self.units.length
