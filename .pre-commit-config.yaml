@@ -10,10 +10,10 @@ repos:
       args: [--assume-in-merge]
 
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.12.0
+  rev: v0.15.11
   hooks:
     - id: ruff-check
-      args: [ --fix, --exit-non-zero-on-fix]
+      args: [ --fix, --exit-non-zero-on-fix, --preview ]
       types_or: [ python, pyi ]
     - id: ruff-format
       types_or: [ python, pyi ]

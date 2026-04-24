@@ -1,6 +1,6 @@
 [project]
 name = "airball"
-dynamic = ["version"]
+version = "0.10.1"
 description = "A package for running and managing flybys using REBOUND."
 readme = "README.md"
 authors = [
@@ -14,6 +14,7 @@ dependencies = [
     "rebound>=4.4.7",
     "astropy",
     "joblib",
+    "tomli>=1.1.0; python_version < '3.11'",
 ]
 
 [dependency-groups]
@@ -121,7 +122,9 @@ ignore = [
     "D107",
     "D203",
     "D213",
+    "D417",
     "N806",
+    "RUF067",
     "S404",
     "S311",
     "S603",
@@ -151,6 +154,3 @@ exclude = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["airball"]
-
-[tool.hatch.version]
-path = "airball/__init__.py"

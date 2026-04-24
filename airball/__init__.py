@@ -1,8 +1,25 @@
-"""# Flybys in `REBOUND`
-- A package for implementing flybys in [hannorein/rebound](https://github.com/hannorein/rebound)
-"""
+# Copyright 2024  Garett Brown
+#
+# AIRBALL is free software: you can redistribute it and/or modify it under the terms of
+# the GNU General Public License as published by the Free Software Foundation, either
+# version 3 of the License, or (at your option) any later version.
+#
+# AIRBALL is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+# See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with airball.
+# If not, see http://www.gnu.org/licenses/.
+"""AIRBALL: A companion package to REBOUND for simulating stellar flybys."""
 
-__version__ = "v0.10.0"
+import importlib.metadata
+from pathlib import Path
+
+# Load tomlib for Python 3.11+ and tomli for Python 3.10.
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
 
 from .analytic import (
     eccentricity_change_adiabatic_estimate,
@@ -30,6 +47,19 @@ from .environments import (
 from .imf import IMF
 from .stars import Star, Stars
 from .units import UnitSet
+
+
+def get_version() -> str:
+    """Get the version of `airball`."""
+    try:
+        return importlib.metadata.version("airball")
+    except importlib.metadata.PackageNotFoundError:
+        pyproject = Path(__file__).parents[1] / "pyproject.toml"
+        return tomllib.loads(pyproject.read_text())["project"]["version"]
+
+
+__version__ = get_version()
+
 
 __all__ = [
     "IMF",
