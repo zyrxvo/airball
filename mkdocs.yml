@@ -78,7 +78,7 @@ plugins:
       default_handler: python
       handlers:
         python:
-          paths: [src]
+          paths: [.]
           options:
             show_root_heading: true
             heading_level: 4

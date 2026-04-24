@@ -150,7 +150,7 @@ exclude = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/airball"]
+packages = ["airball"]
 
 [tool.hatch.version]
-path = "src/airball/__init__.py"
+path = "airball/__init__.py"
