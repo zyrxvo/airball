@@ -30,36 +30,14 @@ jobs:
       - name: Compare versions
         run: |
           uv run --python ${{ env.PYTHON_VERSION }} --with packaging python - <<EOF
-          import sys
+          import sys, tomllib
           from pathlib import Path
-          from packaging import version
-
-          def get_version(path: Path) -> str:
-              for line in path.read_text(encoding="utf-8").splitlines():
-                  if "__version__" in line:
-                      return line.strip().split()[-1][1:-1]
-
-          print("Checking versions...")
-
-          main_branch = Path.cwd() / "main_branch/src/airball/__init__.py"
-          if not main_branch.exists():
-              print(f"Main branch {main_branch.relative_to(Path.cwd())} not found. Assuming this is the first version.")
+          from packaging.version import Version, parse
+          def get_version(branch: str) -> Version:
+              path = Path.cwd() / f"{branch}_branch" / "pyproject.toml"
+              return parse(tomllib.loads(path.read_text(encoding="utf-8"))["project"]["version"])
+          if (curr := get_version("current")) <= (dev := get_version("main")):
+              print(f"Error: current version {curr} must be greater than main version {dev}.")
+              print("Please bump the version by running 'uv version --bump patch' and pushing the changes.")
               sys.exit(1)
-
-          current_branch = Path.cwd() / "current_branch/src/airball/__init__.py"
-          if not current_branch.exists():
-              print(f"Failed to checkout current branch, {current_branch.relative_to(Path.cwd())} not found.")
-              sys.exit(1)
-
-          main_ver_str = get_version(main_branch)
-          curr_ver_str = get_version(current_branch)
-
-          print(f"Main version: {main_ver_str}")
-          print(f"Current version: {curr_ver_str}")
-
-          if version.parse(curr_ver_str) <= version.parse(main_ver_str):
-              print("Error: Current version must be greater than main version.")
-              sys.exit(1)
-          else:
-              print("Success: Current version is greater than main version.")
           EOF

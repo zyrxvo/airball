@@ -1,4 +1,4 @@
-# Copyright 2024  Garett Brown
+# Copyright 2024 Garett Brown
 #
 # AIRBALL is free software: you can redistribute it and/or modify it under the terms of
 # the GNU General Public License as published by the Free Software Foundation, either
@@ -268,7 +268,7 @@ class StellarEnvironment:
         """
         if not isinstance(filename, (str, Path)):
             raise ValueError("Filename must be a string or Path.")
-        with open(filename, "wb") as pfile:
+        with Path(filename).open("wb") as pfile:
             _pickle.dump(self, pfile, protocol=_pickle.HIGHEST_PROTOCOL)
 
     @classmethod
@@ -291,7 +291,7 @@ class StellarEnvironment:
         """
         if not isinstance(filename, (str, Path)):
             raise ValueError("Filename must be a string or Path.")
-        with open(filename, "rb") as pfile:
+        with Path(filename).open("rb") as pfile:
             return _pickle.load(pfile)
 
     def __eq__(self, other):
@@ -312,10 +312,9 @@ class StellarEnvironment:
             equal = True
             for attr in attrs:
                 equal_attribute = getattr(self, attr) == getattr(other, attr)
-                if not equal_attribute:
-                    if _tools.isQuantity(getattr(self, attr)):
-                        equal_attribute = getattr(self, attr).value == getattr(other, attr).value
-                        equal_attribute = equal_attribute and getattr(self, attr).unit.is_equivalent(getattr(other, attr).unit)
+                if not equal_attribute and _tools.isQuantity(getattr(self, attr)):
+                    equal_attribute = getattr(self, attr).value == getattr(other, attr).value
+                    equal_attribute = equal_attribute and getattr(self, attr).unit.is_equivalent(getattr(other, attr).unit)
                 if not equal_attribute:
                     return False
                 equal = equal and equal_attribute

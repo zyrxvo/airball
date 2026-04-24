@@ -1,4 +1,4 @@
-# Copyright 2024  Garett Brown
+# Copyright 2024 Garett Brown
 #
 # AIRBALL is free software: you can redistribute it and/or modify it under the terms of
 # the GNU General Public License as published by the Free Software Foundation, either
@@ -647,10 +647,9 @@ class IMF:
             equal = True
             for attr in attrs:
                 equal_attribute = getattr(self, attr) == getattr(other, attr)
-                if not equal_attribute:
-                    if _tools.isQuantity(getattr(self, attr)):
-                        equal_attribute = getattr(self, attr).value == getattr(other, attr).value
-                        equal_attribute = equal_attribute and getattr(self, attr).unit.is_equivalent(getattr(other, attr).unit)
+                if not equal_attribute and _tools.isQuantity(getattr(self, attr)):
+                    equal_attribute = getattr(self, attr).value == getattr(other, attr).value
+                    equal_attribute = equal_attribute and getattr(self, attr).unit.is_equivalent(getattr(other, attr).unit)
                 if not equal_attribute:
                     return False
                 equal = equal and equal_attribute
