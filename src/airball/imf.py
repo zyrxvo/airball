@@ -1,8 +1,6 @@
 import numpy as np
 import types as _types
 from copy import deepcopy
-from scipy.integrate import quad, cumulative_trapezoid as cumtrapz
-from scipy.stats import rv_continuous
 from scipy.interpolate import PchipInterpolator
 from . import units as _u
 from . import tools as _tools
@@ -289,11 +287,11 @@ class broken_power_law(Distribution):
 
 
 class lognormal(Distribution):
-    """
+    r"""
     Lognormal IMF.
     This function calculates the probability density for a given mass value (x) based on a lognormal IMF.
 
-    $$PDF(x) = A \\exp\\left[-\\frac{(\\log_{10}(x) - \\mu)^2 }{ 2 \\sigma^2}\\right]$$
+    $$PDF(x) = \\frac{A}{x} \\exp\\left[-\\frac{(\\log_{10}(x) - \\mu)^2 }{ 2 \\sigma^2}\\right]$$
 
     Args:
       mu (float): Mean of the lognormal distribution.
@@ -310,7 +308,7 @@ class lognormal(Distribution):
         super().__init__(self._lognormal, [mu, sigma, A], unit)
 
     def _lognormal(self, x, mu, sigma, A):
-        return A * np.exp(-((np.log10(x) - mu) ** 2) / (2 * sigma**2))
+        return (A / x) * np.exp(-((np.log10(x) - mu) ** 2) / (2 * sigma**2))
 
 
 class loguniform(Distribution):
@@ -334,38 +332,6 @@ class loguniform(Distribution):
 
     def _loguniform(self, x, A, x_0):
         return x_0 * A / x
-
-
-class _IMFDist(rv_continuous):
-    a: int
-    b: int
-
-    def _set_imf(self, mass_function, number_samples):
-        # Ensure the mass_function is vectorized
-        test_x = np.array([self.a, self.b])
-        result = mass_function(test_x)
-        # If result is not array-like or is scalar, vectorize
-        if np.isscalar(result) or (not hasattr(result, "__len__")):
-            mass_function = np.vectorize(mass_function)
-        self._mass_function = mass_function
-        self._norm, _ = quad(mass_function, self.a, self.b)
-        self._build_sampler(number_samples)
-
-    def _pdf(self, x, *args):
-        return self._mass_function(x) / self._norm
-
-    def _build_sampler(self, n=1000):
-        grid = np.geomspace(self.a, self.b, n)
-        cdf_vals = np.insert(cumtrapz(self._mass_function(grid), grid), 0, 0)
-        cdf_vals /= cdf_vals[-1]
-        cdf_vals[0], cdf_vals[-1] = 0.0, 1.0
-        log_grid = np.log(grid)
-        self._inv_cdf = PchipInterpolator(cdf_vals, log_grid, extrapolate=False)
-        self._cdf_spline = PchipInterpolator(log_grid, cdf_vals, extrapolate=False)
-
-    def _rvs(self, *args, size=None, random_state=None):
-        u = random_state.uniform(size=size)
-        return np.exp(self._inv_cdf(u))
 
 
 class IMF:
@@ -401,7 +367,7 @@ class IMF:
         max_mass,
         mass_function=None,
         unit=_u.solMass,
-        number_samples=5e5,
+        number_samples=1e5,
         seed=None,
     ):
         self._number_samples = int(number_samples)
@@ -432,31 +398,81 @@ class IMF:
         self._recalculate()
 
     def _recalculate(self):
-        self._dist = _IMFDist(a=self.min_mass.value, b=self.max_mass.value)
-        self._dist._set_imf(self.initial_mass_function, self.number_samples)
-        self.normalization_factor = self._dist._norm
+        grid = np.geomspace(
+            self.min_mass.value, self.max_mass.value, self._number_samples
+        )
+        log_grid = np.log(grid)
+
+        g_vals = self.initial_mass_function(grid) * grid
+        g_spline = PchipInterpolator(log_grid, g_vals)
+        G = g_spline.antiderivative()
+
+        self.normalization_factor = G(log_grid[-1]) - G(log_grid[0])
+        self._G = G
+        self._log_min = log_grid[0]
+
+        # CDF values at grid points — used only for building the inverse CDF
+        cdf_vals = (G(log_grid) - G(log_grid[0])) / self.normalization_factor
+        cdf_vals[0], cdf_vals[-1] = 0.0, 1.0
+
+        self._inv_cdf = PchipInterpolator(cdf_vals, log_grid, extrapolate=False)
 
     def cdf(self, x):
-        return self._dist._cdf_spline(np.log(x))
+        vals = (self._G(np.log(x)) - self._G(self._log_min)) / self.normalization_factor
+        return np.where(
+            x < self.min_mass.value,
+            0.0,
+            np.where(x > self.max_mass.value, 1.0, np.clip(vals, 0.0, 1.0)),
+        )
 
     def pdf(self, x):
-        return self._dist.pdf(x)
+        x = np.asarray(x)
+        vals = self.initial_mass_function(x) / self.normalization_factor
+        return np.where(
+            (x >= self.min_mass.value) & (x <= self.max_mass.value), vals, 0.0
+        )
 
     def random_mass(self, size=1, **kwargs):
         self.seed = kwargs.get("seed", self.seed)
         size = tuple(int(i) for i in size) if isinstance(size, tuple) else int(size)
-        masses = self._dist.rvs(size=size, random_state=self.seed) << self.unit
+        rng = np.random.default_rng(self._seed)
+        u = rng.uniform(size=size)
+        masses = np.exp(self._inv_cdf(u)) << self.unit
         if isinstance(size, tuple) or size > 1:
             return masses
         return masses[0]
 
     @property
     def mean_mass(self):
-        return self._dist.mean() << self.unit
+        # E[m] = ∫ m * pdf(m) dm = ∫ m * g(t) dt in log-space (already have G)
+        g_vals = (
+            self.initial_mass_function(
+                np.exp(self._inv_cdf.x)  # the log-mass grid
+            )
+            * np.exp(self._inv_cdf.x) ** 2
+        )  # extra m factor for expectation
+        h_spline = PchipInterpolator(
+            self._inv_cdf.x, g_vals / self.normalization_factor
+        )
+        return h_spline.integrate(self._inv_cdf.x[0], self._inv_cdf.x[-1]) << self.unit
 
     @property
     def median_mass(self):
-        return self._dist.median() << self.unit
+        return np.exp(self._inv_cdf(0.5)) << self.unit
+
+    @property
+    def std_mass(self):
+        mean = self.mean_mass.value
+        g_vals = (
+            self.initial_mass_function(np.exp(self._inv_cdf.x))
+            * (np.exp(self._inv_cdf.x) - mean) ** 2
+            * np.exp(self._inv_cdf.x)
+        )
+        h_spline = PchipInterpolator(
+            self._inv_cdf.x, g_vals / self.normalization_factor
+        )
+        variance = h_spline.integrate(self._inv_cdf.x[0], self._inv_cdf.x[-1])
+        return np.sqrt(variance) << self.unit
 
     def masses(self, number_samples, endpoint=True, unitless=True):
         """
