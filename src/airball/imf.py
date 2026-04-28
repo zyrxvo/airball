@@ -1,8 +1,9 @@
+from collections.abc import Callable
 import numpy as np
 import types as _types
 from copy import deepcopy
 from scipy.interpolate import PchipInterpolator
-from . import units as _u
+from . import units as u
 from . import tools as _tools
 
 
@@ -77,8 +78,8 @@ class chabrier_2003_single(Distribution):
       ```
     """
 
-    def __init__(self, A=0.158, unit=_u.solMass):
-        x_0 = 0.079 * _u.solMass.to(unit)
+    def __init__(self, A=0.158, unit=u.solMass):
+        x_0 = 0.079 * u.solMass.to(unit)
         super().__init__(self._chabrier_2003_single, [x_0, A], unit)
 
     def _chabrier_2003_single(self, x, x_0, A=0.158):
@@ -106,8 +107,8 @@ class chabrier_2005_single(Distribution):
       ```
     """
 
-    def __init__(self, A=0.093, unit=_u.solMass):
-        x_0 = 0.2 * _u.solMass.to(unit)
+    def __init__(self, A=0.093, unit=u.solMass):
+        x_0 = 0.2 * u.solMass.to(unit)
         super().__init__(self._chabrier_2005_single, [x_0, A], unit)
 
     def _chabrier_2005_single(self, x, x_0, A=0.093):
@@ -135,7 +136,7 @@ class salpeter_1955(Distribution):
       ```
     """
 
-    def __init__(self, A, unit=_u.solMass):
+    def __init__(self, A, unit=u.solMass):
         super().__init__(self._salpeter_1955, [A], unit)
 
     def _salpeter_1955(self, x, A):
@@ -160,8 +161,8 @@ class default_mass_function(Distribution):
       ```
     """
 
-    def __init__(self, unit=_u.solMass):
-        x_0 = (1 * _u.solMass).to(unit).value
+    def __init__(self, unit=u.solMass):
+        x_0 = (1 * u.solMass).to(unit).value
         super().__init__(self._default_mass_function, [x_0], unit)
 
     def _default_mass_function(self, x, x_0):
@@ -206,7 +207,7 @@ class kroupa_1993(Distribution):
       ```
     """
 
-    def __init__(self, x_0, unit=_u.solMass):
+    def __init__(self, x_0, unit=u.solMass):
         super().__init__(self._kroupa_1993, [x_0], unit)
 
     def _kroupa_1993(self, x, x_0):
@@ -227,7 +228,7 @@ class uniform(Distribution):
     $$PDF(x) = 1$$
     """
 
-    def __init__(self, unit=_u.solMass):
+    def __init__(self, unit=u.solMass):
         super().__init__(self._uniform, [], unit)
 
     def _uniform(self, x):
@@ -254,7 +255,7 @@ class power_law(Distribution):
       pdf (float or ndarray): Probability density at the given mass value(s).
     """
 
-    def __init__(self, alpha, A, unit=_u.solMass):
+    def __init__(self, alpha, A, unit=u.solMass):
         super().__init__(self._power_law, [alpha, A], unit)
 
     def _power_law(self, x, alpha, A):
@@ -278,7 +279,7 @@ class broken_power_law(Distribution):
       pdf (float or ndarray): Probability density at the given mass value(s).
     """
 
-    def __init__(self, alpha, beta, A, x_0, unit=_u.solMass):
+    def __init__(self, alpha, beta, A, x_0, unit=u.solMass):
         x_0 = _tools.verify_unit(x_0, unit).value
         super().__init__(self._broken_power_law, [alpha, beta, A, x_0], unit)
 
@@ -302,7 +303,7 @@ class lognormal(Distribution):
       pdf (float or ndarray): Probability density at the given mass value(s).
     """
 
-    def __init__(self, mu, sigma, A, unit=_u.solMass):
+    def __init__(self, mu, sigma, A, unit=u.solMass):
         mu = _tools.verify_unit(mu, unit).value
         sigma = _tools.verify_unit(sigma, unit).value
         super().__init__(self._lognormal, [mu, sigma, A], unit)
@@ -326,7 +327,7 @@ class loguniform(Distribution):
       pdf (float or ndarray): Probability density at the given mass value(s).
     """
 
-    def __init__(self, A=1, x_0=1, unit=_u.solMass):
+    def __init__(self, A=1, x_0=1, unit=u.solMass):
         x_0 = _tools.verify_unit(x_0, unit).value
         super().__init__(self._loguniform, [A, x_0], unit)
 
@@ -336,12 +337,17 @@ class loguniform(Distribution):
 
 class IMF:
     """
-    Class representing an Initial Mass Function (IMF).
-    It generates random masses based on a given mass function (dN/dM) and provides various properties and methods for manipulating and analyzing the IMF.
+    Initial Mass Function (IMF).
+
+    An empirical function that describes the initial distribution of masses for a population of
+    stars during star formation. [(wikipedia)](https://en.wikipedia.org/wiki/Initial_mass_function).
+
+    It generates random masses based on a given mass function (dN/dM) and provides various
+    properties and methods for manipulating and analyzing the IMF.
 
     Args:
-      min_mass (float): Minimum mass value of the IMF range.
-      max_mass (float): Maximum mass value of the IMF range.
+      min_mass (Quantity): Minimum mass value of the IMF range.
+      max_mass (Quantity): Maximum mass value of the IMF range.
       mass_function (function, optional): Mass function to use for the IMF. Default is a piecewise Chabrier 2003 and Salpeter 1955.
       unit (Unit, optional): Unit of mass. Default is solar masses.
       number_samples (float, optional): Number of samples to use for interpolating the CDF. Default is 5x10^5.
@@ -355,7 +361,7 @@ class IMF:
       number_samples (float): Number of samples to use for interpolating the CDF.
       unit (Unit): Unit of mass.
       normalization_factor (float): Normalization factor for the PDF.
-      masses (ndarray): Mass values logarithmically spanning the IMF range.
+      masses (Quantity): Mass values logarithmically spanning the IMF range.
       CDF (function): Cumulative distribution function (CDF) of the IMF.
       PDF (function): Normalized probability density function (PDF) of the IMF.
       IMF (function): Initial mass function (IMF) of the IMF.
@@ -363,16 +369,16 @@ class IMF:
 
     def __init__(
         self,
-        min_mass,
-        max_mass,
-        mass_function=None,
-        unit=_u.solMass,
-        number_samples=1e5,
-        seed=None,
+        min_mass: u.Quantity,
+        max_mass: u.Quantity,
+        mass_function: Callable | None = None,
+        unit: u.Unit = u.solMass,
+        number_samples: int = int(1e5),
+        seed: int | None = None,
     ):
         self._number_samples = int(number_samples)
         self._seed = seed
-        self.unit = unit if _u.isUnit(unit) else _u.solMass
+        self.unit = unit if u.isUnit(unit) else u.solMass
 
         # Convert min_mass and max_mass to specified unit if they are Quantity objects, otherwise assume they are already in the correct unit
         self._min_mass = min_mass << self.unit
@@ -398,53 +404,92 @@ class IMF:
         self._recalculate()
 
     def _recalculate(self):
-        grid = np.geomspace(
+        """Initializes the inverse CDF for the IMF to facilitate efficient random mass sampling.
+
+        This method constructs a logarithmically spaced mass grid to accurately resolve multiple
+        orders of magnitude. It applies a Jacobian transformation to map the mass density into
+        log-space, then numerically integrates this density using a Piecewise Cubic Hermite
+        Interpolating Polynomial (PCHIP) to guarantee strict monotonicity.
+
+        After normalizing the integrated CDF, a final PCHIP interpolator is built mapping
+        uniform probabilities from [0, 1] back to log-masses. This is stored as `_inv_cdf`
+        for subsequent inverse transform sampling.
+        """
+        grid: np.ndarray = np.geomspace(
             self.min_mass.value, self.max_mass.value, self._number_samples
         )
-        log_grid = np.log(grid)
+        log_grid: np.ndarray = np.log(grid)
 
-        g_vals = self.initial_mass_function(grid) * grid
+        # Jacobian transformation with `m = grid`
+        # Since g(u) = f(m) |dm/du|, and m = e^u, |dm/du| = m.
+        g_vals: np.ndarray = self.initial_mass_function(grid) * grid
+
+        # Fits a PCHIP to the log-density.
         g_spline = PchipInterpolator(log_grid, g_vals)
-        G = g_spline.antiderivative()
 
+        # Numerically integrate the interpolated density.
+        # G(u) represents the indefinite integral.
+        G: PchipInterpolator = g_spline.antiderivative()
+
+        # Calculates the definite integral over the entire range [m_min ,m_max].
         self.normalization_factor = G(log_grid[-1]) - G(log_grid[0])
-        self._G = G
-        self._log_min = log_grid[0]
 
-        # CDF values at grid points — used only for building the inverse CDF
+        # Store these for future use in CDF.
+        self._G: PchipInterpolator = G
+        self._log_min: float = log_grid[0]
+
+        # CDF values at grid points for building the inverse CDF.
         cdf_vals = (G(log_grid) - G(log_grid[0])) / self.normalization_factor
         cdf_vals[0], cdf_vals[-1] = 0.0, 1.0
-
         self._inv_cdf = PchipInterpolator(cdf_vals, log_grid, extrapolate=False)
 
-    def cdf(self, x):
+    def cdf(self, x: u.Quantity | np.ndarray) -> np.ndarray:
+        """Cumulative distribution function (CDF) of the IMF."""
+        min_mass: float = self.min_mass.value
+        max_mass: float = self.max_mass.value
         vals = (self._G(np.log(x)) - self._G(self._log_min)) / self.normalization_factor
-        return np.where(
-            x < self.min_mass.value,
-            0.0,
-            np.where(x > self.max_mass.value, 1.0, np.clip(vals, 0.0, 1.0)),
-        )
+        clipped: np.ndarray = np.clip(vals, 0.0, 1.0)
+        return np.where(x < min_mass, 0.0, np.where(x > max_mass, 1.0, clipped))
 
-    def pdf(self, x):
-        x = np.asarray(x)
-        vals = self.initial_mass_function(x) / self.normalization_factor
-        return np.where(
-            (x >= self.min_mass.value) & (x <= self.max_mass.value), vals, 0.0
-        )
+    def pdf(self, x: u.Quantity | np.ndarray) -> np.ndarray:
+        """Normalized probability density function (PDF) of the IMF."""
+        x: np.ndarray = np.asarray(x)
+        min_mass: float = self.min_mass.value
+        max_mass: float = self.max_mass.value
+        vals: np.ndarray = self.initial_mass_function(x) / self.normalization_factor
+        return np.where((x >= min_mass) & (x <= max_mass), vals, 0.0)
 
-    def random_mass(self, size=1, **kwargs):
-        self.seed = kwargs.get("seed", self.seed)
+    def random_mass(
+        self, size: int | tuple[int, ...] = 1, **kwargs
+    ) -> u.Quantity | tuple[u.Quantity, ...]:
+        """Generates random mass values from the IMF.
+
+        Args:
+          size (int or tuple): Number of mass values to generate. If size is a tuple, it is interpreted as array dimensions. Default: 1.
+
+        Keyword Args:
+          seed (int): Seed for the random number generator. Default: None.
+
+        Returns:
+          masses (float or ndarray): Randomly generated mass value(s) from the IMF.
+
+        Example:
+          ```python
+          import airball
+          imf = airball.IMF(0.1, 100)
+          imf.random_mass()
+          ```
+        """
         size = tuple(int(i) for i in size) if isinstance(size, tuple) else int(size)
-        rng = np.random.default_rng(self._seed)
-        u = rng.uniform(size=size)
-        masses = np.exp(self._inv_cdf(u)) << self.unit
+        rng = np.random.default_rng(kwargs.get("seed", self.seed))
+        masses = np.exp(self._inv_cdf(rng.uniform(size=size))) << self.unit
         if isinstance(size, tuple) or size > 1:
             return masses
         return masses[0]
 
     @property
     def mean_mass(self):
-        # E[m] = ∫ m * pdf(m) dm = ∫ m * g(t) dt in log-space (already have G)
+        # E[m] = ∫ m * pdf(m) dm = ∫ m * g(t) dt in log-space
         g_vals = (
             self.initial_mass_function(
                 np.exp(self._inv_cdf.x)  # the log-mass grid
@@ -459,20 +504,6 @@ class IMF:
     @property
     def median_mass(self):
         return np.exp(self._inv_cdf(0.5)) << self.unit
-
-    @property
-    def std_mass(self):
-        mean = self.mean_mass.value
-        g_vals = (
-            self.initial_mass_function(np.exp(self._inv_cdf.x))
-            * (np.exp(self._inv_cdf.x) - mean) ** 2
-            * np.exp(self._inv_cdf.x)
-        )
-        h_spline = PchipInterpolator(
-            self._inv_cdf.x, g_vals / self.normalization_factor
-        )
-        variance = h_spline.integrate(self._inv_cdf.x[0], self._inv_cdf.x[-1])
-        return np.sqrt(variance) << self.unit
 
     def masses(self, number_samples, endpoint=True, unitless=True):
         """
