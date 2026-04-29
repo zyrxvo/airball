@@ -290,7 +290,7 @@ class Star:
         with open(filename, "wb") as pfile:
             _pickle.dump(self, pfile, protocol=_pickle.HIGHEST_PROTOCOL)
 
-    def copy(self):
+    def copy(self) -> "Star":
         """Returns a deep copy of the Star object."""
         return _deepcopy(self)
 

@@ -1,10 +1,20 @@
-from collections.abc import Callable
-import numpy as np
-import types as _types
 from copy import deepcopy
+import types
+from collections.abc import Callable
+from typing import Protocol, runtime_checkable
+
+import numpy as np
 from scipy.interpolate import PchipInterpolator
-from . import units as u
-from . import tools as _tools
+
+import airball.units as u
+import airball.tools as tools
+
+
+@runtime_checkable
+class MassFunction(Protocol):
+    unit: object
+
+    def __call__(self, x: float | np.ndarray) -> float | np.ndarray: ...
 
 
 class Distribution:
@@ -280,7 +290,7 @@ class broken_power_law(Distribution):
     """
 
     def __init__(self, alpha, beta, A, x_0, unit=u.solMass):
-        x_0 = _tools.verify_unit(x_0, unit).value
+        x_0 = tools.verify_unit(x_0, unit).value
         super().__init__(self._broken_power_law, [alpha, beta, A, x_0], unit)
 
     def _broken_power_law(self, x, alpha, beta, A, x_0):
@@ -304,8 +314,8 @@ class lognormal(Distribution):
     """
 
     def __init__(self, mu, sigma, A, unit=u.solMass):
-        mu = _tools.verify_unit(mu, unit).value
-        sigma = _tools.verify_unit(sigma, unit).value
+        mu = tools.verify_unit(mu, unit).value
+        sigma = tools.verify_unit(sigma, unit).value
         super().__init__(self._lognormal, [mu, sigma, A], unit)
 
     def _lognormal(self, x, mu, sigma, A):
@@ -328,7 +338,7 @@ class loguniform(Distribution):
     """
 
     def __init__(self, A=1, x_0=1, unit=u.solMass):
-        x_0 = _tools.verify_unit(x_0, unit).value
+        x_0 = tools.verify_unit(x_0, unit).value
         super().__init__(self._loguniform, [A, x_0], unit)
 
     def _loguniform(self, x, A, x_0):
@@ -350,7 +360,7 @@ class IMF:
       max_mass (Quantity): Maximum mass value of the IMF range.
       mass_function (function, optional): Mass function to use for the IMF. Default is a piecewise Chabrier 2003 and Salpeter 1955.
       unit (Unit, optional): Unit of mass. Default is solar masses.
-      number_samples (float, optional): Number of samples to use for interpolating the CDF. Default is 5x10^5.
+      interpolating_samples (float, optional): Number of samples to use for interpolating the CDF. Default is 5x10^5.
       seed (float, optional): Value to seed the random number generator with. Default is None.
 
     Attributes:
@@ -358,7 +368,7 @@ class IMF:
       max_mass (float): Maximum mass value of the IMF range.
       median_mass (float): Median mass value of the IMF.
       seed (float): Value to seed the random number generator with.
-      number_samples (float): Number of samples to use for interpolating the CDF.
+      interpolating_samples (float): Number of samples to use for interpolating the CDF.
       unit (Unit): Unit of mass.
       normalization_factor (float): Normalization factor for the PDF.
       masses (Quantity): Mass values logarithmically spanning the IMF range.
@@ -369,14 +379,14 @@ class IMF:
 
     def __init__(
         self,
-        min_mass: u.Quantity,
-        max_mass: u.Quantity,
+        min_mass: u.Quantity | float,
+        max_mass: u.Quantity | float,
         mass_function: Callable | None = None,
         unit: u.Unit = u.solMass,
-        number_samples: int = int(1e5),
+        interpolating_samples: int = int(1e5),
         seed: int | None = None,
     ):
-        self._number_samples = int(number_samples)
+        self._interpolating_samples = int(interpolating_samples)
         self._seed = seed
         self.unit = unit if u.isUnit(unit) else u.solMass
 
@@ -391,7 +401,7 @@ class IMF:
         # Determine the probability distribution function (PDF) based on the given mass function or default to Chabrier (2003).
         if mass_function is None:
             mass_function = default_mass_function()
-        elif not isinstance(mass_function, (_types.FunctionType, Distribution)):
+        elif not isinstance(mass_function, (types.FunctionType, Distribution)):
             raise ValueError(
                 "mass_function must be a function or a Distribution object."
             )
@@ -416,7 +426,7 @@ class IMF:
         for subsequent inverse transform sampling.
         """
         grid: np.ndarray = np.geomspace(
-            self.min_mass.value, self.max_mass.value, self._number_samples
+            self.min_mass.value, self.max_mass.value, self._interpolating_samples
         )
         log_grid: np.ndarray = np.log(grid)
 
@@ -505,19 +515,19 @@ class IMF:
     def median_mass(self):
         return np.exp(self._inv_cdf(0.5)) << self.unit
 
-    def masses(self, number_samples, endpoint=True, unitless=True):
+    def masses(self, interpolating_samples, endpoint=True, unitless=True):
         """
         Convenience function for generating an array of mass values logarithmically spanning the IMF range.
 
         Args:
-          number_samples (int): Number of mass values to generate.
+          interpolating_samples (int): Number of mass values to generate.
           endpoint (bool, optional): Whether to include the max_mass value in the array. Default: True.
 
         Returns:
           masses (ndarray): numpy array of mass values logarithmically spanning the IMF range.
         """
         ms = np.geomspace(
-            self.min_mass, self.max_mass, int(number_samples), endpoint=endpoint
+            self.min_mass, self.max_mass, int(interpolating_samples), endpoint=endpoint
         )
         return ms.value if unitless else ms
 
@@ -534,7 +544,7 @@ class IMF:
 
     @min_mass.setter
     def min_mass(self, value):
-        value = value.to(self.unit) if _tools.isQuantity(value) else value * self.unit
+        value = value.to(self.unit) if tools.isQuantity(value) else value * self.unit
         if value.value <= 0:
             raise ValueError(
                 "Cannot have minimum mass value be less than or equal to 0."
@@ -555,7 +565,7 @@ class IMF:
 
     @max_mass.setter
     def max_mass(self, value):
-        value = value.to(self.unit) if _tools.isQuantity(value) else value * self.unit
+        value = value.to(self.unit) if tools.isQuantity(value) else value * self.unit
         if value.value <= 0:
             raise ValueError(
                 "Cannot have maximum mass value be less than or equal to 0."
@@ -565,7 +575,7 @@ class IMF:
                 "Cannot have maximum mass value be less than or equal to minimum mass value."
             )
         self._max_mass = (
-            value.to(self.unit) if _tools.isQuantity(value) else value * self.unit
+            value.to(self.unit) if tools.isQuantity(value) else value * self.unit
         )
         self._recalculate()
 
@@ -591,19 +601,19 @@ class IMF:
         self._seed = value
 
     @property
-    def number_samples(self):
+    def interpolating_samples(self):
         """
         The number of samples to use for interpolating the CDF.
-        Recalculates the IMF properties when the `number_samples` value is updated.
+        Recalculates the IMF properties when the `interpolating_samples` value is updated.
 
         Args:
           value (int): New number of samples to use for interpolating the CDF.
         """
-        return self._number_samples
+        return self._interpolating_samples
 
-    @number_samples.setter
-    def number_samples(self, value):
-        self._number_samples = int(value)
+    @interpolating_samples.setter
+    def interpolating_samples(self, value):
+        self._interpolating_samples = int(value)
         self._recalculate()
 
     @property
@@ -636,14 +646,14 @@ class IMF:
                 "max_mass",
                 "initial_mass_function",
                 "unit",
-                "number_samples",
+                "interpolating_samples",
                 "seed",
             ]
             equal = True
             for attr in attrs:
                 equal_attribute = getattr(self, attr) == getattr(other, attr)
                 if not equal_attribute:
-                    if _tools.isQuantity(getattr(self, attr)):
+                    if tools.isQuantity(getattr(self, attr)):
                         equal_attribute = (
                             getattr(self, attr).value == getattr(other, attr).value
                         )
