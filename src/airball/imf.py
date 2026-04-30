@@ -1,5 +1,6 @@
+import functools
+import warnings
 from copy import deepcopy
-import types
 from collections.abc import Callable
 from typing import Protocol, runtime_checkable
 
@@ -10,35 +11,34 @@ import airball.units as u
 import airball.tools as tools
 
 
+# region MassFunction Protocol
 @runtime_checkable
 class MassFunction(Protocol):
-    unit: object
+    """Protocol for defining the characteristics of a MassFunction used by the IMF class.
 
-    def __call__(self, x: float | np.ndarray) -> float | np.ndarray: ...
-
-
-class Distribution:
-    """
-    Base class for defining a probability distribution function.
-    This class is used to wrap a probability distribution function and its parameters into a single object.
-
-    Args:
-      mass_function (function): Probability distribution function.
-      args (list): List of arguments for the probability distribution function.
-
-    Returns:
-      pdf (float or ndarray): Probability density at the given mass value(s).
+    The essence of the protocol is to define a callable object that also contains a `unit`
+    attribute. Leniency by the IMF class is provided if the user does not want to define
+    the `unit` attribute. In these cases the IMF will assume that the units of the mass
+    function are the same as the IMF class.
 
     Example:
       ```python
       import airball
-      mf = airball.imf.Distribution(lambda x, A: A * x, [1])
+      import airball.units as u
+      mf = lambda x, A: A * x
+      mf.unit = u.solMass
       imf = airball.IMF(0.1, 100, mass_function=mf)
       imf.random_mass()
       ```
 
     """
 
+    unit: object
+
+    def __call__(self, x: float | np.ndarray) -> float | np.ndarray: ...
+
+
+class Distribution:
     def __init__(self, mass_function, args, unit):
         self.mass_function = mass_function
         self.params = args
@@ -345,6 +345,7 @@ class loguniform(Distribution):
         return x_0 * A / x
 
 
+# region IMF Class
 class IMF:
     """
     Initial Mass Function (IMF).
@@ -358,7 +359,7 @@ class IMF:
     Args:
       min_mass (Quantity): Minimum mass value of the IMF range.
       max_mass (Quantity): Maximum mass value of the IMF range.
-      mass_function (function, optional): Mass function to use for the IMF. Default is a piecewise Chabrier 2003 and Salpeter 1955.
+      mass_function (callable, optional): Mass function to use for the IMF. Default is a piecewise Chabrier 2003 and Salpeter 1955.
       unit (Unit, optional): Unit of mass. Default is solar masses.
       interpolating_samples (float, optional): Number of samples to use for interpolating the CDF. Default is 5x10^5.
       seed (float, optional): Value to seed the random number generator with. Default is None.
@@ -399,16 +400,40 @@ class IMF:
             raise ValueError("Maximum mass value must be greater than minimum mass.")
 
         # Determine the probability distribution function (PDF) based on the given mass function or default to Chabrier (2003).
-        if mass_function is None:
+        if callable(mass_function) and not isinstance(mass_function, MassFunction):
+            if hasattr(mass_function, "unit"):
+                if mass_function.unit != self.unit:
+                    raise ValueError(
+                        f"mass_function unit '{mass_function.unit}' does not match "
+                        f"IMF unit '{self.unit}'. Please ensure both use the same unit."
+                    )
+                _mass_function = mass_function
+            else:
+                warnings.warn(
+                    f"mass_function has no 'unit' attribute. Assuming IMF unit '{self.unit}'. "
+                    "Define a unit on your mass function to silence this warning.",
+                    UserWarning,
+                )
+                _mass_function = functools.wraps(mass_function)(
+                    lambda x: mass_function(x)
+                )
+                _mass_function.unit = unit  # ty:ignore[unresolved-attribute]
+        elif mass_function is None:
             mass_function = default_mass_function()
-        elif not isinstance(mass_function, (types.FunctionType, Distribution)):
+            _mass_function = mass_function
+        else:
+            _mass_function = mass_function
+        if not isinstance(_mass_function, MassFunction):
             raise ValueError(
-                "mass_function must be a function or a Distribution object."
+                "mass_function does not conform to the MassFunction protocol"
             )
-        if isinstance(mass_function, Distribution) and mass_function.unit != self.unit:
-            raise ValueError("Mass function unit does not match IMF unit.")
-
-        self.initial_mass_function = mass_function
+        try:
+            _ = _mass_function(np.array([1.0]))
+        except TypeError as e:
+            raise TypeError(
+                f"mass_function could not be called as mass_function(x): {e}"
+            ) from None
+        self.initial_mass_function = _mass_function
 
         # Recalculate the IMF properties based on the updated parameters
         self._recalculate()
