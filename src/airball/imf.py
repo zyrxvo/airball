@@ -47,27 +47,8 @@ class Distribution:
     def __call__(self, x):
         return self.mass_function(x, *self.params)
 
-    def __hash__(self):
-        data = []
-        for d in sorted(self.__dict__.items()):
-            try:
-                data.append((d[0], tuple(d[1])))
-            except:  # noqa: E722
-                data.append(d)
-        data = tuple(data)
-        return hash(data)
 
-    def __eq__(self, other):
-        if isinstance(other, Distribution):
-            return (
-                self.mass_function == other.mass_function
-                and self.params == other.params
-            )
-        else:
-            return NotImplemented
-
-
-class chabrier_2003_single(Distribution):
+class chabrier_2003_single:
     """
     Chabrier 2003 IMF for single stars.
     This function calculates the probability density for a given mass value (x) based on Equation (17) of Chabrier 2003 for an IMF for single stars.
@@ -88,12 +69,16 @@ class chabrier_2003_single(Distribution):
       ```
     """
 
-    def __init__(self, A=0.158, unit=u.solMass):
-        x_0 = 0.079 * u.solMass.to(unit)
-        super().__init__(self._chabrier_2003_single, [x_0, A], unit)
+    unit = u.solMass
 
-    def _chabrier_2003_single(self, x, x_0, A=0.158):
-        return (A / x) * np.exp(-((np.log10(x) - np.log10(x_0)) ** 2) / (2 * 0.69**2))
+    def __init__(self, A: float = 0.158):
+        self.A: float = A
+        self.x_0: float = 0.079
+
+    def __call__(self, x: float | np.ndarray) -> float | np.ndarray:
+        return (self.A / x) * np.exp(
+            -((np.log10(x) - np.log10(self.x_0)) ** 2) / (2 * 0.69**2)
+        )
 
 
 class chabrier_2005_single(Distribution):
@@ -117,20 +102,22 @@ class chabrier_2005_single(Distribution):
       ```
     """
 
+    unit = u.solMass
+
     def __init__(self, A=0.093, unit=u.solMass):
-        x_0 = 0.2 * u.solMass.to(unit)
+        x_0: float = 0.2  # solMass
         super().__init__(self._chabrier_2005_single, [x_0, A], unit)
 
     def _chabrier_2005_single(self, x, x_0, A=0.093):
         return (A / x) * np.exp(-((np.log10(x) - np.log10(x_0)) ** 2) / (2 * 0.55**2))
 
 
-class salpeter_1955(Distribution):
-    """
+class salpeter_1955:
+    r"""
     Salpeter 1955 IMF for single stars.
-    This function calculates the probability density for a given mass value (x) based on the Salpeter 1955 IMF equation.
+    This function calculates the probability density for a given mass value (m) based on the Salpeter 1955 IMF equation.
 
-    $$PDF(x) = A x^{-2.3}$$
+    $$\frac{dN}{dm} = \frac{A}{M_\odot} \left(\frac{m}{M_\odot}\right)^{-2.3}$$
 
     Args:
       A (float): Normalization factor.
@@ -146,14 +133,17 @@ class salpeter_1955(Distribution):
       ```
     """
 
-    def __init__(self, A, unit=u.solMass):
-        super().__init__(self._salpeter_1955, [A], unit)
+    unit = u.solMass
 
-    def _salpeter_1955(self, x, A):
-        return A * x**-2.3
+    def __init__(self, A: float = 0.03):
+        self.A = A
+
+    def __call__(self, x: u.Quantity) -> float | np.ndarray:
+        m = (x if isinstance(x, u.Quantity) else x << self.unit) << self.unit
+        return self.A * (m / self.unit) ** -2.35
 
 
-class default_mass_function(Distribution):
+class default_mass_function:
     """
     Default mass function for an IMF. This function is a piecewise function that uses the IMF for single stars from Chabrier 2003 for masses less than 1 solar mass and the Salpeter 1955 IMF for masses greater than 1 solar mass.
 
@@ -171,29 +161,15 @@ class default_mass_function(Distribution):
       ```
     """
 
-    def __init__(self, unit=u.solMass):
-        x_0 = (1 * u.solMass).to(unit).value
-        super().__init__(self._default_mass_function, [x_0], unit)
+    unit = u.solMass
 
-    def _default_mass_function(self, x, x_0):
-        chabrier03 = chabrier_2003_single(A=0.158)
-        salpeter55 = salpeter_1955(A=chabrier03(1))
-        return np.where(x < x_0, chabrier03(x), salpeter55(x))
+    def __init__(self):
+        self.x_0: float = 1
+        self.chabrier03 = chabrier_2003_single(A=0.158)
+        self.salpeter55 = salpeter_1955(A=self.chabrier03(1))
 
-    def __eq__(self, other):
-        if isinstance(other, default_mass_function):
-            return True
-        return NotImplemented
-
-    def __hash__(self):
-        data = []
-        for d in sorted(self.__dict__.items()):
-            try:
-                data.append((d[0], hash(d[1])))
-            except:  # noqa: E722
-                data.append(d)
-        data = tuple(data)
-        return hash(data)
+    def __call__(self, x: float | np.ndarray) -> float | np.ndarray:
+        return np.where(x < self.x_0, self.chabrier03(x), self.salpeter55(x))
 
 
 class kroupa_1993(Distribution):
