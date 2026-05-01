@@ -8,6 +8,7 @@ htmlcov/
 .venv/
 .ruff_cache
 .coverage
+.cache
 
 # Example Data
 example-data/
