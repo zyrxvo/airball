@@ -51,12 +51,14 @@ markdown_extensions:
   - pymdownx.highlight
   - pymdownx.inlinehilite
   - pymdownx.superfences
-  - pymdownx.arithmatex
+  - pymdownx.arithmatex:
+      generic: true
+      smart_dollar: true
   - wikilinks
 extra_javascript:
   - javascripts/config.js
   - https://polyfill.io/v3/polyfill.min.js?features=es6
-  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+  - https://cdn.jsdelivr.net/npm/mathjax@4.1.1/tex-mml-chtml.js
 extra:
   social:
     - icon: fontawesome/brands/mastodon
