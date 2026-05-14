@@ -2,7 +2,8 @@ import functools
 import warnings
 from copy import deepcopy
 from collections.abc import Callable
-from typing import Protocol, runtime_checkable
+from dataclasses import dataclass, field
+from typing import ClassVar, Protocol, runtime_checkable
 
 import numpy as np
 from scipy.interpolate import PchipInterpolator
@@ -14,311 +15,528 @@ import airball.tools as tools
 # region MassFunction Protocol
 @runtime_checkable
 class MassFunction(Protocol):
-    """Protocol for defining the characteristics of a MassFunction used by the IMF class.
+    """
+    A protocol for defining a mass function for use with the IMF class.
 
     The essence of the protocol is to define a callable object that also contains a `unit`
     attribute. Leniency by the IMF class is provided if the user does not want to define
     the `unit` attribute. In these cases the IMF will assume that the units of the mass
     function are the same as the IMF class.
 
+    The protocol requires:
+      - A `unit` attribute (astropy Unit) declaring the mass unit the function expects.
+      - A `__call__` method accepting a single argument `x` (float or ndarray, in
+        units of `self.unit`) and returning a float or ndarray.
+
+    Note: runtime isinstance() checks only verify the existence of `unit` and
+    `__call__`, not the signature. Signature correctness is enforced by calling
+    the function with a test value during IMF construction.
+
+    If `unit` is absent, the IMF class will assume its own unit and emit a warning.
+    If `unit` is present but mismatches the IMF unit, an error is raised.
+
     Example:
       ```python
       import airball
       import airball.units as u
-      mf = lambda x, A: A * x
+
+      A = 0.1
+      mf = lambda x: A * x
       mf.unit = u.solMass
       imf = airball.IMF(0.1, 100, mass_function=mf)
       imf.random_mass()
       ```
-
     """
 
     unit: object
 
-    def __call__(self, x: float | np.ndarray) -> float | np.ndarray: ...
+    def __call__(self, x: float | np.ndarray | u.Quantity) -> float | np.ndarray: ...
 
 
-class Distribution:
-    def __init__(self, mass_function, args, unit):
-        self.mass_function = mass_function
-        self.params = args
-        self.unit = unit
-
-    def __call__(self, x):
-        return self.mass_function(x, *self.params)
-
-
+# region Available Mass Functions
+@dataclass(frozen=True)
 class chabrier_2003_single:
     """
-    Chabrier 2003 IMF for single stars.
-    This function calculates the probability density for a given mass value (x) based on Equation (17) of Chabrier 2003 for an IMF for single stars.
+    [Chabrier (2003)](https://ui.adsabs.harvard.edu/abs/2003PASP..115..763C/abstract) IMF for single stars, valid for $m \\leq 1\\,M_{\\odot}$.
 
-    $$PDF(x) = \\frac{A}{x} \\exp\\left[-\\frac{(\\log_{10}(x) - \\log_{10}(0.079))^2 }{ 2 \\cdot 0.69^2}\\right]$$
+    The paper defines the IMF in log-space:
+
+    $$\\xi(\\log m) = A \\exp\\left[-\\frac{\\left(\\log_{10}\\left(\\frac{m}{M_\\odot}\\right) - \\log_{10}\\left(\\frac{m_c}{M_\\odot}\\right)\\right)^2 }{ 2 \\sigma^2}\\right]$$
+
+    where:
+        - $A = 0.158^{+0.051}_{-0.046}\\,\\log(M_{\\odot})^{-1} \\mathrm{pc}^{-3}$
+        - $m_{c} = 0.079^{+0.021}_{-0.016}\\,M_{\\odot}$ (characteristic mass)
+        - $\\sigma = 0.69^{+0.05}_{-0.01}$ (dimensionless, width in log space)
+
+    Converting to linear space via the Jacobian
+    $\\left|\\frac{\\mathrm{d}(\\log_{10}m)}{\\mathrm{d}m}\\right| = \\frac{1}{m \\ln 10} \\implies \\xi(m) = \\frac{\\xi(\\log m)}{\\left(\\frac{m}{M_\\odot}\\right) \\ln 10}$
+
+    Units of $\\xi(m): M_{\\odot}^{-1} \\mathrm{pc}^{-3}$.
+
+    The paper provides a normalization at $0.7\\,M_{\\odot}$:
+        $\\left.\\frac{\\mathrm{d}n}{\\mathrm{d}m}\\right|_{0.7} = 3.8 \\cdot 10^{-2} M_{\\odot}^{-1} \\mathrm{pc}^{-3} \\pm 5\\%$
+
+    Note: when used with the IMF class, $A$ and the $\\mathrm{pc}^{-3}$ scaling are normalized
+    away during CDF construction and do not affect the sampled mass distribution.
 
     Args:
-      A (float, optional): Normalization factor. Default is 0.158.
-
-    Returns:
-      pdf (float or ndarray): Probability density at the given mass value(s).
+        A     (float):    Normalization. Default: $0.158 (\\log M_{\\odot})^{-1} \\mathrm{pc}^{-3}$
+        m_c   (float):    Characteristic mass in units of `unit`. Accepts float or Quantity. Default: $0.079\\,M_{\\odot}$
+        sigma (float):    Log-space width. Default: $0.69$
 
     Example:
-      ```python
-      import airball
-      imf = airball.IMF(0.1, 100, mass_function=airball.imf.chabrier_2003_single(A=0.158))
-      imf.random_mass()
-      ```
+        ```python
+        import airball
+
+        imf = airball.IMF(0.1, 1, mass_function=airball.imf.chabrier_2003_single())
+        imf.random_mass()
+        ```
     """
 
-    unit = u.solMass
+    A: float = 0.158
+    m_c: float = 0.079
+    sigma: float = 0.69
 
-    def __init__(self, A: float = 0.158):
-        self.A: float = A
-        self.x_0: float = 0.079
+    unit: ClassVar = u.solMass
+    _airball_builtin: ClassVar[bool] = True
 
-    def __call__(self, x: float | np.ndarray) -> float | np.ndarray:
-        return (self.A / x) * np.exp(
-            -((np.log10(x) - np.log10(self.x_0)) ** 2) / (2 * 0.69**2)
+    def __post_init__(self):
+        if isinstance(self.m_c, u.Quantity):
+            object.__setattr__(self, "m_c", self.m_c.to(self.unit).value)
+
+    def __call__(self, x: float | np.ndarray | u.Quantity) -> float | np.ndarray:
+        m = (x if isinstance(x, u.Quantity) else x * self.unit).to(self.unit)
+        m_ratio = (m / self.unit).value  # dimensionless: m/M_☉
+        return (
+            self.A
+            / (m_ratio * np.log(10))  # Jacobian: 1/(m/M_☉ · ln 10)
+            * np.exp(-((np.log10(m_ratio) - np.log10(self.m_c)) ** 2) / (2 * self.sigma**2))
         )
 
 
-class chabrier_2005_single(Distribution):
+@dataclass(frozen=True)
+class chabrier_2005_single:
     """
-    Chabrier 2005 IMF for single stars.
-    This function calculates the probability density for a given mass value (x) based on Equation (1) of Chabrier 2005 for an IMF for single stars.
+    [Chabrier (2005)](https://ui.adsabs.harvard.edu/abs/2005ASSL..327...41C/abstract) IMF for single stars.
 
-    $$PDF(x) =  \\frac{A}{x} \\exp\\left[-\\frac{(\\log_{10}(x) - \\log_{10}(0.2))^2 }{ 2 \\cdot 0.55^2}\\right]$$
+    The paper (Chabrier 2005, in 'The Initial Mass Function 50 Years Later', Eq. 1)
+    defines the IMF in log-space with the same lognormal form as Chabrier (2003)
+    but with revised constants:
+
+    $$\\xi(\\log m) = A \\exp\\left[-\\frac{\\left(\\log_{10}\\left(\\frac{m}{M_\\odot}\\right) - \\log_{10}\\left(\\frac{m_c}{M_\\odot}\\right)\\right)^2 }{ 2 \\sigma^2}\\right]$$
+
+    where:
+        - $A = 0.093\\,\\log(M_{\\odot})^{-1} \\mathrm{pc}^{-3}$
+        - $m_{c} = 0.2\\,M_{\\odot}$ (characteristic mass)
+        - $\\sigma = 0.55$ (dimensionless, width in log space)
+
+    Converting to linear space via the Jacobian
+    $\\left|\\frac{\\mathrm{d}(\\log_{10}m)}{\\mathrm{d}m}\\right| = \\frac{1}{m \\ln 10} \\implies \\xi(m) = \\frac{\\xi(\\log m)}{\\left(\\frac{m}{M_\\odot}\\right) \\ln 10}$
+
+    Units of $\\xi(m): M_{\\odot}^{-1} \\mathrm{pc}^{-3}$.
+
+    Note: when used with the IMF class, $A$ and the $\\mathrm{pc}^{-3}$ scaling are normalized
+    away during CDF construction and do not affect the sampled mass distribution.
 
     Args:
-      A (float, optional): Normalization factor. Default is 0.093.
-
-    Returns:
-      pdf (float or ndarray): Probability density at the given mass value(s).
+        A     (float):    Normalization. Default: $0.093\\,(\\log M_{\\odot})^{-1} \\mathrm{pc}^{-3}$
+        m_c   (float):    Characteristic mass in units of `unit`. Accepts float or Quantity. Default: $0.2\\,M_{\\odot}$
+        sigma (float):    Log-space width. Default: $0.55$
 
     Example:
-      ```python
-      import airball
-      imf = airball.IMF(0.01, 100, mass_function=airball.imf.chabrier_2005_single(A=0.093))
-      imf.random_mass()
-      ```
+        ```python
+        import airball
+
+        imf = airball.IMF(0.01, 1, mass_function=airball.imf.chabrier_2005_single())
+        imf.random_mass()
+        ```
     """
 
-    unit = u.solMass
+    A: float = 0.093
+    m_c: float = 0.2
+    sigma: float = 0.55
 
-    def __init__(self, A=0.093, unit=u.solMass):
-        x_0: float = 0.2  # solMass
-        super().__init__(self._chabrier_2005_single, [x_0, A], unit)
+    unit: ClassVar = u.solMass
+    _airball_builtin: ClassVar[bool] = True
 
-    def _chabrier_2005_single(self, x, x_0, A=0.093):
-        return (A / x) * np.exp(-((np.log10(x) - np.log10(x_0)) ** 2) / (2 * 0.55**2))
+    def __post_init__(self):
+        if isinstance(self.m_c, u.Quantity):
+            object.__setattr__(self, "m_c", self.m_c.to(self.unit).value)
+
+    def __call__(self, x: float | np.ndarray | u.Quantity) -> float | np.ndarray:
+        m = (x if isinstance(x, u.Quantity) else x * self.unit).to(self.unit)
+        m_ratio = (m / self.unit).value
+        return self.A / (m_ratio * np.log(10)) * np.exp(-((np.log10(m_ratio) - np.log10(self.m_c)) ** 2) / (2 * self.sigma**2))
 
 
+@dataclass(frozen=True)
 class salpeter_1955:
-    r"""
-    Salpeter 1955 IMF for single stars.
-    This function calculates the probability density for a given mass value (m) based on the Salpeter 1955 IMF equation.
+    """
+    [Salpeter (1955)](https://ui.adsabs.harvard.edu/abs/1955ApJ...121..161S/abstract) IMF for single stars.
 
-    $$\frac{dN}{dm} = \frac{A}{M_\odot} \left(\frac{m}{M_\odot}\right)^{-2.3}$$
+    The paper (Salpeter 1955, ApJ 121, 161) defines the IMF as:
+
+    $$\\xi(m)\\,\\Delta m = \\xi_0 \\left(\\frac{m}{M_\\odot}\\right)^{-2.35} \\frac{\\Delta m}{M_\\odot}$$
+
+    which in continuous form is:
+
+    $$\\xi(m) = \\xi_0 \\left(\\frac{m}{M_\\odot}\\right)^{-2.35} \\quad [M_{\\odot}^{-1}\\,\\mathrm{pc}^{-3}]$$
+
+    where $\\xi_0 \\approx 0.03\\,\\mathrm{pc}^{-3}\\,M_{\\odot}^{-1}$ is the local stellar density normalization.
+
+    The $m/M_\\odot$ ratio makes this function scale-free with respect to mass units.
+
+    Note: when used with the IMF class, $\\xi_0$ is normalized away during CDF
+    construction and does not affect the sampled mass distribution. It is
+    retained here for scientific fidelity to the original paper.
 
     Args:
-      A (float): Normalization factor.
-
-    Returns:
-      pdf (float or ndarray): Probability density at the given mass value(s).
+        xi_0 (float): Local stellar density normalization. Default: $0.03\\,\\mathrm{pc}^{-3}\\,M_{\\odot}^{-1}$
 
     Example:
-      ```python
-      import airball
-      imf = airball.IMF(0.1, 100, mass_function=airball.imf.salpeter_1955(A=1))
-      imf.random_mass()
-      ```
+        ```python
+        import airball
+
+        imf = airball.IMF(0.1, 100, mass_function=airball.imf.salpeter_1955())
+        imf.random_mass()
+        ```
     """
 
-    unit = u.solMass
+    xi_0: float = 0.03
 
-    def __init__(self, A: float = 0.03):
-        self.A = A
+    unit: ClassVar = u.solMass
+    _airball_builtin: ClassVar[bool] = True
 
-    def __call__(self, x: u.Quantity) -> float | np.ndarray:
-        m = (x if isinstance(x, u.Quantity) else x << self.unit) << self.unit
-        return self.A * (m / self.unit) ** -2.35
+    def __call__(self, x: float | np.ndarray | u.Quantity) -> float | np.ndarray:
+        m = (x if isinstance(x, u.Quantity) else x * self.unit).to(self.unit)
+        m_ratio = (m / self.unit).value  # dimensionless: m/M_☉
+        return self.xi_0 * m_ratio**-2.35
 
 
+@dataclass(frozen=True)
+class kroupa_1993:
+    """
+    [Kroupa, Tout & Gilmore (1993)](https://ui.adsabs.harvard.edu/abs/1993MNRAS.262..545K/abstract) IMF for single stars.
+
+    The IMF is a piecewise power law in linear mass:
+
+    $$\\xi(m) = \\begin{cases} A_1 \\left(\\frac{m}{M_\\odot}\\right)^{-\\alpha_1} & m_1 \\leq \\frac{m}{M_\\odot} < m_2 \\\\ A_2 \\left(\\frac{m}{M_\\odot}\\right)^{-\\alpha_2} & m_2 \\leq \\frac{m}{M_\\odot} < m_3 \\\\ A_3 \\left(\\frac{m}{M_\\odot}\\right)^{-\\alpha_3} & \\frac{m}{M_\\odot} \\geq m_3 \\end{cases}$$
+
+    where continuity is enforced at each break point, so:
+
+    $$A_2 = A_1 \\cdot m_2^{\\,(\\alpha_2 - \\alpha_1)}, \\quad A_3 = A_2 \\cdot m_3^{\\,(\\alpha_3 - \\alpha_2)}$$
+
+    Default constants (please verify against paper):
+        - $\\alpha_1 = 1.3$, $m_1 = 0.1\\,M_{\\odot}$
+        - $\\alpha_2 = 2.2$, $m_2 = 0.5\\,M_{\\odot}$
+        - $\\alpha_3 = 2.7$, $m_3 = 1.0\\,M_{\\odot}$
+        - $A_1 = 1.0$ (normalization; absorbed by IMF class)
+
+    Note: when used with the IMF class, $A_1$ is normalized away during CDF
+    construction and does not affect the sampled mass distribution.
+
+    Args:
+        alpha_1 (float):    Power law index for $m < m_2$. Default: $1.3$
+        alpha_2 (float):    Power law index for $m_2 \\leq m < m_3$. Default: $2.2$
+        alpha_3 (float):    Power law index for $m \\geq m_3$. Default: $2.7$
+        m_1     (float):    Lower break mass in units of `unit`. Accepts float or Quantity. Default: $0.1\\,M_{\\odot}$
+        m_2     (float):    First break mass in units of `unit`. Accepts float or Quantity. Default: $0.5\\,M_{\\odot}$
+        m_3     (float):    Second break mass in units of `unit`. Accepts float or Quantity. Default: $1.0\\,M_{\\odot}$
+        A_1     (float):    Normalization of first segment. Default: $1.0$
+
+    Example:
+        ```python
+        import airball
+
+        imf = airball.IMF(0.1, 100, mass_function=airball.imf.kroupa_1993())
+        imf.random_mass()
+        ```
+    """
+
+    alpha_1: float = 1.3
+    alpha_2: float = 2.2
+    alpha_3: float = 2.7
+    m_1: float = 0.1
+    m_2: float = 0.5
+    m_3: float = 1.0
+    A_1: float = 1.0
+    # Derived from the fields above
+    A_2: float = field(init=False, compare=False, hash=False, repr=False, default=0.0)
+    A_3: float = field(init=False, compare=False, hash=False, repr=False, default=0.0)
+
+    unit: ClassVar = u.solMass
+    _airball_builtin: ClassVar[bool] = True
+
+    def __post_init__(self):
+        # Convert Quantity inputs to float in self.unit
+        for name in ("m_1", "m_2", "m_3"):
+            val = getattr(self, name)
+            if isinstance(val, u.Quantity):
+                object.__setattr__(self, name, val.to(self.unit).value)
+        # Enforce continuity at break points (derived, not dataclass fields)
+        A_2 = self.A_1 * self.m_2 ** (self.alpha_2 - self.alpha_1)
+        A_3 = A_2 * self.m_3 ** (self.alpha_3 - self.alpha_2)
+        object.__setattr__(self, "A_2", A_2)
+        object.__setattr__(self, "A_3", A_3)
+
+    def __call__(self, x: float | np.ndarray | u.Quantity) -> float | np.ndarray:
+        m = (x if isinstance(x, u.Quantity) else x * self.unit).to(self.unit)
+        m_ratio = (m / self.unit).value  # dimensionless: m/M_☉
+        return np.where(
+            m_ratio < self.m_2,
+            self.A_1 * m_ratio**-self.alpha_1,
+            np.where(
+                m_ratio < self.m_3,
+                self.A_2 * m_ratio**-self.alpha_2,
+                self.A_3 * m_ratio**-self.alpha_3,
+            ),
+        )
+
+
+@dataclass(frozen=True)
 class default_mass_function:
     """
-    Default mass function for an IMF. This function is a piecewise function that uses the IMF for single stars from Chabrier 2003 for masses less than 1 solar mass and the Salpeter 1955 IMF for masses greater than 1 solar mass.
+    Default mass function for the IMF class.
 
-    Args:
-      x (float or ndarray): Mass value(s).
+    A piecewise function combining Chabrier (2003) for $m \\leq 1\\,M_{\\odot}$ and
+    Salpeter (1955) for $m > 1\\,M_{\\odot}$, normalized for continuity at $1\\,M_{\\odot}$.
 
-    Returns:
-      pdf (float or ndarray): Probability density at the given mass value(s).
+    The continuity constant at the junction is:
 
-    Example:
-      ```python
-      import airball
-      imf = airball.IMF(0.1, 100, mass_function=airball.imf.default_mass_function())
-      imf.random_mass()
-      ```
-    """
+    $$\\mathrm{scale} = \\xi_{\\mathrm{Chabrier}}(1\\,M_{\\odot})$$
 
-    unit = u.solMass
-
-    def __init__(self):
-        self.x_0: float = 1
-        self.chabrier03 = chabrier_2003_single(A=0.158)
-        self.salpeter55 = salpeter_1955(A=self.chabrier03(1))
-
-    def __call__(self, x: float | np.ndarray) -> float | np.ndarray:
-        return np.where(x < self.x_0, self.chabrier03(x), self.salpeter55(x))
-
-
-class kroupa_1993(Distribution):
-    """
-    Kroupa et al. (1993) IMF for single stars.
-    This function calculates the probability density for a given mass value (x) based on the (Kroupa et al. (1993))[https://ui.adsabs.harvard.edu/abs/1993MNRAS.262..545K/abstract] IMF equation.
-
-    $$PDF(x) = x_0 + \\frac{0.19 x^{1.55} + 0.05 x^{0.6}}{(1-x)^{0.58}}$$
-
-    Args:
-      A (float): Normalization factor.
-
-    Returns:
-      pdf (float or ndarray): Probability density at the given mass value(s).
+    so that $\\xi_{\\mathrm{Salpeter}}(m) = \\mathrm{scale} \\cdot \\left(\\frac{m}{M_\\odot}\\right)^{-2.35}$ agrees with $\\xi_{\\mathrm{Chabrier}}$
+    at $m = 1\\,M_{\\odot}$. The scale factor is absorbed by the IMF class during
+    normalization and does not affect sampling.
 
     Example:
-      ```python
-      import airball
-      imf = airball.IMF(0.1, 100, mass_function=airball.imf.salpeter_1955(A=1))
-      imf.random_mass()
-      ```
+        ```python
+        import airball
+
+        imf = airball.IMF(0.1, 100, mass_function=airball.imf.default_mass_function())
+        imf.random_mass()
+        ```
     """
 
-    def __init__(self, x_0, unit=u.solMass):
-        super().__init__(self._kroupa_1993, [x_0], unit)
+    # Junction point: always 1 M_☉ (class constant, not a per-instance field)
+    x_0: ClassVar[float] = 1.0
+    # Computed
+    chabrier03: chabrier_2003_single = field(
+        init=False,
+        compare=False,
+        hash=False,
+        repr=False,
+        default_factory=chabrier_2003_single,
+    )
+    _scale: float = field(init=False, compare=False, hash=False, repr=False, default=0.0)
 
-    def _kroupa_1993(self, x, x_0):
-        return x_0 + (0.19 * x ** (1.55) + 0.05 * x ** (0.6)) / (1 - x) ** (0.58)
+    unit: ClassVar = u.solMass
+    _airball_builtin: ClassVar[bool] = True
 
-    def __eq__(self, other):
-        return super().__eq__(other)
+    def __post_init__(self):
+        object.__setattr__(self, "_scale", self.chabrier03(self.x_0))
 
-    def __hash__(self):
-        return super().__hash__()
+    def __call__(self, x: float | np.ndarray | u.Quantity) -> float | np.ndarray:
+        m = (x if isinstance(x, u.Quantity) else x * self.unit).to(self.unit)
+        m_ratio = (m / self.unit).value
+        return np.where(
+            m_ratio < self.x_0,
+            self.chabrier03(m_ratio),
+            self._scale * m_ratio**-2.35,  # Salpeter, scaled for continuity
+        )
 
 
-class uniform(Distribution):
+# ── Generic / parametric mass functions ───────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class uniform:
     """
-    Uniform IMF.
-    This function calculates the probability density for a given mass value (x) based on a uniform IMF.
+    Uniform mass function.
 
-    $$PDF(x) = 1$$
+    A flat probability density — every mass in the IMF range is equally likely.
+
+    $$\\xi(m) = 1$$
+
+    This is scale-free and has no physical constants. The IMF class normalizes
+    it over $[m_{\\min},\\, m_{\\max}]$ during CDF construction.
+
+    Example:
+        ```python
+        import airball
+
+        imf = airball.IMF(0.1, 100, mass_function=airball.imf.uniform())
+        imf.random_mass()
+        ```
     """
 
-    def __init__(self, unit=u.solMass):
-        super().__init__(self._uniform, [], unit)
+    unit: ClassVar = u.solMass
+    _airball_builtin: ClassVar[bool] = True
 
-    def _uniform(self, x):
-        return x * 0 + 1
-
-    def __eq__(self, other):
-        if isinstance(other, uniform):
-            return True
-        return NotImplemented
+    def __call__(self, x: float | np.ndarray | u.Quantity) -> float | np.ndarray:
+        m = (x if isinstance(x, u.Quantity) else x * self.unit).to(self.unit)
+        return np.ones_like((m / self.unit).value)
 
 
-class power_law(Distribution):
+@dataclass(frozen=True)
+class power_law:
     """
-    Power law IMF.
-    This function calculates the probability density for a given mass value (x) based on a power law IMF.
+    Generic power law mass function.
 
-    $$PDF(x) = A x^\\alpha$$
+    $$\\xi(m) = A \\left(\\frac{m}{M_\\odot}\\right)^{\\alpha}$$
+
+    The $m/M_\\odot$ ratio makes this scale-free with respect to mass units.
+    $A$ is normalized away by the IMF class during CDF construction.
 
     Args:
-      alpha (float): Power law index.
-      A (float): Normalization factor.
+        alpha (float): Power law index.
+        A     (float): Normalization factor. Default: $1.0$
 
-    Returns:
-      pdf (float or ndarray): Probability density at the given mass value(s).
+    Example:
+        ```python
+        import airball
+
+        imf = airball.IMF(0.1, 100, mass_function=airball.imf.power_law(alpha=-2.35))
+        imf.random_mass()
+        ```
     """
 
-    def __init__(self, alpha, A, unit=u.solMass):
-        super().__init__(self._power_law, [alpha, A], unit)
+    alpha: float
+    A: float = 1.0
 
-    def _power_law(self, x, alpha, A):
-        return A * x**alpha
+    unit: ClassVar = u.solMass
+    _airball_builtin: ClassVar[bool] = True
+
+    def __call__(self, x: float | np.ndarray | u.Quantity) -> float | np.ndarray:
+        m = (x if isinstance(x, u.Quantity) else x * self.unit).to(self.unit)
+        m_ratio = (m / self.unit).value
+        return self.A * m_ratio**self.alpha
 
 
-class broken_power_law(Distribution):
+@dataclass(frozen=True)
+class broken_power_law:
     """
-    Broken power law IMF.
-    This function calculates the probability density for a given mass value (x) based on a broken power law IMF.
+    Generic broken power law mass function.
 
-    $$PDF(x) = \\begin{cases} A x^\\alpha & x < x_0 \\\\ A x_0^{\\beta - \\alpha} x^\\beta & x \\geq x_0 \\end{cases}$$
+    $$\\xi(m) = \\begin{cases} A \\left(\\frac{m}{M_\\odot}\\right)^{\\alpha} & m < m_0 \\\\ A \\left(\\frac{m_0}{M_\\odot}\\right)^{(\\alpha - \\beta)} \\left(\\frac{m}{M_\\odot}\\right)^{\\beta} & m \\geq m_0 \\end{cases}$$
+
+    Continuity is enforced at $m_0$. $A$ is normalized away by the IMF class.
 
     Args:
-      alpha (float): Power law index for $x < x_0$.
-      beta (float): Power law index for $x ≥ x_0$.
-      A (float): Normalization factor.
-      x_0 (float): Break point between the two power laws.
+        alpha (float):    Power law index below $m_0$.
+        beta  (float):    Power law index above $m_0$.
+        m_0   (float):    Break mass in units of `unit`. Accepts float or Quantity.
+        A     (float):    Normalization factor. Default: $1.0$
 
-    Returns:
-      pdf (float or ndarray): Probability density at the given mass value(s).
+    Example:
+        ```python
+        import airball
+
+        mf = airball.imf.broken_power_law(alpha=-1.3, beta=-2.35, m_0=0.5 * u.solMass)
+        imf = airball.IMF(0.1, 100, mass_function=mf)
+        imf.random_mass()
+        ```
     """
 
-    def __init__(self, alpha, beta, A, x_0, unit=u.solMass):
-        x_0 = tools.verify_unit(x_0, unit).value
-        super().__init__(self._broken_power_law, [alpha, beta, A, x_0], unit)
+    alpha: float
+    beta: float
+    m_0: float
+    A: float = 1.0
 
-    def _broken_power_law(self, x, alpha, beta, A, x_0):
-        return np.where(x < x_0, A * x**alpha, A * x_0 ** (alpha - beta) * x**beta)
+    unit: ClassVar = u.solMass
+    _airball_builtin: ClassVar[bool] = True
+
+    def __post_init__(self):
+        if isinstance(self.m_0, u.Quantity):
+            object.__setattr__(self, "m_0", self.m_0.to(self.unit).value)
+
+    def __call__(self, x: float | np.ndarray | u.Quantity) -> float | np.ndarray:
+        m = (x if isinstance(x, u.Quantity) else x * self.unit).to(self.unit)
+        m_ratio = (m / self.unit).value
+        return np.where(
+            m_ratio < self.m_0,
+            self.A * m_ratio**self.alpha,
+            self.A * self.m_0 ** (self.alpha - self.beta) * m_ratio**self.beta,
+        )
 
 
-class lognormal(Distribution):
-    r"""
-    Lognormal IMF.
-    This function calculates the probability density for a given mass value (x) based on a lognormal IMF.
+@dataclass(frozen=True)
+class lognormal:
+    """
+    Generic lognormal mass function, defined in linear mass space.
 
-    $$PDF(x) = \\frac{A}{x} \\exp\\left[-\\frac{(\\log_{10}(x) - \\mu)^2 }{ 2 \\sigma^2}\\right]$$
+    This is the linear-space form of a lognormal (analogous to the Chabrier
+    family), including the Jacobian from the log-space definition:
+
+    $$\\xi(m) = \\frac{A}{\\left(\\frac{m}{M_\\odot}\\right) \\ln 10} \\exp\\left[-\\frac{\\left(\\log_{10}\\left(\\frac{m}{M_\\odot}\\right) - \\mu\\right)^2}{2\\sigma^2}\\right]$$
+
+    where $\\mu$ and $\\sigma$ are the mean and width in $\\log_{10}(m/M_\\odot)$ space.
+
+    $A$ is normalized away by the IMF class during CDF construction.
 
     Args:
-      mu (float): Mean of the lognormal distribution.
-      sigma (float): Standard deviation of the lognormal distribution.
-      A (float): Normalization factor.
+        mu    (float): Mean in $\\log_{10}(m/M_\\odot)$ space.
+        sigma (float): Standard deviation in $\\log_{10}(m/M_\\odot)$ space.
+        A     (float): Normalization factor. Default: $1.0$
 
-    Returns:
-      pdf (float or ndarray): Probability density at the given mass value(s).
+    Example:
+        ```python
+        import airball
+
+        mf = airball.imf.lognormal(mu=np.log10(0.3), sigma=0.5)
+        imf = airball.IMF(0.1, 100, mass_function=mf)
+        imf.random_mass()
+        ```
     """
 
-    def __init__(self, mu, sigma, A, unit=u.solMass):
-        mu = tools.verify_unit(mu, unit).value
-        sigma = tools.verify_unit(sigma, unit).value
-        super().__init__(self._lognormal, [mu, sigma, A], unit)
+    mu: float
+    sigma: float
+    A: float = 1.0
 
-    def _lognormal(self, x, mu, sigma, A):
-        return (A / x) * np.exp(-((np.log10(x) - mu) ** 2) / (2 * sigma**2))
+    unit: ClassVar = u.solMass
+    _airball_builtin: ClassVar[bool] = True
+
+    def __call__(self, x: float | np.ndarray | u.Quantity) -> float | np.ndarray:
+        m = (x if isinstance(x, u.Quantity) else x * self.unit).to(self.unit)
+        m_ratio = (m / self.unit).value
+        return self.A / (m_ratio * np.log(10)) * np.exp(-((np.log10(m_ratio) - self.mu) ** 2) / (2 * self.sigma**2))
 
 
-class loguniform(Distribution):
+@dataclass(frozen=True)
+class loguniform:
     """
-    Loguniform IMF.
-    This function calculates the probability density for a given mass value (x) based on a loguniform IMF.
+    Log-uniform mass function.
 
-    $$PDF(x) = A\\frac{x_0}{x}$$
+    A distribution that is uniform in log space, equivalent to:
+
+    $$\\xi(m) = \\frac{A}{m/M_\\odot}$$
+
+    This is the $1/m$ (Jeffreys prior) distribution. It gives equal probability
+    per decade of mass.
+
+    $A$ is normalized away by the IMF class during CDF construction.
 
     Args:
-      A (float, optional): Normalization factor.
-      x_0 (float, optional): Location to apply the normalization factor.
+        A (float): Normalization factor. Default: $1.0$
 
-    Returns:
-      pdf (float or ndarray): Probability density at the given mass value(s).
+    Example:
+        ```python
+        import airball
+
+        imf = airball.IMF(0.1, 100, mass_function=airball.imf.loguniform())
+        imf.random_mass()
+        ```
     """
 
-    def __init__(self, A=1, x_0=1, unit=u.solMass):
-        x_0 = tools.verify_unit(x_0, unit).value
-        super().__init__(self._loguniform, [A, x_0], unit)
+    A: float = 1.0
 
-    def _loguniform(self, x, A, x_0):
-        return x_0 * A / x
+    unit: ClassVar = u.solMass
+    _airball_builtin: ClassVar[bool] = True
+
+    def __call__(self, x: float | np.ndarray | u.Quantity) -> float | np.ndarray:
+        m = (x if isinstance(x, u.Quantity) else x * self.unit).to(self.unit)
+        m_ratio = (m / self.unit).value
+        return self.A / m_ratio
 
 
 # region IMF Class
@@ -333,8 +551,8 @@ class IMF:
     properties and methods for manipulating and analyzing the IMF.
 
     Args:
-      min_mass (Quantity): Minimum mass value of the IMF range.
-      max_mass (Quantity): Maximum mass value of the IMF range.
+      min_mass (u.Quantity): Minimum mass value of the IMF range.
+      max_mass (u.Quantity): Maximum mass value of the IMF range.
       mass_function (callable, optional): Mass function to use for the IMF. Default is a piecewise Chabrier 2003 and Salpeter 1955.
       unit (Unit, optional): Unit of mass. Default is solar masses.
       interpolating_samples (float, optional): Number of samples to use for interpolating the CDF. Default is 5x10^5.
@@ -348,7 +566,7 @@ class IMF:
       interpolating_samples (float): Number of samples to use for interpolating the CDF.
       unit (Unit): Unit of mass.
       normalization_factor (float): Normalization factor for the PDF.
-      masses (Quantity): Mass values logarithmically spanning the IMF range.
+      masses (u.Quantity): Mass values logarithmically spanning the IMF range.
       CDF (function): Cumulative distribution function (CDF) of the IMF.
       PDF (function): Normalized probability density function (PDF) of the IMF.
       IMF (function): Initial mass function (IMF) of the IMF.
@@ -367,7 +585,7 @@ class IMF:
         self._seed = seed
         self.unit = unit if u.isUnit(unit) else u.solMass
 
-        # Convert min_mass and max_mass to specified unit if they are Quantity objects, otherwise assume they are already in the correct unit
+        # Convert min_mass and max_mass to specified unit if they are u.Quantity objects, otherwise assume they are already in the correct unit
         self._min_mass = min_mass << self.unit
         self._max_mass = max_mass << self.unit
         if self._min_mass.value <= 0 or self._max_mass.value <= 0:
@@ -390,25 +608,24 @@ class IMF:
                     "Define a unit on your mass function to silence this warning.",
                     UserWarning,
                 )
-                _mass_function = functools.wraps(mass_function)(
-                    lambda x: mass_function(x)
-                )
+                _mass_function = functools.wraps(mass_function)(lambda x: mass_function(x))
                 _mass_function.unit = unit  # ty:ignore[unresolved-attribute]
         elif mass_function is None:
             mass_function = default_mass_function()
             _mass_function = mass_function
         else:
+            if hasattr(mass_function, "unit") and mass_function.unit != self.unit:
+                raise ValueError(
+                    f"mass_function unit '{mass_function.unit}' does not match "
+                    f"IMF unit '{self.unit}'. Please ensure both use the same unit."
+                )
             _mass_function = mass_function
         if not isinstance(_mass_function, MassFunction):
-            raise ValueError(
-                "mass_function does not conform to the MassFunction protocol"
-            )
+            raise ValueError("mass_function does not conform to the MassFunction protocol")
         try:
             _ = _mass_function(np.array([1.0]))
         except TypeError as e:
-            raise TypeError(
-                f"mass_function could not be called as mass_function(x): {e}"
-            ) from None
+            raise TypeError(f"mass_function could not be called as mass_function(x): {e}") from None
         self.initial_mass_function = _mass_function
 
         # Recalculate the IMF properties based on the updated parameters
@@ -426,9 +643,7 @@ class IMF:
         uniform probabilities from [0, 1] back to log-masses. This is stored as `_inv_cdf`
         for subsequent inverse transform sampling.
         """
-        grid: np.ndarray = np.geomspace(
-            self.min_mass.value, self.max_mass.value, self._interpolating_samples
-        )
+        grid: np.ndarray = np.geomspace(self.min_mass.value, self.max_mass.value, self._interpolating_samples)
         log_grid: np.ndarray = np.log(grid)
 
         # Jacobian transformation with `m = grid`
@@ -470,9 +685,7 @@ class IMF:
         vals: np.ndarray = self.initial_mass_function(x) / self.normalization_factor
         return np.where((x >= min_mass) & (x <= max_mass), vals, 0.0)
 
-    def random_mass(
-        self, size: int | tuple[int, ...] = 1, **kwargs
-    ) -> u.Quantity | tuple[u.Quantity, ...]:
+    def random_mass(self, size: int | tuple[int, ...] = 1, **kwargs) -> u.Quantity | tuple[u.Quantity, ...]:
         """Generates random mass values from the IMF.
 
         Args:
@@ -487,6 +700,7 @@ class IMF:
         Example:
           ```python
           import airball
+
           imf = airball.IMF(0.1, 100)
           imf.random_mass()
           ```
@@ -507,9 +721,7 @@ class IMF:
             )
             * np.exp(self._inv_cdf.x) ** 2
         )  # extra m factor for expectation
-        h_spline = PchipInterpolator(
-            self._inv_cdf.x, g_vals / self.normalization_factor
-        )
+        h_spline = PchipInterpolator(self._inv_cdf.x, g_vals / self.normalization_factor)
         return h_spline.integrate(self._inv_cdf.x[0], self._inv_cdf.x[-1]) << self.unit
 
     @property
@@ -527,9 +739,7 @@ class IMF:
         Returns:
           masses (ndarray): numpy array of mass values logarithmically spanning the IMF range.
         """
-        ms = np.geomspace(
-            self.min_mass, self.max_mass, int(interpolating_samples), endpoint=endpoint
-        )
+        ms = np.geomspace(self.min_mass, self.max_mass, int(interpolating_samples), endpoint=endpoint)
         return ms.value if unitless else ms
 
     @property
@@ -547,9 +757,7 @@ class IMF:
     def min_mass(self, value):
         value = value.to(self.unit) if tools.isQuantity(value) else value * self.unit
         if value.value <= 0:
-            raise ValueError(
-                "Cannot have minimum mass value be less than or equal to 0."
-            )
+            raise ValueError("Cannot have minimum mass value be less than or equal to 0.")
         self._min_mass = value
         self._recalculate()
 
@@ -568,16 +776,10 @@ class IMF:
     def max_mass(self, value):
         value = value.to(self.unit) if tools.isQuantity(value) else value * self.unit
         if value.value <= 0:
-            raise ValueError(
-                "Cannot have maximum mass value be less than or equal to 0."
-            )
-        if value.value <= self.min_mass:
-            raise ValueError(
-                "Cannot have maximum mass value be less than or equal to minimum mass value."
-            )
-        self._max_mass = (
-            value.to(self.unit) if tools.isQuantity(value) else value * self.unit
-        )
+            raise ValueError("Cannot have maximum mass value be less than or equal to 0.")
+        if value.value <= self.min_mass.value:
+            raise ValueError("Cannot have maximum mass value be less than or equal to minimum mass value.")
+        self._max_mass = value
         self._recalculate()
 
     @property
@@ -639,45 +841,36 @@ class IMF:
         """
         return deepcopy(self)
 
+    _CONFIG_ATTRS = (
+        "min_mass",
+        "max_mass",
+        "initial_mass_function",
+        "unit",
+        "interpolating_samples",
+        "seed",
+    )
+
     def __eq__(self, other):
-        # Overrides the default implementation
-        if isinstance(other, IMF):
-            attrs = [
-                "min_mass",
-                "max_mass",
-                "initial_mass_function",
-                "unit",
-                "interpolating_samples",
-                "seed",
-            ]
-            equal = True
-            for attr in attrs:
-                equal_attribute = getattr(self, attr) == getattr(other, attr)
-                if not equal_attribute:
-                    if tools.isQuantity(getattr(self, attr)):
-                        equal_attribute = (
-                            getattr(self, attr).value == getattr(other, attr).value
-                        )
-                        equal_attribute = equal_attribute and getattr(
-                            self, attr
-                        ).unit.is_equivalent(getattr(other, attr).unit)
-                if not equal_attribute:
-                    return False
-                equal = equal and equal_attribute
-            return equal
-        else:
+        if not isinstance(other, IMF):
             return NotImplemented
+        for attr in self._CONFIG_ATTRS:
+            v1, v2 = getattr(self, attr), getattr(other, attr)
+            if not bool(v1 == v2):
+                return False
+        return True
 
     def __hash__(self):
-        # Overrides the default implementation
-        data = []
-        for d in sorted(self.__dict__.items()):
-            try:
-                data.append((d[0], hash(d[1])))
-            except TypeError:
-                pass
-        data = tuple(data)
-        return hash(data)
+        vals = []
+        for attr in self._CONFIG_ATTRS:
+            v = getattr(self, attr)
+            if tools.isQuantity(v):
+                vals.append((v.value, str(v.unit)))
+            else:
+                try:
+                    vals.append(hash(v))
+                except TypeError:
+                    vals.append(id(v))
+        return hash(tuple(vals))
 
     def summary(self, *, returned=False) -> str | None:
         """
@@ -687,7 +880,7 @@ class IMF:
         s += f", m= {self.min_mass.value:,.2f}-{self.max_mass.value:,.1f} {self.unit}"
         s += (
             f", IMF= {self.initial_mass_function.__class__.__name__}"
-            if isinstance(self.initial_mass_function, Distribution)
+            if self.initial_mass_function.__class__.__module__ == __name__
             else ", IMF= custom"
         )
         s += ">"
