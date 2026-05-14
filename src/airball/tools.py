@@ -40,9 +40,7 @@ def rotate_into_plane(sim, plane="invariable"):
             )  # Assumes Earth is particle 3. 0-Sun, 1-Mecury, 2-Venus, 3-Earth, ...
         elif isinstance(plane, int_types):
             p = sim.particles[int(plane)]
-            rotation = (
-                _rebound.Rotation.orbit(Omega=p.Omega, inc=p.inc, omega=p.omega)
-            ).inverse()
+            rotation = (_rebound.Rotation.orbit(Omega=p.Omega, inc=p.inc, omega=p.omega)).inverse()
     sim.rotate(rotation)
     return rotation
 
@@ -63,10 +61,11 @@ def timestep_for_perihelion_resolution(sim):
         ```python
         import rebound
         import airball
+
         sim = rebound.Simulation()
         sim.add(m=1)
         sim.add(m=5e-5, a=30)
-        print(airball.tools.timestep_for_perihelion_resolution(sim)) # 63.73977
+        print(airball.tools.timestep_for_perihelion_resolution(sim))  # 63.73977
         ```
     """
     orbs = sim.orbits()
@@ -79,14 +78,7 @@ def timestep_for_perihelion_resolution(sim):
         return _np.nan
     else:
         return _np.nanmin(
-            (
-                _u.twopi
-                * _np.sqrt(
-                    ((ai * _u.au) ** 3 * (1 - ei) ** 3)
-                    / (_c.G * mi * _u.solMass * (1 + ei))
-                )
-                / 16.0
-            )
+            (_u.twopi * _np.sqrt(((ai * _u.au) ** 3 * (1 - ei) ** 3) / (_c.G * mi * _u.solMass * (1 + ei))) / 16.0)
             .to(_u.yr2pi)
             .value
         )
@@ -112,8 +104,9 @@ def moving_average(a, n=3, method=None):
       ```python
       import airball
       import numpy as np
-      a = np.array([1,2,3,4,5,6,7,8,9,10])
-      print(airball.tools.moving_average(a, n=3)) # [2. 3. 4. 5. 6. 7. 8. 9.]
+
+      a = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+      print(airball.tools.moving_average(a, n=3))  # [2. 3. 4. 5. 6. 7. 8. 9.]
       ```
 
     """
@@ -124,10 +117,7 @@ def moving_average(a, n=3, method=None):
         inds = _np.arange(len(a))[bool]
         ret = a.copy()
         for i in inds:
-            ret[i] = (
-                ret[i - 1 if i - 1 > 0 else i + 1]
-                + ret[i + 1 if i + 1 < len(a) else i - 1]
-            ) / 2.0
+            ret[i] = (ret[i - 1 if i - 1 > 0 else i + 1] + ret[i + 1 if i + 1 < len(a) else i - 1]) / 2.0
         ret = _np.cumsum(ret)
     else:
         ret = _np.cumsum(a)
@@ -153,8 +143,9 @@ def moving_median(arr, n=3, method=None):
       ```python
       import airball
       import numpy as np
-      a = np.array([1,2,3,4,5,6,7,8,9,10])
-      print(airball.tools.moving_median(a, n=3)) # [2. 3. 4. 5. 6. 7. 8. 9.]
+
+      a = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+      print(airball.tools.moving_median(a, n=3))  # [2. 3. 4. 5. 6. 7. 8. 9.]
       ```
 
     """
@@ -207,8 +198,7 @@ def integrate(sims, tmaxes, n_jobs=-1, verbose=0):
       sim_results (list): A list of the integrated REBOUND Simulations.
     """
     sim_results = _joblib.Parallel(n_jobs=n_jobs, verbose=verbose)(
-        _joblib.delayed(_integrate)(sim=sims[int(i)], tmax=tmaxes[int(i)])
-        for i in range(len(sims))
+        _joblib.delayed(_integrate)(sim=sims[int(i)], tmax=tmaxes[int(i)]) for i in range(len(sims))
     )
     return sim_results
 
@@ -315,9 +305,9 @@ def angle_between(v1, v2):
 
     Example:
       ```python
-      angle_between((1, 0, 0), (0, 1, 0)) # 1.5707963267948966
-      angle_between((1, 0, 0), (1, 0, 0)) # 0.0
-      angle_between((1, 0, 0), (-1, 0, 0)) # 3.141592653589793
+      angle_between((1, 0, 0), (0, 1, 0))  # 1.5707963267948966
+      angle_between((1, 0, 0), (1, 0, 0))  # 0.0
+      angle_between((1, 0, 0), (-1, 0, 0))  # 3.141592653589793
       ```
     """
     v1_u = unit_vector(v1)
@@ -358,13 +348,9 @@ def M_to_E(e, M):
 def E_to_f(e, E):
     """Converts eccentric anomaly to true anomaly. Implemented from REBOUND using Numpy to handle vectorization."""
     if e > 1.0:
-        return mod2pi(
-            2.0 * _np.arctan(_np.sqrt((1.0 + e) / (e - 1.0)) * _np.tanh(0.5 * E))
-        )
+        return mod2pi(2.0 * _np.arctan(_np.sqrt((1.0 + e) / (e - 1.0)) * _np.tanh(0.5 * E)))
     else:
-        return mod2pi(
-            2.0 * _np.arctan(_np.sqrt((1.0 + e) / (1.0 - e)) * _np.tan(0.5 * E))
-        )
+        return mod2pi(2.0 * _np.arctan(_np.sqrt((1.0 + e) / (1.0 - e)) * _np.tan(0.5 * E)))
 
 
 def M_to_f(e, M):
@@ -392,6 +378,7 @@ def calculate_angular_momentum(sim):
       ```python
       import rebound
       import airball
+
       sim = rebound.Simulation()
       sim.add(m=1)
       sim.add(m=5e-5, a=30)
@@ -422,6 +409,7 @@ def calculate_eccentricity(sim, star):
       ```python
       import rebound
       import airball
+
       sim = rebound.Simulation()
       sim.add(m=1)
       sim.add(m=5e-5, a=30)
@@ -470,9 +458,7 @@ def vinf_and_b_to_q(mu, star_b, star_v):
     star_b = verify_unit(star_b, _u.au)
     star_v = verify_unit(star_v, _u.km / _u.s)
 
-    return (
-        (mu / star_v**2) * (_np.sqrt(1 + (star_b**2 * star_v**4) / (mu**2)) - 1)
-    ).to(_u.au)
+    return ((mu / star_v**2) * (_np.sqrt(1 + (star_b**2 * star_v**4) / (mu**2)) - 1)).to(_u.au)
 
 
 def vinf_and_q_to_e(mu, star_q, star_v):
@@ -602,12 +588,13 @@ def hyperbolic_elements(sim, star, rmax, values_only=False):
       ```python
       import rebound
       import airball
+
       sim = rebound.Simulation()
       sim.add(m=1)
       sim.add(m=5e-5, a=30)
       star = airball.Star(m=1, b=500, v=5)
       elements = hyperbolic_elements(sim, star, rmax=100)
-      print(elements['a'])
+      print(elements["a"])
       ```
     """
     e = calculate_eccentricity(sim, star)
@@ -632,9 +619,7 @@ def hyperbolic_elements(sim, star, rmax, values_only=False):
             else:
                 if rmax < star.b and rmax != 0:
                     raise RuntimeWarning()
-            f = _np.where(
-                rmax == 0, 0 * _u.rad, _np.arccos(div)
-            )  # Compute the true anomaly, if rmax is 0, then set f=0.
+            f = _np.where(rmax == 0, 0 * _u.rad, _np.arccos(div))  # Compute the true anomaly, if rmax is 0, then set f=0.
         except RuntimeWarning as err:
             if rmax.shape == ():
                 raise RuntimeError(
@@ -648,9 +633,7 @@ def hyperbolic_elements(sim, star, rmax, values_only=False):
     mu = gravitational_mu(sim, star)
     # Compute the time to periapsis from the switching point (-a because the semi-major axis is negative).
     with _u.set_enabled_equivalencies(_u.dimensionless_angles()):
-        E = _np.arccosh(
-            (_np.cos(f) + e) / (1.0 + e * _np.cos(f))
-        )  # Compute the eccentric anomaly
+        E = _np.arccosh((_np.cos(f) + e) / (1.0 + e * _np.cos(f)))  # Compute the eccentric anomaly
         M = e * _np.sinh(E) - E  # Compute the mean anomaly
     Tperi = M / _np.sqrt(mu / (-a * a * a))
 
@@ -738,6 +721,7 @@ def cartesian_elements(sim, star, rmax, values_only=False):
       ```python
       import rebound
       import airball
+
       sim = rebound.Simulation()
       sim.add(m=1)
       sim.add(m=5e-5, a=30)
@@ -770,9 +754,7 @@ def cartesian_elements(sim, star, rmax, values_only=False):
         if _np.any(a < 0.0):
             raise ValueError("Unbound orbit (a < 0) must have e > 1.")
     if _np.any(e * _np.cos(f) < -1.0):
-        raise ValueError(
-            "Unbound orbit can't have f set beyond the range allowed by the asymptotes set by the parabola."
-        )
+        raise ValueError("Unbound orbit can't have f set beyond the range allowed by the asymptotes set by the parabola.")
     if primary.m < 1e-15:
         raise ValueError("Primary has no mass.")
 
@@ -791,24 +773,14 @@ def cartesian_elements(sim, star, rmax, values_only=False):
     si = _np.sin(inc)
 
     # Murray & Dermott Eq 2.122
-    x = primary.x * units.length + r * (
-        cO * (co * cf - so * sf) - sO * (so * cf + co * sf) * ci
-    )
-    y = primary.y * units.length + r * (
-        sO * (co * cf - so * sf) + cO * (so * cf + co * sf) * ci
-    )
+    x = primary.x * units.length + r * (cO * (co * cf - so * sf) - sO * (so * cf + co * sf) * ci)
+    y = primary.y * units.length + r * (sO * (co * cf - so * sf) + cO * (so * cf + co * sf) * ci)
     z = primary.z * units.length + r * (so * cf + co * sf) * si
 
     # Murray & Dermott Eq. 2.36 after applying the 3 rotation matrices from Sec. 2.8 to the velocities in the orbital plane
-    vx = primary.vx * units.length / units.time + v0 * (
-        (e + cf) * (-ci * co * sO - cO * so) - sf * (co * cO - ci * so * sO)
-    )
-    vy = primary.vy * units.length / units.time + v0 * (
-        (e + cf) * (ci * co * cO - sO * so) - sf * (co * sO + ci * so * cO)
-    )
-    vz = primary.vz * units.length / units.time + v0 * (
-        (e + cf) * co * si - sf * si * so
-    )
+    vx = primary.vx * units.length / units.time + v0 * ((e + cf) * (-ci * co * sO - cO * so) - sf * (co * cO - ci * so * sO))
+    vy = primary.vy * units.length / units.time + v0 * ((e + cf) * (ci * co * cO - sO * so) - sf * (co * sO + ci * so * cO))
+    vz = primary.vz * units.length / units.time + v0 * ((e + cf) * co * si - sf * si * so)
 
     if values_only:
         return {
@@ -924,9 +896,7 @@ def encounter_rate(n, v, q, M, unit_set=_UnitSet()):
     b = q2b(mu, q, v, unit_set)
     # b = vinf_and_q_to_b(mu, q, v)
 
-    return (n * v * _np.pi * b**2).to(
-        unit_set.object / unit_set.time
-    )  # cross_section(mu, q, v, unit_set)
+    return (n * v * _np.pi * b**2).to(unit_set.object / unit_set.time)  # cross_section(mu, q, v, unit_set)
 
 
 ############################################################
@@ -947,10 +917,11 @@ def rebound_units(sim):
       ```python
       import rebound
       import airball
+
       sim = rebound.Simulation()
       sim.add(m=1)
       sim.add(m=5e-5, a=30)
-      airball.tools.rebound_units(sim) # UnitSet with length==au, mass==solMass, and time==yr2pi
+      airball.tools.rebound_units(sim)  # UnitSet with length==au, mass==solMass, and time==yr2pi
       ```
     """
     defrebunits = {"length": _u.au, "mass": _u.solMass, "time": _u.yr2pi}

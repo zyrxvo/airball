@@ -49,9 +49,7 @@ def convert_ipynb_to_py(request, tmp_path: Path) -> Path:
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize(
-    "convert_ipynb_to_py", EXAMPLES, ids=[f.name for f in EXAMPLES], indirect=True
-)
+@pytest.mark.parametrize("convert_ipynb_to_py", EXAMPLES, ids=[f.name for f in EXAMPLES], indirect=True)
 def test_notebooks(convert_ipynb_to_py):
     """Convert a notebook to a script and test it."""
     output = subprocess.run(

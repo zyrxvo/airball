@@ -39,11 +39,12 @@ class UnitSet:
       ```python
       import airball
       import airball.units as u
+
       us1 = airball.tools.UnitSet([u.pc, u.Myr])
       us2 = airball.tools.UnitSet()
-      print(us1 == us2) # False
-      print(us1.velocity) # pc/Myr
-      print(us2['velocity']) # au/yr2pi
+      print(us1 == us2)  # False
+      print(us1.velocity)  # pc/Myr
+      print(us2["velocity"])  # au/yr2pi
       ```
     """
 
@@ -189,53 +190,35 @@ class UnitSet:
     def UNIT_SYSTEM(self, UNIT_SYSTEM):
         if UNIT_SYSTEM != []:
             lengthUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(_u.m)]
-            self._units["length"] = (
-                lengthUnit[0] if lengthUnit != [] else self._units["length"]
-            )
+            self._units["length"] = lengthUnit[0] if lengthUnit != [] else self._units["length"]
 
             timeUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(_u.s)]
             self._units["time"] = timeUnit[0] if timeUnit != [] else self._units["time"]
 
-            velocityUnit = [
-                this for this in UNIT_SYSTEM if this.is_equivalent(_u.km / _u.s)
-            ]
+            velocityUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(_u.km / _u.s)]
             if velocityUnit == [] and timeUnit != [] and lengthUnit != []:
                 velocityUnit = [lengthUnit[0] / timeUnit[0]]
-            self._units["velocity"] = (
-                velocityUnit[0] if velocityUnit != [] else self._units["velocity"]
-            )
+            self._units["velocity"] = velocityUnit[0] if velocityUnit != [] else self._units["velocity"]
 
             massUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(_u.kg)]
             self._units["mass"] = massUnit[0] if massUnit != [] else self._units["mass"]
 
             angleUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(_u.rad)]
-            self._units["angle"] = (
-                angleUnit[0] if angleUnit != [] else self._units["angle"]
-            )
+            self._units["angle"] = angleUnit[0] if angleUnit != [] else self._units["angle"]
 
             objectUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(stars)]
             self._units["object"] = objectUnit[0] if objectUnit != [] else stars
 
-            densityUnit = [
-                this for this in UNIT_SYSTEM if this.is_equivalent(stars / _u.m**3)
-            ]
-            densityUnit2 = [
-                this for this in UNIT_SYSTEM if this.is_equivalent(1 / _u.m**3)
-            ]
+            densityUnit = [this for this in UNIT_SYSTEM if this.is_equivalent(stars / _u.m**3)]
+            densityUnit2 = [this for this in UNIT_SYSTEM if this.is_equivalent(1 / _u.m**3)]
             if densityUnit == [] and densityUnit2 != []:
                 densityUnit = [self._units["object"] * densityUnit2[0]]
             elif densityUnit == [] and objectUnit != [] and lengthUnit != []:
                 densityUnit = [self._units["object"] / self._units["length"] ** 3]
             elif densityUnit == [] and densityUnit2 == [] and objectUnit != []:
-                densityLength = [
-                    this
-                    for this in self._units["density"].bases
-                    if this.is_equivalent(_u.m)
-                ][0]
+                densityLength = [this for this in self._units["density"].bases if this.is_equivalent(_u.m)][0]
                 densityUnit = [self._units["object"] / densityLength**3]
-            self._units["density"] = (
-                densityUnit[0] if densityUnit != [] else self._units["density"]
-            )
+            self._units["density"] = densityUnit[0] if densityUnit != [] else self._units["density"]
 
         self._UNIT_SYSTEM = list(self._units.values())
 
