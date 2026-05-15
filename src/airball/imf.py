@@ -16,12 +16,12 @@ import airball.tools as tools
 @runtime_checkable
 class MassFunction(Protocol):
     """
-    A protocol for defining a mass function for use with the IMF class.
+    A protocol for defining a mass function for use with the `IMF` class.
 
     The essence of the protocol is to define a callable object that also contains a `unit`
-    attribute. Leniency by the IMF class is provided if the user does not want to define
+    attribute. Leniency by the `IMF` class is provided if the user does not want to define
     the `unit` attribute. In these cases the IMF will assume that the units of the mass
-    function are the same as the IMF class.
+    function are the same as the `IMF` class.
 
     The protocol requires:
       - A `unit` attribute (astropy Unit) declaring the mass unit the function expects.
@@ -32,7 +32,7 @@ class MassFunction(Protocol):
     `__call__`, not the signature. Signature correctness is enforced by calling
     the function with a test value during IMF construction.
 
-    If `unit` is absent, the IMF class will assume its own unit and emit a warning.
+    If `unit` is absent, the `IMF` class will assume its own unit and emit a warning.
     If `unit` is present but mismatches the IMF unit, an error is raised.
 
     Example:
@@ -76,7 +76,7 @@ class chabrier_2003_single:
     The paper provides a normalization at $0.7\\,M_{\\odot}$:
         $\\left.\\frac{\\mathrm{d}n}{\\mathrm{d}m}\\right|_{0.7} = 3.8 \\cdot 10^{-2} M_{\\odot}^{-1} \\mathrm{pc}^{-3} \\pm 5\\%$
 
-    Note: when used with the IMF class, $A$ and the $\\mathrm{pc}^{-3}$ scaling are normalized
+    Note: when used with the `IMF` class, $A$ and the $\\mathrm{pc}^{-3}$ scaling are normalized
     away during CDF construction and do not affect the sampled mass distribution.
 
     Args:
@@ -119,8 +119,7 @@ class chabrier_2005_single:
     """
     [Chabrier (2005)](https://ui.adsabs.harvard.edu/abs/2005ASSL..327...41C/abstract) IMF for single stars.
 
-    The paper (Chabrier 2005, in 'The Initial Mass Function 50 Years Later', Eq. 1)
-    defines the IMF in log-space with the same lognormal form as Chabrier (2003)
+    The paper defines the IMF in log-space with the same lognormal form as Chabrier (2003)
     but with revised constants:
 
     $$\\xi(\\log m) = A \\exp\\left[-\\frac{\\left(\\log_{10}\\left(\\frac{m}{M_\\odot}\\right) - \\log_{10}\\left(\\frac{m_c}{M_\\odot}\\right)\\right)^2 }{ 2 \\sigma^2}\\right]$$
@@ -135,7 +134,7 @@ class chabrier_2005_single:
 
     Units of $\\xi(m): M_{\\odot}^{-1} \\mathrm{pc}^{-3}$.
 
-    Note: when used with the IMF class, $A$ and the $\\mathrm{pc}^{-3}$ scaling are normalized
+    Note: when used with the `IMF` class, $A$ and the $\\mathrm{pc}^{-3}$ scaling are normalized
     away during CDF construction and do not affect the sampled mass distribution.
 
     Args:
@@ -174,19 +173,15 @@ class salpeter_1955:
     """
     [Salpeter (1955)](https://ui.adsabs.harvard.edu/abs/1955ApJ...121..161S/abstract) IMF for single stars.
 
-    The paper (Salpeter 1955, ApJ 121, 161) defines the IMF as:
+    The paper defines the IMF (in continuous form) as:
 
-    $$\\xi(m)\\,\\Delta m = \\xi_0 \\left(\\frac{m}{M_\\odot}\\right)^{-2.35} \\frac{\\Delta m}{M_\\odot}$$
-
-    which in continuous form is:
-
-    $$\\xi(m) = \\xi_0 \\left(\\frac{m}{M_\\odot}\\right)^{-2.35} \\quad [M_{\\odot}^{-1}\\,\\mathrm{pc}^{-3}]$$
+    $$\\xi(m) = \\xi_0 \\left(\\frac{m}{M_\\odot}\\right)^{-2.35}$$
 
     where $\\xi_0 \\approx 0.03\\,\\mathrm{pc}^{-3}\\,M_{\\odot}^{-1}$ is the local stellar density normalization.
 
     The $m/M_\\odot$ ratio makes this function scale-free with respect to mass units.
 
-    Note: when used with the IMF class, $\\xi_0$ is normalized away during CDF
+    Note: when used with the `IMF` class, $\\xi_0$ is normalized away during CDF
     construction and does not affect the sampled mass distribution. It is
     retained here for scientific fidelity to the original paper.
 
@@ -226,23 +221,23 @@ class kroupa_1993:
 
     $$A_2 = A_1 \\cdot m_2^{\\,(\\alpha_2 - \\alpha_1)}, \\quad A_3 = A_2 \\cdot m_3^{\\,(\\alpha_3 - \\alpha_2)}$$
 
-    Default constants (please verify against paper):
-        - $\\alpha_1 = 1.3$, $m_1 = 0.1\\,M_{\\odot}$
+    where:
+        - $\\alpha_1 = 1.3$, $m_1 = 0.08\\,M_{\\odot}$
         - $\\alpha_2 = 2.2$, $m_2 = 0.5\\,M_{\\odot}$
         - $\\alpha_3 = 2.7$, $m_3 = 1.0\\,M_{\\odot}$
-        - $A_1 = 1.0$ (normalization; absorbed by IMF class)
+        - $A_1 = 0.035$ (normalization)
 
-    Note: when used with the IMF class, $A_1$ is normalized away during CDF
+    Note: when used with the `IMF` class, $A_1$ is normalized away during CDF
     construction and does not affect the sampled mass distribution.
 
     Args:
         alpha_1 (float):    Power law index for $m < m_2$. Default: $1.3$
         alpha_2 (float):    Power law index for $m_2 \\leq m < m_3$. Default: $2.2$
         alpha_3 (float):    Power law index for $m \\geq m_3$. Default: $2.7$
-        m_1     (float):    Lower break mass in units of `unit`. Accepts float or Quantity. Default: $0.1\\,M_{\\odot}$
+        m_1     (float):    Lower break mass in units of `unit`. Accepts float or Quantity. Default: $0.08\\,M_{\\odot}$
         m_2     (float):    First break mass in units of `unit`. Accepts float or Quantity. Default: $0.5\\,M_{\\odot}$
         m_3     (float):    Second break mass in units of `unit`. Accepts float or Quantity. Default: $1.0\\,M_{\\odot}$
-        A_1     (float):    Normalization of first segment. Default: $1.0$
+        A_1     (float):    Normalization of first segment. Default: $0.035$
 
     Example:
         ```python
@@ -256,10 +251,10 @@ class kroupa_1993:
     alpha_1: float = 1.3
     alpha_2: float = 2.2
     alpha_3: float = 2.7
-    m_1: float = 0.1
+    m_1: float = 0.08
     m_2: float = 0.5
     m_3: float = 1.0
-    A_1: float = 1.0
+    A_1: float = 0.035
     # Derived from the fields above
     A_2: float = field(init=False, compare=False, hash=False, repr=False, default=0.0)
     A_3: float = field(init=False, compare=False, hash=False, repr=False, default=0.0)
@@ -278,6 +273,7 @@ class kroupa_1993:
         A_3 = A_2 * self.m_3 ** (self.alpha_3 - self.alpha_2)
         object.__setattr__(self, "A_2", A_2)
         object.__setattr__(self, "A_3", A_3)
+        print(self.A_1, self.A_2, self.A_3)
 
     def __call__(self, x: float | np.ndarray | u.Quantity) -> float | np.ndarray:
         m = (x if isinstance(x, u.Quantity) else x * self.unit).to(self.unit)
@@ -296,18 +292,14 @@ class kroupa_1993:
 @dataclass(frozen=True)
 class default_mass_function:
     """
-    Default mass function for the IMF class.
+    Default mass function for the `IMF` class.
 
     A piecewise function combining Chabrier (2003) for $m \\leq 1\\,M_{\\odot}$ and
     Salpeter (1955) for $m > 1\\,M_{\\odot}$, normalized for continuity at $1\\,M_{\\odot}$.
 
-    The continuity constant at the junction is:
-
-    $$\\mathrm{scale} = \\xi_{\\mathrm{Chabrier}}(1\\,M_{\\odot})$$
-
-    so that $\\xi_{\\mathrm{Salpeter}}(m) = \\mathrm{scale} \\cdot \\left(\\frac{m}{M_\\odot}\\right)^{-2.35}$ agrees with $\\xi_{\\mathrm{Chabrier}}$
-    at $m = 1\\,M_{\\odot}$. The scale factor is absorbed by the IMF class during
-    normalization and does not affect sampling.
+    The continuity constant at the junction is $x_{0} = \\xi_{\\mathrm{Chabrier}}(1\\,M_{\\odot})$ so that
+    $\\left.\\xi_{\\mathrm{Salpeter}}(1\\,M_{\\odot})\\right|_{\\xi_{0} = x_{0}} = \\xi_{\\mathrm{Chabrier}}(1\\,M_{\\odot})$.
+    The overall scale factor is absorbed by the `IMF` class during normalization and does not affect sampling.
 
     Example:
         ```python
@@ -319,7 +311,7 @@ class default_mass_function:
     """
 
     # Junction point: always 1 M_☉ (class constant, not a per-instance field)
-    x_0: ClassVar[float] = 1.0
+    m_0: ClassVar[float] = 1.0
     # Computed
     chabrier03: chabrier_2003_single = field(
         init=False,
@@ -328,21 +320,21 @@ class default_mass_function:
         repr=False,
         default_factory=chabrier_2003_single,
     )
-    _scale: float = field(init=False, compare=False, hash=False, repr=False, default=0.0)
+    _x_0: float = field(init=False, compare=False, hash=False, repr=False, default=0.0)
 
     unit: ClassVar = u.solMass
     _airball_builtin: ClassVar[bool] = True
 
     def __post_init__(self):
-        object.__setattr__(self, "_scale", self.chabrier03(self.x_0))
+        object.__setattr__(self, "_x_0", self.chabrier03(self.m_0))
 
     def __call__(self, x: float | np.ndarray | u.Quantity) -> float | np.ndarray:
         m = (x if isinstance(x, u.Quantity) else x * self.unit).to(self.unit)
         m_ratio = (m / self.unit).value
         return np.where(
-            m_ratio < self.x_0,
+            m_ratio < self.m_0,
             self.chabrier03(m_ratio),
-            self._scale * m_ratio**-2.35,  # Salpeter, scaled for continuity
+            self._x_0 * m_ratio**-2.35,  # Salpeter, scaled for continuity
         )
 
 
@@ -352,13 +344,13 @@ class default_mass_function:
 @dataclass(frozen=True)
 class uniform:
     """
-    Uniform mass function.
+    [Uniform](https://en.wikipedia.org/wiki/Continuous_uniform_distribution) mass function.
 
     A flat probability density — every mass in the IMF range is equally likely.
 
     $$\\xi(m) = 1$$
 
-    This is scale-free and has no physical constants. The IMF class normalizes
+    This is scale-free and has no physical constants. The `IMF` class normalizes
     it over $[m_{\\min},\\, m_{\\max}]$ during CDF construction.
 
     Example:
@@ -381,12 +373,13 @@ class uniform:
 @dataclass(frozen=True)
 class power_law:
     """
-    Generic power law mass function.
+    Generic [power law](https://en.wikipedia.org/wiki/Power_law) mass function.
 
     $$\\xi(m) = A \\left(\\frac{m}{M_\\odot}\\right)^{\\alpha}$$
 
     The $m/M_\\odot$ ratio makes this scale-free with respect to mass units.
-    $A$ is normalized away by the IMF class during CDF construction.
+
+    $A$ is normalized away by the `IMF` class during CDF construction.
 
     Args:
         alpha (float): Power law index.
@@ -416,11 +409,13 @@ class power_law:
 @dataclass(frozen=True)
 class broken_power_law:
     """
-    Generic broken power law mass function.
+    Generic [broken power law](https://en.wikipedia.org/wiki/Power_law#Broken_power_law) mass function.
 
     $$\\xi(m) = \\begin{cases} A \\left(\\frac{m}{M_\\odot}\\right)^{\\alpha} & m < m_0 \\\\ A \\left(\\frac{m_0}{M_\\odot}\\right)^{(\\alpha - \\beta)} \\left(\\frac{m}{M_\\odot}\\right)^{\\beta} & m \\geq m_0 \\end{cases}$$
 
-    Continuity is enforced at $m_0$. $A$ is normalized away by the IMF class.
+    Continuity is enforced at $m_0$.
+
+    $A$ is normalized away by the `IMF` class.
 
     Args:
         alpha (float):    Power law index below $m_0$.
@@ -463,16 +458,16 @@ class broken_power_law:
 @dataclass(frozen=True)
 class lognormal:
     """
-    Generic lognormal mass function, defined in linear mass space.
+    Generic [lognormal](https://en.wikipedia.org/wiki/Log-normal_distribution) mass function, defined in linear mass space.
 
     This is the linear-space form of a lognormal (analogous to the Chabrier
     family), including the Jacobian from the log-space definition:
 
-    $$\\xi(m) = \\frac{A}{\\left(\\frac{m}{M_\\odot}\\right) \\ln 10} \\exp\\left[-\\frac{\\left(\\log_{10}\\left(\\frac{m}{M_\\odot}\\right) - \\mu\\right)^2}{2\\sigma^2}\\right]$$
+    $$\\xi(m) = \\frac{A}{\\left(\\frac{m}{M_\\odot}\\right) \\ln 10}\\,\\exp\\left[-\\frac{\\left(\\log_{10}\\left(\\frac{m}{M_\\odot}\\right) - \\mu\\right)^2}{2\\sigma^2}\\right]$$
 
     where $\\mu$ and $\\sigma$ are the mean and width in $\\log_{10}(m/M_\\odot)$ space.
 
-    $A$ is normalized away by the IMF class during CDF construction.
+    $A$ is normalized away by the `IMF` class during CDF construction.
 
     Args:
         mu    (float): Mean in $\\log_{10}(m/M_\\odot)$ space.
@@ -505,16 +500,15 @@ class lognormal:
 @dataclass(frozen=True)
 class loguniform:
     """
-    Log-uniform mass function.
+    [Log-uniform](https://en.wikipedia.org/wiki/Reciprocal_distribution) mass function.
 
     A distribution that is uniform in log space, equivalent to:
 
     $$\\xi(m) = \\frac{A}{m/M_\\odot}$$
 
-    This is the $1/m$ (Jeffreys prior) distribution. It gives equal probability
-    per decade of mass.
+    This is the $1/m$ reciprocal distribution. It gives equal probability per decade of mass.
 
-    $A$ is normalized away by the IMF class during CDF construction.
+    $A$ is normalized away by the `IMF` class during CDF construction.
 
     Args:
         A (float): Normalization factor. Default: $1.0$
