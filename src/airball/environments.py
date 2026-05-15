@@ -68,7 +68,7 @@ class StellarEnvironment:
         units=None,
         object_name=None,
         seed=None,
-        interpolating_samples=int(1e5),
+        interpolating_points=int(1e5),
     ):
         # Initialize StellarEnvironment from file.
         if filename is not None and isinstance(filename, str):
@@ -118,7 +118,7 @@ class StellarEnvironment:
             max_mass=self._upper_mass_limit,
             mass_function=mass_function,
             unit=self.units["mass"],
-            interpolating_samples=interpolating_samples,
+            interpolating_points=interpolating_points,
             seed=seed,
         )
         self._median_mass = self.IMF.median_mass
@@ -528,7 +528,7 @@ class StellarEnvironment:
                 value.max_mass,
                 value.imf,
                 value.unit,
-                value.interpolating_samples,
+                value.interpolating_points,
                 value.seed,
             )
         else:
@@ -683,7 +683,7 @@ class LocalNeighborhood(StellarEnvironment):
         name="Local Neighborhood",
         object_name=None,
         seed=None,
-        interpolating_samples=int(1e5),
+        interpolating_points=int(1e5),
     ):
         super().__init__(
             stellar_density=stellar_density,
@@ -697,7 +697,7 @@ class LocalNeighborhood(StellarEnvironment):
             name=name,
             object_name=object_name,
             seed=seed,
-            interpolating_samples=interpolating_samples,
+            interpolating_points=interpolating_points,
         )
 
 
@@ -736,7 +736,7 @@ class OpenCluster(StellarEnvironment):
         name="Open Cluster",
         object_name=None,
         seed=None,
-        interpolating_samples=int(1e5),
+        interpolating_points=int(1e5),
     ):
         super().__init__(
             stellar_density=stellar_density,
@@ -750,7 +750,7 @@ class OpenCluster(StellarEnvironment):
             name=name,
             object_name=object_name,
             seed=seed,
-            interpolating_samples=interpolating_samples,
+            interpolating_points=interpolating_points,
         )
 
 
@@ -789,7 +789,7 @@ class GlobularCluster(StellarEnvironment):
         name="Globular Cluster",
         object_name=None,
         seed=None,
-        interpolating_samples=int(1e5),
+        interpolating_points=int(1e5),
     ):
         super().__init__(
             stellar_density=stellar_density,
@@ -803,7 +803,7 @@ class GlobularCluster(StellarEnvironment):
             name=name,
             object_name=object_name,
             seed=seed,
-            interpolating_samples=interpolating_samples,
+            interpolating_points=interpolating_points,
         )
 
 
@@ -842,7 +842,7 @@ class GalacticBulge(StellarEnvironment):
         name="Milky Way Bulge",
         object_name=None,
         seed=None,
-        interpolating_samples=int(1e5),
+        interpolating_points=int(1e5),
     ):
         super().__init__(
             stellar_density=stellar_density,
@@ -856,7 +856,7 @@ class GalacticBulge(StellarEnvironment):
             name=name,
             object_name=object_name,
             seed=seed,
-            interpolating_samples=interpolating_samples,
+            interpolating_points=interpolating_points,
         )
 
 
@@ -895,7 +895,7 @@ class GalacticCore(StellarEnvironment):
         name="Milky Way Core",
         object_name=None,
         seed=None,
-        interpolating_samples=int(1e5),
+        interpolating_points=int(1e5),
     ):
         super().__init__(
             stellar_density=stellar_density,
@@ -909,5 +909,5 @@ class GalacticCore(StellarEnvironment):
             name=name,
             object_name=object_name,
             seed=seed,
-            interpolating_samples=interpolating_samples,
+            interpolating_points=interpolating_points,
         )

@@ -549,7 +549,7 @@ class IMF:
       max_mass (u.Quantity): Maximum mass value of the IMF range.
       mass_function (callable, optional): Mass function to use for the IMF. Default is a piecewise Chabrier 2003 and Salpeter 1955.
       unit (Unit, optional): Unit of mass. Default is solar masses.
-      interpolating_samples (float, optional): Number of samples to use for interpolating the CDF. Default is 5x10^5.
+      interpolating_points (float, optional): Number of samples to use for interpolating the CDF. Default is 10^5.
       seed (float, optional): Value to seed the random number generator with. Default is None.
 
     Attributes:
@@ -557,7 +557,7 @@ class IMF:
       max_mass (float): Maximum mass value of the IMF range.
       median_mass (float): Median mass value of the IMF.
       seed (float): Value to seed the random number generator with.
-      interpolating_samples (float): Number of samples to use for interpolating the CDF.
+      interpolating_points (float): Number of samples to use for interpolating the CDF.
       unit (Unit): Unit of mass.
       normalization_factor (float): Normalization factor for the PDF.
       masses (u.Quantity): Mass values logarithmically spanning the IMF range.
@@ -572,10 +572,10 @@ class IMF:
         max_mass: u.Quantity | float,
         mass_function: Callable | None = None,
         unit: u.Unit = u.solMass,
-        interpolating_samples: int = int(1e5),
+        interpolating_points: int = int(1e5),
         seed: int | None = None,
     ):
-        self._interpolating_samples = int(interpolating_samples)
+        self._interpolating_samples = int(interpolating_points)
         self._seed = seed
         self.unit = unit if u.isUnit(unit) else u.solMass
 
@@ -722,18 +722,18 @@ class IMF:
     def median_mass(self):
         return np.exp(self._inv_cdf(0.5)) << self.unit
 
-    def masses(self, interpolating_samples, endpoint=True, unitless=True):
+    def masses(self, size, endpoint=True, unitless=True):
         """
         Convenience function for generating an array of mass values logarithmically spanning the IMF range.
 
         Args:
-          interpolating_samples (int): Number of mass values to generate.
+          size (int): Number of mass values to generate.
           endpoint (bool, optional): Whether to include the max_mass value in the array. Default: True.
 
         Returns:
           masses (ndarray): numpy array of mass values logarithmically spanning the IMF range.
         """
-        ms = np.geomspace(self.min_mass, self.max_mass, int(interpolating_samples), endpoint=endpoint)
+        ms = np.geomspace(self.min_mass, self.max_mass, int(size), endpoint=endpoint)
         return ms.value if unitless else ms
 
     @property
@@ -798,18 +798,19 @@ class IMF:
         self._seed = value
 
     @property
-    def interpolating_samples(self):
+    def interpolating_points(self):
         """
-        The number of samples to use for interpolating the CDF.
-        Recalculates the IMF properties when the `interpolating_samples` value is updated.
+        The number of nodes in the log-mass grid used to construct the PCHIP for interpolating the CDF.
+
+        Recalculates the IMF properties when the `interpolating_points` value is updated.
 
         Args:
           value (int): New number of samples to use for interpolating the CDF.
         """
         return self._interpolating_samples
 
-    @interpolating_samples.setter
-    def interpolating_samples(self, value):
+    @interpolating_points.setter
+    def interpolating_points(self, value):
         self._interpolating_samples = int(value)
         self._recalculate()
 
@@ -840,7 +841,7 @@ class IMF:
         "max_mass",
         "initial_mass_function",
         "unit",
-        "interpolating_samples",
+        "interpolating_points",
         "seed",
     )
 

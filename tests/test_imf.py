@@ -26,7 +26,7 @@ class TestIMFInit:
     def test_default_init(self):
         """Minimum required arguments produce correct defaults."""
         my_imf = imf.IMF(min_mass=0.1, max_mass=100)
-        assert my_imf.interpolating_samples == int(1e5)
+        assert my_imf.interpolating_points == int(1e5)
         assert my_imf.seed is None
         assert my_imf.unit == u.solMass
         assert isinstance(my_imf.initial_mass_function, imf.default_mass_function)
@@ -45,12 +45,12 @@ class TestIMFInit:
             max_mass=50,
             mass_function=mf,
             unit=u.solMass,
-            interpolating_samples=int(1e4),
+            interpolating_points=int(1e4),
             seed=42,
         )
         assert my_imf.min_mass.value == pytest.approx(0.5)
         assert my_imf.max_mass.value == pytest.approx(50)
-        assert my_imf.interpolating_samples == int(1e4)
+        assert my_imf.interpolating_points == int(1e4)
         assert my_imf.seed == 42
         assert my_imf.unit == u.solMass
 
@@ -140,9 +140,9 @@ class TestIMFProperties:
         assert default_imf.seed is None
 
     def test_interpolating_samples_setter(self, default_imf: imf.IMF):
-        """Setting interpolating_samples recalculates."""
-        default_imf.interpolating_samples = 1000
-        assert default_imf.interpolating_samples == 1000
+        """Setting interpolating_points recalculates."""
+        default_imf.interpolating_points = 1000
+        assert default_imf.interpolating_points == 1000
 
     def test_mass_range(self, default_imf: imf.IMF):
         """mass_range returns [min_mass, max_mass]."""
