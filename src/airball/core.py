@@ -36,11 +36,12 @@ def flyby(sim, star, **kwargs):
         ```python
         import rebound
         import airball
+
         sim = rebound.Simulation()
         sim.add(m=1)
         sim.add(m=5e-5, a=30)
         star = airball.Star(m=1, b=500, v=5)
-        airball.flyby(sim, star, rmax=4e5, hash='newstar')
+        airball.flyby(sim, star, rmax=4e5, hash="newstar")
         ```
     """
 
@@ -60,9 +61,7 @@ def flyby(sim, star, **kwargs):
         if "hash" in kwargs:
             del kwargs["hash"]
         add_star_to_sim(sim, star, hash, **kwargs)
-        tperi = (
-            sim.particles[hash].T - sim.t
-        )  # Compute the time to periapsis for the flyby star from the current time.
+        tperi = sim.particles[hash].T - sim.t  # Compute the time to periapsis for the flyby star from the current time.
         sim.integrate(sim.t + 2 * tperi)
         remove_star_from_sim(sim, hash)
         return sim
@@ -121,9 +120,7 @@ def flybys(sims, stars, **kwargs):
     except KeyError:
         rmax = _np.array(Nruns * [1e5]) << _u.au
     if _np.any(stars.b > rmax):
-        raise Exception(
-            "Some stellar impact parameters are greater than the stellar starting distance, rmax."
-        )
+        raise Exception("Some stellar impact parameters are greater than the stellar starting distance, rmax.")
 
     try:
         crossoverFactor = kwargs["crossoverFactor"]
@@ -204,11 +201,12 @@ def hybrid_flyby(sim, star, **kwargs):
         ```python
         import rebound
         import airball
+
         sim = rebound.Simulation()
         sim.add(m=1)
         sim.add(m=5e-5, a=30)
         star = airball.Star(m=1, b=500, v=5)
-        airball.hybrid_flyby(sim, star, rmax=4e5, hash='newstar', crossoverFactor=40)
+        airball.hybrid_flyby(sim, star, rmax=4e5, hash="newstar", crossoverFactor=40)
         ```
     """
 
@@ -222,9 +220,7 @@ def hybrid_flyby(sim, star, **kwargs):
         del kwargs["hash"]
     star_vars = add_star_to_sim(sim, star, hash, **kwargs)
 
-    tperi = (
-        sim.particles[hash].T - sim.t
-    )  # Compute the time to periapsis for the flyby star from the current time.
+    tperi = sim.particles[hash].T - sim.t  # Compute the time to periapsis for the flyby star from the current time.
 
     # Integrate the flyby. Start at the current time and go to twice the time to periapsis.
     switch, tIAS15 = _time_to_periapsis_from_crossover_point(
@@ -307,9 +303,7 @@ def hybrid_flybys(sims, stars, **kwargs):
     except KeyError:
         rmax = _np.array(Nruns * [1e5]) << _u.au
     if _np.any(stars.b > rmax):
-        raise Exception(
-            "Some stellar impact parameters are greater than the stellar starting distance, rmax."
-        )
+        raise Exception("Some stellar impact parameters are greater than the stellar starting distance, rmax.")
 
     try:
         hashes = kwargs["hashes"]
@@ -396,11 +390,12 @@ def successive_flybys(sim, stars, **kwargs):
         ```python
         import rebound
         import airball
+
         sim = rebound.Simulation()
         sim.add(m=1)
         sim.add(m=5e-5, a=30)
         stars = airball.Stars(m=1, b=500, v=5)
-        airball.successive_flybys(sim, stars, rmax=4e5, hash='newstar')
+        airball.successive_flybys(sim, stars, rmax=4e5, hash="newstar")
         ```
     """
 
@@ -451,6 +446,7 @@ def concurrent_flybys(sim, stars, start_times, **kwargs):
         ```python
         import rebound
         import airball
+
         sim = rebound.Simulation()
         sim.add(m=1)
         sim.add(m=5e-5, a=30)
@@ -542,9 +538,7 @@ def _rotate_into_plane(sim, plane):
             )  # Assumes Earth is particle 3. 0-Sun, 1-Mecury, 2-Venus, 3-Earth, ...
         elif isinstance(plane, int_types):
             p = sim.particles[int(plane)]
-            rotation = (
-                _rebound.Rotation.orbit(Omega=p.Omega, inc=p.inc, omega=p.omega)
-            ).inverse()
+            rotation = (_rebound.Rotation.orbit(Omega=p.Omega, inc=p.inc, omega=p.omega)).inverse()
     sim.rotate(rotation)
     return rotation
 
@@ -569,11 +563,12 @@ def add_star_to_sim(sim, star, hash, **kwargs):
         ```python
         import rebound
         import airball
+
         sim = rebound.Simulation()
         sim.add(m=1)
         sim.add(m=5e-5, a=30)
         star = airball.Star(m=1, b=500, v=5)
-        add_star_to_sim(sim, star, hash='newstar', rmax=1e5, plane='invariable')
+        add_star_to_sim(sim, star, hash="newstar", rmax=1e5, plane="invariable")
         ```
     """
     # Because REBOUND Simulations are C structs underneath Python, this function passes the simulation by reference.
@@ -626,9 +621,7 @@ def remove_star_from_sim(sim, hash):
     # Because REBOUND Simulations are C structs underneath Python, this function passes the simulation by reference.
 
 
-def _time_to_periapsis_from_crossover_point(
-    sim, sim_units, star_elements, crossoverFactor=None, index=None
-):
+def _time_to_periapsis_from_crossover_point(sim, sim_units, star_elements, crossoverFactor=None, index=None):
     """
     Compute the time to periapsis from crossover point. The default is to use 100 times the largest semi-major axis of the bound orbits in the system. However, this can be overridden by specifying a crossoverFactor and/or an index.
 
@@ -648,13 +641,9 @@ def _time_to_periapsis_from_crossover_point(
         crossoverFactor = 100
         orbs = sim.orbits()
         max_a = _np.max([o.a for o in orbs])
-        rCrossOver = (
-            crossoverFactor * max_a * sim_units["length"]
-        )  # This is the distance to switch integrators
+        rCrossOver = crossoverFactor * max_a * sim_units["length"]  # This is the distance to switch integrators
     elif crossoverFactor is None and index is not None:
-        crossoverFactor = (
-            100  # Default to 100 times the semi-major axis of the indicated particle.
-        )
+        crossoverFactor = 100  # Default to 100 times the semi-major axis of the indicated particle.
         rCrossOver = (
             crossoverFactor * sim.particles[index].a * sim_units["length"]
         )  # This is the distance to switch integrators
@@ -673,24 +662,16 @@ def _time_to_periapsis_from_crossover_point(
             (star_elements["l"] / rCrossOver - 1.0) / star_elements["e"]
         )  # Compute the true anomaly for the cross-over point.
 
-        G = (
-            sim.G
-            * sim_units["length"] ** 3
-            / sim_units["mass"]
-            / sim_units["time"] ** 2
-        )
+        G = sim.G * sim_units["length"] ** 3 / sim_units["mass"] / sim_units["time"] ** 2
         mu = G * (_tools.system_mass(sim) * sim_units["mass"] + star_elements["m"])
 
         # Compute the time to periapsis from the switching point (-a because the semi-major axis is negative).
         with _u.set_enabled_equivalencies(_u.dimensionless_angles()):
             E = _np.arccosh(
-                (_np.cos(f) + star_elements["e"])
-                / (1.0 + star_elements["e"] * _np.cos(f))
+                (_np.cos(f) + star_elements["e"]) / (1.0 + star_elements["e"] * _np.cos(f))
             )  # Compute the eccentric anomaly
             M = star_elements["e"] * _np.sinh(E) - E  # Compute the mean anomaly
-        return True, M / _np.sqrt(
-            mu / (-star_elements["a"] * star_elements["a"] * star_elements["a"])
-        )
+        return True, M / _np.sqrt(mu / (-star_elements["a"] * star_elements["a"] * star_elements["a"]))
     else:
         return False, None
 
@@ -787,14 +768,10 @@ def _hybrid_successive_flybys(
             hash = f"flybystar{star_number}"
             star_vars = add_star_to_sim(sim, star, rmax=rmax, plane=plane, hash=hash)
 
-            tperi = (
-                sim.particles[hash].T - sim.t
-            )  # Compute the time to periapsis for the flyby star from the current time.
+            tperi = sim.particles[hash].T - sim.t  # Compute the time to periapsis for the flyby star from the current time.
 
             # Integrate the flyby. Start at the current time and go to twice the time to periapsis.
-            switch, tIAS15 = _time_to_periapsis_from_crossover_point(
-                sim, sim_units, star_vars, crossoverFactor, index
-            )
+            switch, tIAS15 = _time_to_periapsis_from_crossover_point(sim, sim_units, star_vars, crossoverFactor, index)
             if switch:
                 t_switch = sim.t + tperi - tIAS15.value
                 t_switch_back = sim.t + tperi + tIAS15.value
@@ -975,9 +952,7 @@ def _hybrid_concurrent_flybys(
         )  # Compute the time to periapsis for the flyby star from the current time.
         these_times.append(times[star_number])
         # Integrate the flyby. Start at the current time and go to twice the time to periapsis.
-        switch, tIAS15 = _time_to_periapsis_from_crossover_point(
-            tmp_sim, sim_units, star_vars, crossoverFactor, index
-        )
+        switch, tIAS15 = _time_to_periapsis_from_crossover_point(tmp_sim, sim_units, star_vars, crossoverFactor, index)
         if switch:
             these_times.append(times[star_number] + tmp_sim.t + tperi - tIAS15.value)
             these_times.append(times[star_number] + tmp_sim.t + tperi + tIAS15.value)

@@ -10,10 +10,19 @@ The following documentation was automatically generated from the docstrings.
 
 ## Available IMFs
 
-::: airball.imf.chabrier_2003_single
-::: airball.imf.salpeter_1955
-::: airball.imf.power_law
-::: airball.imf.broken_power_law
-::: airball.imf.lognormal
-::: airball.imf.loguniform
-::: airball.imf.uniform
+### The MassFunction Protocol
+
+The `airball.IMF` class is designed to take any callable function provided as a mass function for sampling. However, a protocol is defined for attaching units to custom mass functions to help maintain unit consistency and help prevent unintentional errors.
+
+::: airball.imf.MassFunction
+
+### Provided IMFs
+
+::: airball.imf
+    options:
+      show_root_heading: false
+      show_root_toc_entry: false
+      members_order: alphabetical
+      filters:
+        - "!^IMF$"
+        - "!^MassFunction$"

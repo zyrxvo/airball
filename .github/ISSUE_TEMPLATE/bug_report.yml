@@ -1,0 +1,50 @@
+---
+name: "Bug Report"
+description: "Report a bug to help us improve."
+title: "[BUG] <short description>"
+labels: [bug]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: "## Bug Report\nPlease fill out the following information."
+  - type: input
+    id: summary
+    attributes:
+      label: "Summary"
+      description: "A brief summary of the bug."
+      placeholder: "e.g., A crash happens when..."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Steps to Reproduce"
+      description: "List the steps to reproduce the bug."
+      placeholder: "1. When you ...\n2. Then do ...\n3. See error ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Expected Behavior"
+      description: "What did you expect to happen?"
+      placeholder: "It should ..."
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: "Environment"
+      description: "Please provide information about your environment."
+      placeholder: "OS, Python version, dependencies, specific commit, etc."
+    validations:
+      required: false
+  - type: textarea
+    id: additional
+    attributes:
+      label: "Additional Context"
+      description: "Add any other context, screenshots, or logs here."
+      placeholder: "Any other details..."
+    validations:
+      required: false

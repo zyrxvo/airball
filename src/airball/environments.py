@@ -41,7 +41,10 @@ class StellarEnvironment:
     Example:
       ```python
       import airball
-      my_env = airball.StellarEnvironment(stellar_density=10, velocity_dispersion=20, lower_mass_limit=0.08, upper_mass_limit=8, name='My Environment')
+
+      my_env = airball.StellarEnvironment(
+          stellar_density=10, velocity_dispersion=20, lower_mass_limit=0.08, upper_mass_limit=8, name="My Environment"
+      )
       my_star = my_env.random_star()
       my_env.stats()
       ```
@@ -65,7 +68,7 @@ class StellarEnvironment:
         units=None,
         object_name=None,
         seed=None,
-        number_imf_samples=100,
+        interpolating_points=int(1e5),
     ):
         # Initialize StellarEnvironment from file.
         if filename is not None and isinstance(filename, str):
@@ -115,7 +118,7 @@ class StellarEnvironment:
             max_mass=self._upper_mass_limit,
             mass_function=mass_function,
             unit=self.units["mass"],
-            number_samples=number_imf_samples,
+            interpolating_points=interpolating_points,
             seed=seed,
         )
         self._median_mass = self.IMF.median_mass
@@ -143,7 +146,10 @@ class StellarEnvironment:
         Example:
           ```python
           import airball
-          my_env = airball.StellarEnvironment(stellar_density=10, velocity_dispersion=20, lower_mass_limit=0.08, upper_mass_limit=8, name='My Environment')
+
+          my_env = airball.StellarEnvironment(
+              stellar_density=10, velocity_dispersion=20, lower_mass_limit=0.08, upper_mass_limit=8, name="My Environment"
+          )
           my_stars = my_env.random_stars(10)
           ```
         """
@@ -159,40 +165,26 @@ class StellarEnvironment:
 
         v = (
             _maxwell.rvs(
-                scale=_tools.maxwell_boltzmann_scale_from_dispersion(
-                    self.velocity_dispersion
-                ),
+                scale=_tools.maxwell_boltzmann_scale_from_dispersion(self.velocity_dispersion),
                 size=size,
                 random_state=(seed + 1),
             )
             << self.units["velocity"]
         )  # Relative velocity of the star at infinity.
 
-        max_impact = (
-            maximum_impact_parameter
-            if maximum_impact_parameter is not None
-            else self.maximum_impact_parameter
-        )
-        b = max_impact * _np.sqrt(
-            _uniform.rvs(size=size, random_state=(seed + 2))
-        )  # Impact parameter of the star.
+        max_impact = maximum_impact_parameter if maximum_impact_parameter is not None else self.maximum_impact_parameter
+        b = max_impact * _np.sqrt(_uniform.rvs(size=size, random_state=(seed + 2)))  # Impact parameter of the star.
 
         m = self.IMF.random_mass(size=size, seed=(seed + 3))  # Mass of the star.
 
         zeros = _np.zeros(size)
         inc = (
-            (2 * _np.arcsin(_np.sqrt(_uniform.rvs(size=size, random_state=(seed + 4)))))
-            << self.units["angle"]
+            (2 * _np.arcsin(_np.sqrt(_uniform.rvs(size=size, random_state=(seed + 4))))) << self.units["angle"]
             if include_orientation
             else zeros
         )
         ω = (
-            (
-                _uniform.rvs(
-                    loc=0, scale=(2.0 * _np.pi), size=size, random_state=(seed + 5)
-                )
-            )
-            << self.units["angle"]
+            (_uniform.rvs(loc=0, scale=(2.0 * _np.pi), size=size, random_state=(seed + 5))) << self.units["angle"]
             if include_orientation
             else zeros
         )
@@ -233,9 +225,7 @@ class StellarEnvironment:
                 environment=self,
             )
         else:
-            return _Star(
-                m, b[0], v[0], inc[0], ω[0], Ω[0], UNIT_SYSTEM=self.UNIT_SYSTEM
-            )
+            return _Star(m, b[0], v[0], inc[0], ω[0], Ω[0], UNIT_SYSTEM=self.UNIT_SYSTEM)
 
     def random_star(self, size=1, **kwargs) -> _Star | _Stars:
         # Alias for `random_stars`
@@ -249,14 +239,10 @@ class StellarEnvironment:
         s += "\n------------------------------------------\n"
         s += "{1} Density:     {0:12.4g} \n".format(
             self.density,
-            "Stellar"
-            if self.object_unit.to_string() == _u.stars.to_string()
-            else "Object",
+            "Stellar" if self.object_unit.to_string() == _u.stars.to_string() else "Object",
         )
         s += "Velocity Scale:      {0:12.4g} \n".format(self.velocity_dispersion)
-        s += "Mass Range:            {0:6.4g} - {1:1.4g}\n".format(
-            self.lower_mass_limit.value, self.upper_mass_limit
-        )
+        s += "Mass Range:            {0:6.4g} - {1:1.4g}\n".format(self.lower_mass_limit.value, self.upper_mass_limit)
         s += "Median Mass:         {0:12.4g} \n".format(self.median_mass)
         s += "Mean Mass:           {0:12.4g} \n".format(self.mean_mass)
         s += "Max Impact Param:    {0:12.4g} \n".format(self.maximum_impact_parameter)
@@ -280,8 +266,9 @@ class StellarEnvironment:
         Example:
           ```python
           import airball
+
           se = airball.OpenCluster()
-          se.save('open_cluster.se')
+          se.save("open_cluster.se")
           ```
         """
         if not isinstance(filename, (str, Path)):
@@ -303,7 +290,8 @@ class StellarEnvironment:
         Example:
           ```python
           import airball
-          stars = airball.StellarEnvironment('open_cluster.stars')
+
+          stars = airball.StellarEnvironment("open_cluster.stars")
           ```
         """
         if not isinstance(filename, (str, Path)):
@@ -331,12 +319,8 @@ class StellarEnvironment:
                 equal_attribute = getattr(self, attr) == getattr(other, attr)
                 if not equal_attribute:
                     if _tools.isQuantity(getattr(self, attr)):
-                        equal_attribute = (
-                            getattr(self, attr).value == getattr(other, attr).value
-                        )
-                        equal_attribute = equal_attribute and getattr(
-                            self, attr
-                        ).unit.is_equivalent(getattr(other, attr).unit)
+                        equal_attribute = getattr(self, attr).value == getattr(other, attr).value
+                        equal_attribute = equal_attribute and getattr(self, attr).unit.is_equivalent(getattr(other, attr).unit)
                 if not equal_attribute:
                     return False
                 equal = equal and equal_attribute
@@ -429,9 +413,7 @@ class StellarEnvironment:
     def maximum_impact_parameter(self, value):
         if value is not None:
             self._maximum_impact_parameter = (
-                value.to(self.units["length"])
-                if _tools.isQuantity(value)
-                else value * self.units["length"]
+                value.to(self.units["length"]) if _tools.isQuantity(value) else value * self.units["length"]
             )
         else:
             sim = _rebound.Simulation()
@@ -445,10 +427,7 @@ class StellarEnvironment:
                         _Stars(
                             m=self.upper_mass_limit,
                             b=b << self.units.length,
-                            v=_np.sqrt(2.0)
-                            * _tools.maxwell_boltzmann_mean_from_dispersion(
-                                self.velocity_dispersion
-                            ),
+                            v=_np.sqrt(2.0) * _tools.maxwell_boltzmann_mean_from_dispersion(self.velocity_dispersion),
                         ),
                         averaged=True,
                     )
@@ -488,33 +467,23 @@ class StellarEnvironment:
 
     @velocity_dispersion.setter
     def velocity_dispersion(self, value):
-        self._velocity = (
-            value.to(self.units["velocity"])
-            if _tools.isQuantity(value)
-            else value * self.units["velocity"]
-        )
+        self._velocity = value.to(self.units["velocity"]) if _tools.isQuantity(value) else value * self.units["velocity"]
 
     @property
     def velocity_mean(self):
         """The mean velocity of the environment. Default units: km/s."""
-        return _tools.maxwell_boltzmann_mean_from_dispersion(
-            self.velocity_dispersion
-        ).to(self.units["velocity"])
+        return _tools.maxwell_boltzmann_mean_from_dispersion(self.velocity_dispersion).to(self.units["velocity"])
 
     @property
     def velocity_mode(self):
         """Return the most common velocity of the environment. Default units: km/s."""
-        return _tools.maxwell_boltzmann_mode_from_dispersion(
-            self.velocity_dispersion
-        ).to(self.units["velocity"])
+        return _tools.maxwell_boltzmann_mode_from_dispersion(self.velocity_dispersion).to(self.units["velocity"])
 
     @property
     def velocity_rms(self):
         """Return the root-mean-square velocity of the environment. Default units: km/s."""
         v = _maxwell.rvs(
-            scale=_tools.maxwell_boltzmann_scale_from_dispersion(
-                self.velocity_dispersion
-            ),
+            scale=_tools.maxwell_boltzmann_scale_from_dispersion(self.velocity_dispersion),
             size=int(1e6),
         )
         return _tools.verify_unit(_np.sqrt(_np.mean(v**2)), self.units["velocity"])
@@ -559,13 +528,11 @@ class StellarEnvironment:
                 value.max_mass,
                 value.imf,
                 value.unit,
-                value.number_samples,
+                value.interpolating_points,
                 value.seed,
             )
         else:
-            raise AssertionError(
-                "Initial Mass Function (IMF) must be an airball.IMF object."
-            )
+            raise AssertionError("Initial Mass Function (IMF) must be an airball.IMF object.")
 
     @property
     def encounter_rate(self):
@@ -581,13 +548,9 @@ class StellarEnvironment:
 
         The interaction cross section $σ = πb^2$ considers gravitational focussing where $b = q \\sqrt(1 + \\frac{2GM}{q v_∞^2})$ determined by the median mass of the environment, the maximum impact parameter, and the relative velocity at infinity derived from the velocity dispersion.
         """
-        total_mass = (
-            self.mean_mass + 1.0 * self.units.mass
-        )  # Assume a 1 solar mass system experiencing a average mass flyby.
+        total_mass = self.mean_mass + 1.0 * self.units.mass  # Assume a 1 solar mass system experiencing a average mass flyby.
         mu = _c.G * total_mass
-        q_max = _tools.vinf_and_b_to_q(
-            mu, self._maximum_impact_parameter, self.velocity_mean
-        )
+        q_max = _tools.vinf_and_b_to_q(mu, self._maximum_impact_parameter, self.velocity_mean)
         return _tools.encounter_rate(
             n=self._density,
             v=self.velocity_mean,
@@ -610,26 +573,21 @@ class StellarEnvironment:
         Example:
             ```python
             import airball
-            my_env = airball.StellarEnvironment(stellar_density=10, velocity_dispersion=20, lower_mass_limit=0.08, upper_mass_limit=8, name='My Environment')
-            my_env.cumulative_encounter_times(10) # returns an array of 10 cumulative encounter times.
+
+            my_env = airball.StellarEnvironment(
+                stellar_density=10, velocity_dispersion=20, lower_mass_limit=0.08, upper_mass_limit=8, name="My Environment"
+            )
+            my_env.cumulative_encounter_times(10)  # returns an array of 10 cumulative encounter times.
             ```
         """
         if isinstance(size, tuple):
             size = tuple([int(i) for i in size])
-            result = (
-                _np.cumsum(
-                    _exponential.rvs(scale=1 / self.encounter_rate, size=size), axis=1
-                )
-                << self.units["time"]
-            )
+            result = _np.cumsum(_exponential.rvs(scale=1 / self.encounter_rate, size=size), axis=1) << self.units["time"]
             result -= result[:, 0][:, None]
             return result
         else:
             size = int(size)
-            result = (
-                _np.cumsum(_exponential.rvs(scale=1 / self.encounter_rate, size=size))
-                << self.units["time"]
-            )
+            result = _np.cumsum(_exponential.rvs(scale=1 / self.encounter_rate, size=size)) << self.units["time"]
             result -= result[0]
             return result
 
@@ -647,22 +605,19 @@ class StellarEnvironment:
         Example:
             ```python
             import airball
-            my_env = airball.StellarEnvironment(stellar_density=10, velocity_dispersion=20, lower_mass_limit=0.08, upper_mass_limit=8, name='My Environment')
-            my_env.encounter_times(10) # returns an array of 10 encounter times.
+
+            my_env = airball.StellarEnvironment(
+                stellar_density=10, velocity_dispersion=20, lower_mass_limit=0.08, upper_mass_limit=8, name="My Environment"
+            )
+            my_env.encounter_times(10)  # returns an array of 10 encounter times.
             ```
         """
         if isinstance(size, tuple):
             size = tuple([int(i) for i in size])
-            return (
-                _exponential.rvs(scale=1 / self.encounter_rate, size=size)
-                << self.units["time"]
-            )
+            return _exponential.rvs(scale=1 / self.encounter_rate, size=size) << self.units["time"]
         else:
             size = int(size)
-            return (
-                _exponential.rvs(scale=1 / self.encounter_rate, size=size)
-                << self.units["time"]
-            )
+            return _exponential.rvs(scale=1 / self.encounter_rate, size=size) << self.units["time"]
 
     def time_to_next_encounter(self):
         """
@@ -675,7 +630,10 @@ class StellarEnvironment:
         Example:
             ```python
             import airball
-            my_env = airball.StellarEnvironment(stellar_density=10, velocity_dispersion=20, lower_mass_limit=0.08, upper_mass_limit=8, name='My Environment')
+
+            my_env = airball.StellarEnvironment(
+                stellar_density=10, velocity_dispersion=20, lower_mass_limit=0.08, upper_mass_limit=8, name="My Environment"
+            )
             my_env.time_to_next_encounter()
             ```
         """
@@ -694,8 +652,11 @@ class LocalNeighborhood(StellarEnvironment):
     Example:
       ```python
       import airball
+
       my_local = airball.LocalNeighborhood()
-      my_10stars = my_local.random_stars(size=10) # returns a Stars object with the masses, impact parameters, velocities, and orientation of the 10 Star objects in a heliocentric model.
+      my_10stars = my_local.random_stars(
+          size=10
+      )  # returns a Stars object with the masses, impact parameters, velocities, and orientation of the 10 Star objects in a heliocentric model.
       ```
     """
 
@@ -722,7 +683,7 @@ class LocalNeighborhood(StellarEnvironment):
         name="Local Neighborhood",
         object_name=None,
         seed=None,
-        number_imf_samples=100,
+        interpolating_points=int(1e5),
     ):
         super().__init__(
             stellar_density=stellar_density,
@@ -736,7 +697,7 @@ class LocalNeighborhood(StellarEnvironment):
             name=name,
             object_name=object_name,
             seed=seed,
-            number_imf_samples=number_imf_samples,
+            interpolating_points=interpolating_points,
         )
 
 
@@ -752,8 +713,11 @@ class OpenCluster(StellarEnvironment):
     Example:
       ```python
       import airball
+
       my_open = airball.OpenCluster()
-      my_10stars = my_open.random_stars(size=10) # returns a Stars object with the masses, impact parameters, velocities, and orientation of the 10 Star objects in a heliocentric model.
+      my_10stars = my_open.random_stars(
+          size=10
+      )  # returns a Stars object with the masses, impact parameters, velocities, and orientation of the 10 Star objects in a heliocentric model.
       ```
     """
 
@@ -772,7 +736,7 @@ class OpenCluster(StellarEnvironment):
         name="Open Cluster",
         object_name=None,
         seed=None,
-        number_imf_samples=100,
+        interpolating_points=int(1e5),
     ):
         super().__init__(
             stellar_density=stellar_density,
@@ -786,7 +750,7 @@ class OpenCluster(StellarEnvironment):
             name=name,
             object_name=object_name,
             seed=seed,
-            number_imf_samples=number_imf_samples,
+            interpolating_points=interpolating_points,
         )
 
 
@@ -802,8 +766,11 @@ class GlobularCluster(StellarEnvironment):
     Example:
       ```python
       import airball
+
       my_glob = airball.GlobularCluster()
-      my_10stars = my_glob.random_stars(size=10) # returns a Stars object with the masses, impact parameters, velocities, and orientation of the 10 Star objects in a heliocentric model.
+      my_10stars = my_glob.random_stars(
+          size=10
+      )  # returns a Stars object with the masses, impact parameters, velocities, and orientation of the 10 Star objects in a heliocentric model.
       ```
     """
 
@@ -822,7 +789,7 @@ class GlobularCluster(StellarEnvironment):
         name="Globular Cluster",
         object_name=None,
         seed=None,
-        number_imf_samples=100,
+        interpolating_points=int(1e5),
     ):
         super().__init__(
             stellar_density=stellar_density,
@@ -836,7 +803,7 @@ class GlobularCluster(StellarEnvironment):
             name=name,
             object_name=object_name,
             seed=seed,
-            number_imf_samples=number_imf_samples,
+            interpolating_points=interpolating_points,
         )
 
 
@@ -852,8 +819,11 @@ class GalacticBulge(StellarEnvironment):
     Example:
       ```python
       import airball
+
       my_bulge = airball.GalacticBulge()
-      my_10stars = my_bulge.random_stars(size=10) # returns a Stars object with the masses, impact parameters, velocities, and orientation of the 10 Star objects in a heliocentric model.
+      my_10stars = my_bulge.random_stars(
+          size=10
+      )  # returns a Stars object with the masses, impact parameters, velocities, and orientation of the 10 Star objects in a heliocentric model.
       ```
     """
 
@@ -872,7 +842,7 @@ class GalacticBulge(StellarEnvironment):
         name="Milky Way Bulge",
         object_name=None,
         seed=None,
-        number_imf_samples=100,
+        interpolating_points=int(1e5),
     ):
         super().__init__(
             stellar_density=stellar_density,
@@ -886,7 +856,7 @@ class GalacticBulge(StellarEnvironment):
             name=name,
             object_name=object_name,
             seed=seed,
-            number_imf_samples=number_imf_samples,
+            interpolating_points=interpolating_points,
         )
 
 
@@ -902,8 +872,11 @@ class GalacticCore(StellarEnvironment):
     Example:
       ```python
       import airball
+
       my_core = airball.GalacticCore()
-      my_10stars = my_core.random_stars(size=10) # returns a Stars object with the masses, impact parameters, velocities, and orientation of the 10 Star objects in a heliocentric model.
+      my_10stars = my_core.random_stars(
+          size=10
+      )  # returns a Stars object with the masses, impact parameters, velocities, and orientation of the 10 Star objects in a heliocentric model.
       ```
     """
 
@@ -922,7 +895,7 @@ class GalacticCore(StellarEnvironment):
         name="Milky Way Core",
         object_name=None,
         seed=None,
-        number_imf_samples=100,
+        interpolating_points=int(1e5),
     ):
         super().__init__(
             stellar_density=stellar_density,
@@ -936,5 +909,5 @@ class GalacticCore(StellarEnvironment):
             name=name,
             object_name=object_name,
             seed=seed,
-            number_imf_samples=number_imf_samples,
+            interpolating_points=interpolating_points,
         )

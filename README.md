@@ -40,10 +40,20 @@ The following packages should automatically be installed along with AIRBALL:
 * Aleksey Generozov, Linda He, Ivy Shi, and others.
 
 AIRBALL is open source and you are invited to contribute to this project!
+If you identify any errors in AIRBALL please [open an issue on GitHub](https://github.com/zyrxvo/airball/issues/new) or
+email Garett at <astro@gbrown.ca>.
 
 ## Acknowledgments
 
 If you use this code or parts of this code for results presented in a scientific publication, we would greatly appreciate a citation.
+```latex
+@misc{airball,
+    title = {AIRBALL: a package for running and managing flybys using REBOUND},
+    author = {{Brown}, Garett and {Rein}, Hanno and {Mohsin}, Hassan and {Chao-Ming Lam}, Ryan and {Generozov}, Aleksey and {He}, Linda and {Shi}, Ivy},
+    year = {2024},
+    url = {https://airball.gbrown.ca/},
+}
+```
 
 ## License
 
