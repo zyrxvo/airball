@@ -216,8 +216,8 @@ class TestIMFMethods:
 
     def test_cdf_outside_range(self, default_imf: imf.IMF):
         """CDF returns 0 below min and 1 above max."""
-        assert default_imf.cdf(0.01) == 0.0
-        assert default_imf.cdf(1000) == 1.0
+        assert default_imf.cdf(0.01) == 0.0  # ty:ignore[invalid-argument-type]
+        assert default_imf.cdf(1000) == 1.0  # ty:ignore[invalid-argument-type]
 
     def test_pdf_non_negative(self, default_imf: imf.IMF):
         """PDF is non-negative within the range."""
@@ -227,8 +227,8 @@ class TestIMFMethods:
 
     def test_pdf_zero_outside_range(self, default_imf: imf.IMF):
         """PDF is zero outside [min_mass, max_mass]."""
-        assert default_imf.pdf(0.01) == 0.0
-        assert default_imf.pdf(1000) == 0.0
+        assert default_imf.pdf(0.01) == 0.0  # ty:ignore[invalid-argument-type]
+        assert default_imf.pdf(1000) == 0.0  # ty:ignore[invalid-argument-type]
 
     def test_masses_method(self, default_imf: imf.IMF):
         """masses() returns correct number of geom-spaced values."""
@@ -629,9 +629,9 @@ class TestGenericMassFunctions:
         """loguniform gives equal probability per decade when integrated."""
         my_imf = imf.IMF(0.1, 100, mass_function=imf.loguniform())
         # CDF(1) - CDF(0.1) should equal CDF(10) - CDF(1)
-        decade1 = my_imf.cdf(1.0) - my_imf.cdf(0.1)
-        decade2 = my_imf.cdf(10.0) - my_imf.cdf(1.0)
-        decade3 = my_imf.cdf(100.0) - my_imf.cdf(10.0)
+        decade1 = my_imf.cdf(1.0) - my_imf.cdf(0.1)  # ty:ignore[invalid-argument-type]
+        decade2 = my_imf.cdf(10.0) - my_imf.cdf(1.0)  # ty:ignore[invalid-argument-type]
+        decade3 = my_imf.cdf(100.0) - my_imf.cdf(10.0)  # ty:ignore[invalid-argument-type]
         assert decade1 == pytest.approx(decade2, rel=1e-4)
         assert decade2 == pytest.approx(decade3, rel=1e-4)
 
@@ -676,8 +676,8 @@ class TestIntegration:
     def test_cdf_spans_zero_to_one(self, mass_function):
         """CDF goes from 0 to 1 across the mass range."""
         my_imf = imf.IMF(0.1, 100, mass_function=mass_function)
-        assert my_imf.cdf(0.1) == pytest.approx(0.0, abs=1e-10)
-        assert my_imf.cdf(100.0) == pytest.approx(1.0, abs=1e-10)
+        assert my_imf.cdf(0.1) == pytest.approx(0.0, abs=1e-10)  # ty:ignore[invalid-argument-type]
+        assert my_imf.cdf(100.0) == pytest.approx(1.0, abs=1e-10)  # ty:ignore[invalid-argument-type]
 
 
 # ── Sampling Distribution Tests ──────────────────────────────────────────────
@@ -689,12 +689,12 @@ class TestSamplingDistribution:
     def test_uniform_distribution_flat(self):
         """Uniform IMF produces roughly uniform samples."""
         my_imf = imf.IMF(1, 10, mass_function=imf.uniform(), seed=0)
-        samples = my_imf.random_mass(size=50000).value
+        samples = my_imf.random_mass(size=50000).value  # ty:ignore[unresolved-attribute]
         # Split into equal bins and check roughly equal counts
         counts, _ = np.histogram(samples, bins=9, range=(1, 10))
         expected = 50000 / 9
-        # No bin deviates by more than 5%
-        assert np.all(np.abs(counts - expected) / expected < 0.05)
+        # No bin deviates by more than 3%
+        assert np.all(np.abs(counts - expected) / expected < 0.03)
 
     def test_salpeter_median(self):
         """Salpeter IMF [0.1, 100] has median close to analytic value."""
@@ -732,14 +732,14 @@ class TestUnitHandling:
         mf = imf.chabrier_2003_single()
         x = np.array([0.1, 0.5, 1.0])
         result = mf(x)
-        assert result.shape == (3,)
+        assert result.shape == (3,)  # ty:ignore[unresolved-attribute]
         assert np.all(result > 0)
 
     def test_scalar_input(self):
         """Mass functions handle scalar floats."""
         mf = imf.chabrier_2003_single()
         result = mf(0.5)
-        assert np.isscalar(result) or result.shape == ()
+        assert np.isscalar(result) or result.shape == ()  # ty:ignore[unresolved-attribute]
 
     def test_all_builtins_have_solmass_unit(self):
         """All builtin mass functions declare unit = solMass."""
