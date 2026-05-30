@@ -81,6 +81,7 @@ plugins:
       glob:
         - docs/examples/.ipynb_checkpoints/*
         - docs/examples/examples_data/*
+        - docs/examples/_notebook_utils.py
         - "*.c"
         - "*.h"
         - "*.o"
