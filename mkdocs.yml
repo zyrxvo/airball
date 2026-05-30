@@ -66,9 +66,14 @@ extra:
     - icon: fontawesome/brands/github
       link: https://github.com/zyrxvo/airball
 
+validation:
+  links:
+    unrecognized_links: ignore
+
 plugins:
   - search
-  - mkdocs-jupyter
+  - mkdocs-jupyter:
+      ignore: ["**/*.md"]
   - exclude:
       glob:
         - docs/examples/.ipynb_checkpoints/*
@@ -85,3 +90,5 @@ plugins:
             show_root_heading: true
             heading_level: 4
             show_source: true
+            docstring_options:
+              warn_unknown_params: false

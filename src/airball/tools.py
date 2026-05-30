@@ -132,7 +132,7 @@ def moving_median(arr, n=3, method=None):
     The options for handling NaN values are: `'nn'` (nearest neighbor), `'nan'` (ignore NaNs), and `None`. The default is `None` which uses `numpy.cumsum`. The `'nn'` method is not implemented and defaults to `'nan'`.
 
     Args:
-      a (array): The array of numbers to compute the moving median of.
+      arr (array): The array of numbers to compute the moving median of.
       n (int): The number of elements to use in the moving median.
       method (str): The method to use for handling NaN values.
 
@@ -860,7 +860,7 @@ def q2b(mu, q, v, unit_set=_UnitSet()):
 
     Args:
       mu (Quantity): The total mass of the system (Sun, planets, and flyby star) times the gravitational constant G
-      R (float): The maximum interaction radius (default units: AU)
+      q (float): The perihelion distance (default units: AU)
       v (float): The typical velocity from the distribution (default units: km/s)
       unit_set (airball.units.UnitSet): The set of units to use for the calculation (default [UnitSet][airball.units.UnitSet] units)
     """
