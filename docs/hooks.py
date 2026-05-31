@@ -1,4 +1,19 @@
 import re
+from pathlib import Path
+
+
+def on_config(config, **kwargs):
+    """Keep the docs homepage in sync with README.md.
+
+    README.md is the canonical home page for both GitHub and the docs site.
+    This hook copies it to docs/index.md before MkDocs collects files.
+    """
+    repo_root = Path(config["docs_dir"]).parent
+    readme = repo_root / "README.md"
+    index = Path(config["docs_dir"]) / "index.md"
+    if readme.exists():
+        index.write_text(readme.read_text(encoding="utf-8"), encoding="utf-8")
+    return config
 
 
 def on_page_content(html, page, config, **kwargs):
