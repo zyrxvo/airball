@@ -1,8 +1,9 @@
-import airball
 import pytest
 
+import airball
+
 ################################################
-##########  INITIALIZATION TESTS  ##############
+# INITIALIZATION TESTS  ##############
 ################################################
 
 

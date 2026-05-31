@@ -1,22 +1,37 @@
+# Copyright 2024 Garett Brown
+#
+# AIRBALL is free software: you can redistribute it and/or modify it under the terms of
+# the GNU General Public License as published by the Free Software Foundation, either
+# version 3 of the License, or (at your option) any later version.
+#
+# AIRBALL is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+# See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with airball.
+# If not, see http://www.gnu.org/licenses/.
+"""Star and Stars classes for managing flyby star parameters in `airball`."""
+
+import pickle as _pickle
+from copy import deepcopy as _deepcopy
+from pathlib import Path
+
 import numpy as _np
 import rebound as _rebound
-import pickle as _pickle
-from pathlib import Path
-from copy import deepcopy as _deepcopy
 from scipy.stats import uniform as _uniform
+
 from . import environments as _env
 from . import tools as _tools
 from . import units as _u
 
 try:
     from collections.abc import MutableMapping  # Required for Python>=3.9
-except:  # noqa: E722
-    from collections import MutableMapping
+except:
+    from collections.abc import MutableMapping
 
 
 class Star:
-    """
-    This is the AIRBALL Star class.
+    """This is the AIRBALL Star class.
     It encapsulates the relevant parameters for a given star. Only the mass is a quantity intrinsic to the object. The impact parameter, velocity, inclination, argument of periastron, and longitude of the ascending node quantities are defined with respect to the host star and plane passing through the star.
 
     Args:
@@ -58,6 +73,7 @@ class Star:
 
       star = airball.Star(m=1.0, b=1.0, v=1.0)
       ```
+
     """
 
     def __init__(
@@ -73,18 +89,18 @@ class Star:
     ) -> None:
         self.units = _u.UnitSet(UNIT_SYSTEM)
 
-        seed = kwargs.get("seed", _np.random.randint(0, int(2**32 - 3)))
-        if inc == "isotropic" or inc is None:
+        seed = kwargs.get("seed", _np.random.randint(0, (2**32 - 3)))
+        if inc == "isotropic" or inc == None:
             inc = 2 * _np.arcsin(_np.sqrt(_uniform.rvs(size=1, random_state=seed + 1)))[0]
-        if omega == "isotropic" or omega is None:
+        if omega == "isotropic" or omega == None:
             omega = _uniform.rvs(loc=0, scale=(2.0 * _np.pi), size=1, random_state=seed + 2)[0]
-        if Omega == "isotropic" or Omega is None:
+        if Omega == "isotropic" or Omega == None:
             Omega = _uniform.rvs(loc=-_np.pi, scale=(2.0 * _np.pi), size=1, random_state=seed + 3)[0]
-        if inc == "uniform" or inc is None:
+        if inc == "uniform" or inc == None:
             inc = _uniform.rvs(loc=-_np.pi, scale=(2.0 * _np.pi), size=1, random_state=seed + 1)[0]
-        if omega == "uniform" or omega is None:
+        if omega == "uniform" or omega == None:
             omega = _uniform.rvs(loc=-_np.pi, scale=(2.0 * _np.pi), size=1, random_state=seed + 2)[0]
-        if Omega == "uniform" or Omega is None:
+        if Omega == "uniform" or Omega == None:
             Omega = _uniform.rvs(loc=-_np.pi, scale=(2.0 * _np.pi), size=1, random_state=seed + 3)[0]
 
         self.mass = m
@@ -253,8 +269,7 @@ class Star:
         return self.b * _np.sqrt((star_e - 1.0) / (star_e + 1.0))
 
     def save(self, filename):
-        """
-        Save the current instance of the Star class to a file using pickle.
+        """Save the current instance of the Star class to a file using pickle.
 
         Args:
           filename (str): The name of the file to save the instance to. The file will be saved in binary format.
@@ -266,20 +281,20 @@ class Star:
           star = airball.Star(m=1, b=250, v=1)
           star.save("my_special.star")
           ```
+
         """
         if not isinstance(filename, (str, Path)):
             raise ValueError("Filename must be a string or Path.")
-        with open(filename, "wb") as pfile:
+        with Path(filename).open("wb") as pfile:
             _pickle.dump(self, pfile, protocol=_pickle.HIGHEST_PROTOCOL)
 
-    def copy(self) -> "Star":
-        """Returns a deep copy of the Star object."""
+    def copy(self):
+        """Return a deep copy of the Star object."""
         return _deepcopy(self)
 
     @classmethod
     def from_file(cls, filename):
-        """
-        Load an instance of the Star class from a file using pickle.
+        """Load an instance of the Star class from a file using pickle.
 
         Args:
           filename (str): The name of the file to load the instance from. The file should be in binary format, pickled.
@@ -293,14 +308,15 @@ class Star:
 
           stars = airball.Star.from_file("my_special.star")
           ```
+
         """
         try:
             if not isinstance(filename, (str, Path)):
                 raise ValueError("Filename must be a string or Path.")
-            with open(filename, "rb") as pfile:
+            with Path(filename).open("rb") as pfile:
                 pickled = _pickle.load(pfile)
             dic = pickled.__dict__
-            newStar = Star(
+            new_star = Star(
                 m=dic["_mass"],
                 b=dic["_impact_parameter"],
                 v=dic["_velocity"],
@@ -311,7 +327,7 @@ class Star:
             )
         except:  # noqa: E722
             raise Exception("Invalid filename.")
-        return newStar
+        return new_star
 
     def stats(self, returned=False):
         # Prints a summary of the current stats of the Star.
@@ -324,8 +340,7 @@ class Star:
         s += f"Omega= {self.Omega:1.4g}>"
         if returned:
             return s
-        else:
-            print(s)
+        print(s)
 
     def __str__(self):
         return self.stats(returned=True)
@@ -364,8 +379,7 @@ class Star:
 
 
 class Stars(MutableMapping):
-    """
-    This class allows the user to access stars like an array using the star's index.
+    """This class allows the user to access stars like an array using the star's index.
     Allows for negative indices and slicing.
     The implementation uses astropy.Quantity and numpy ndarrays underneath and only generates a airball.Star object when a single Star is requested.
 
@@ -434,6 +448,7 @@ class Stars(MutableMapping):
       stars_from_file1 = airball.Stars(filename="open_cluster.stars")
       stars_from_file2 = airball.Stars("open_cluster.stars")
       ```
+
     """
 
     def __init__(self, filename=None, **kwargs) -> None:
@@ -456,7 +471,7 @@ class Stars(MutableMapping):
                     raise Exception("Invalid filename.")
                 return
             # If filename is a Star object, then initialize Stars with the same parameters.
-            elif isinstance(filename, Star):
+            if isinstance(filename, Star):
                 self._shape = (kwargs.get("size", 1),)
                 self._m = (_np.ones(self.shape) * filename.m) << self.units["mass"]
                 self._b = (_np.ones(self.shape) * filename.b) << self.units["length"]
@@ -495,8 +510,6 @@ class Stars(MutableMapping):
                 elif _tools.isList(kwargs[key]):
                     if _np.prod(_np.shape(kwargs[key])) > self.N:
                         self._shape = _np.shape(kwargs[key])
-                else:
-                    pass
             except TypeError as err:
                 print(err)
                 self._shape = (len(kwargs[key]),)
@@ -516,7 +529,7 @@ class Stars(MutableMapping):
             pass  # No errors or issues, continue.
 
         # Initialize Stars from environment.
-        self.environment = kwargs.get("environment", None)
+        self.environment = kwargs.get("environment")
         if (("environment" in kwargs or "env" in kwargs) or isinstance(filename, _env.StellarEnvironment)) and "size" in kwargs:
             if self.N <= 1:
                 raise InvalidValueForKeyException("If a generating environment is given then size must be greater than 1.")
@@ -536,13 +549,13 @@ class Stars(MutableMapping):
         # Initialize Stars from kwargs.
         keys = ["m", "b", "v"]
         units = ["mass", "length", "velocity"]
-        unspecifiedParameterExceptions = [
+        unspecified_parameter_exceptions = [
             "Mass, m, must be specified.",
             "Impact Parameter, b, must be specified.",
             "Velocity, v, must be specified.",
         ]
 
-        for k, u, upe in zip(keys, units, unspecifiedParameterExceptions):
+        for k, u, upe in zip(keys, units, unspecified_parameter_exceptions, strict=False):
             try:
                 # Check to see if was key is given.
                 value = kwargs[k]
@@ -550,51 +563,51 @@ class Stars(MutableMapping):
                 if len(value) != len(self):
                     raise ListLengthException(f"Difference of {len(value)} and {len(self)} for {k}.")
                 # Length of value matches other key values, check if value is a list.
-                elif isinstance(value, list):
+                if isinstance(value, list):
                     # Value is a list, try to turn list of Quantities into a ndarray Quantity.
                     try:
-                        quantityValue = _np.array([v.to(self.units[u]).value for v in value]) << self.units[u]
+                        quantity_value = _np.array([v.to(self.units[u]).value for v in value]) << self.units[u]
                     # Value was not a list of Quantities, turn list into ndarray and make a Quantity.
-                    except:  # noqa: E722
-                        quantityValue = _np.array(value) << self.units[u]
+                    except:
+                        quantity_value = _np.array(value) << self.units[u]
                 # Value was not a list, check to see if value is an ndarray.
                 elif isinstance(value, _np.ndarray):
                     # Assume ndarray is a Quantity and try to convert ndarray into given units.
                     try:
-                        quantityValue = value.to(self.units[u])
+                        quantity_value = value.to(self.units[u])
                     # ndarray is not a Quantity so turn ndarray into a Quantity.
-                    except:  # noqa: E722
-                        quantityValue = value << self.units[u]
+                    except:
+                        quantity_value = value << self.units[u]
                 # Value implements __len__, but is not a list or ndarray.
                 else:
-                    raise IncompatibleListException()
+                    raise IncompatibleListException
             # This key is necessary and must be specified, raise and Exception.
             except KeyError:
                 raise UnspecifiedParameterException(upe)
             # Value is not a list, so assume it is an int or float and generate an ndarray of the given value.
             except TypeError:
                 value = value.to(self.units[u]) if _tools.isQuantity(value) else value * self.units[u]
-                quantityValue = _np.ones(self.shape) * value
+                quantity_value = _np.ones(self.shape) * value
             # Catch any additional Exceptions.
-            except Exception as err:
-                raise err
+            except Exception:
+                raise
             # Store Quantity Value as class property.
             if k == "m":
-                self._m = quantityValue
+                self._m = quantity_value
             elif k == "b":
-                self._b = quantityValue
+                self._b = quantity_value
             elif k == "v":
-                self._v = quantityValue
+                self._v = quantity_value
             else:
                 raise _tools.InvalidKeyException()
             # Double check for consistent shapes.
             if self._shape is not None:
-                if quantityValue.shape != self._shape:
-                    raise ListLengthException(f"Difference of {quantityValue.shape} and {self._shape} for {k}.")
+                if quantity_value.shape != self._shape:
+                    raise ListLengthException(f"Difference of {quantity_value.shape} and {self._shape} for {k}.")
             else:
-                self._shape = quantityValue.shape
+                self._shape = quantity_value.shape
 
-        seed = kwargs.get("seed", _np.random.randint(0, int(2**32 - 3)))
+        seed = kwargs.get("seed", _np.random.randint(0, (2**32 - 3)))
         for seedOffset, k in enumerate(["inc", "omega", "Omega"]):
             try:
                 # Check to see if was key is given.
@@ -606,7 +619,7 @@ class Stars(MutableMapping):
                     if value == "isotropic":
                         # Set the distributions for the orientation angles.
                         if k == "inc":
-                            quantityValue = (
+                            quantity_value = (
                                 2.0
                                 * _np.arcsin(
                                     _np.sqrt(
@@ -619,7 +632,7 @@ class Stars(MutableMapping):
                                 << self.units["angle"]
                             )
                         elif k == "omega":
-                            quantityValue = (
+                            quantity_value = (
                                 _uniform.rvs(
                                     loc=0,
                                     scale=(2.0 * _np.pi),
@@ -629,7 +642,7 @@ class Stars(MutableMapping):
                                 << self.units["angle"]
                             )
                         elif k == "Omega":
-                            quantityValue = (
+                            quantity_value = (
                                 _uniform.rvs(
                                     loc=-_np.pi,
                                     scale=(2.0 * _np.pi),
@@ -639,7 +652,7 @@ class Stars(MutableMapping):
                                 << self.units["angle"]
                             )
                     elif value == "uniform":
-                        quantityValue = (
+                        quantity_value = (
                             _uniform.rvs(
                                 loc=-_np.pi,
                                 scale=(2.0 * _np.pi),
@@ -649,7 +662,7 @@ class Stars(MutableMapping):
                             << self.units["angle"]
                         )
                     else:
-                        raise InvalidValueForKeyException()
+                        raise InvalidValueForKeyException
                 # Value is not a string, check if length matches other key values.
                 elif len(value) != len(self):
                     raise ListLengthException(f"Difference of {len(value)} and {len(self)} for {k}.")
@@ -657,30 +670,30 @@ class Stars(MutableMapping):
                 elif isinstance(value, list):
                     # Value is a list, try to turn list of Quantities into a ndarray Quantity.
                     try:
-                        quantityValue = _np.array([v.to(self.units["angle"]).value for v in value]) * self.units["angle"]
+                        quantity_value = _np.array([v.to(self.units["angle"]).value for v in value]) * self.units["angle"]
                     # Value was not a list of Quantities, turn list into ndarray and make a Quantity.
-                    except:  # noqa: E722
-                        quantityValue = _np.array(value) * self.units["angle"]
+                    except:
+                        quantity_value = _np.array(value) * self.units["angle"]
                 # Value was not a list, check to see if value is an ndarray.
                 elif isinstance(value, _np.ndarray):
                     # Assume ndarray is a Quantity and try to convert ndarray into given units.
                     try:
-                        quantityValue = value.to(self.units["angle"])
+                        quantity_value = value.to(self.units["angle"])
                     # ndarray is not a Quantity so turn ndarray into a Quantity.
-                    except:  # noqa: E722
-                        quantityValue = value * self.units["angle"]
+                    except:
+                        quantity_value = value * self.units["angle"]
                 # Value implements __len__, but is not a list or ndarray.
                 else:
-                    raise IncompatibleListException()
+                    raise IncompatibleListException
             # Key does not exist, assume the user wants an array of values to automatically be generated isotropically.
             except KeyError:
                 if k == "inc":
-                    quantityValue = (
+                    quantity_value = (
                         2.0 * _np.arcsin(_np.sqrt(_uniform.rvs(size=self.shape, random_state=(seed + seedOffset))))
                         << self.units["angle"]
                     )
                 elif k == "omega":
-                    quantityValue = (
+                    quantity_value = (
                         _uniform.rvs(
                             loc=0,
                             scale=(2.0 * _np.pi),
@@ -690,7 +703,7 @@ class Stars(MutableMapping):
                         << self.units["angle"]
                     )
                 elif k == "Omega":
-                    quantityValue = (
+                    quantity_value = (
                         _uniform.rvs(
                             loc=-_np.pi,
                             scale=(2.0 * _np.pi),
@@ -702,25 +715,25 @@ class Stars(MutableMapping):
             # Value is not a list, so assume it is an int or float and generate an ndarray of the given value.
             except TypeError:
                 value = value.to(self.units["angle"]) if _tools.isQuantity(value) else value * self.units["angle"]
-                quantityValue = _np.ones(self.shape) * value
+                quantity_value = _np.ones(self.shape) * value
             # Catch any additional Exceptions.
             except Exception as err:
                 raise err
             # Store Quantity Value as class property.
             if k == "inc":
-                self._inc = quantityValue
+                self._inc = quantity_value
             elif k == "omega":
-                self._omega = quantityValue
+                self._omega = quantity_value
             elif k == "Omega":
-                self._Omega = quantityValue
+                self._Omega = quantity_value
             else:
                 raise _tools.InvalidKeyException()
             # Double check for consistent shapes.
             if self.shape is not None:
-                if quantityValue.shape != self.shape:
-                    raise ListLengthException(f"Difference of {quantityValue.shape} and {self.shape} for {k}.")
+                if quantity_value.shape != self.shape:
+                    raise ListLengthException(f"Difference of {quantity_value.shape} and {self.shape} for {k}.")
             else:
-                self._shape = quantityValue.shape
+                self._shape = quantity_value.shape
 
     @property
     def N(self):
@@ -752,13 +765,12 @@ class Stars(MutableMapping):
             if _np.shape(value) != self.shape:
                 raise ListLengthException(f"Difference of {_np.shape(value)} and {self.shape}.")
         except (TypeError, AttributeError):
-            raise IncompatibleListException()
+            raise IncompatibleListException
         self._m = _tools.verify_unit(value, self.units["mass"])
 
     @property
     def mass(self):
-        """
-        Set the masses of the Stars, alias of `m` (default units: Msun).
+        """Set the masses of the Stars, alias of `m` (default units: Msun).
 
         Args:
           value (list, ndarray, or Quantity): The new mass values. Can be set with a list such that len(value) == len(Stars).
@@ -766,6 +778,7 @@ class Stars(MutableMapping):
         Raises:
           ListLengthException: If the length of the provided list does not match the number of Stars.
           IncompatibleListException: If the provided list is not compatible.
+
         """
         return self.m
 
@@ -786,13 +799,12 @@ class Stars(MutableMapping):
             if _np.shape(value) != self.shape:
                 raise ListLengthException(f"Difference of {_np.shape(value)} and {self.shape}.")
         except (TypeError, AttributeError):
-            raise IncompatibleListException()
+            raise IncompatibleListException
         self._b = _tools.verify_unit(value, self.units["length"])
 
     @property
     def impact_parameter(self):
-        """
-        Set the impact parameters of the Stars, alias of `b` (default units: AU).
+        """Set the impact parameters of the Stars, alias of `b` (default units: AU).
 
         Args:
           value (list, ndarray, or Quantity): The new impact parameter values. Can be set with a list such that len(value) == len(Stars).
@@ -800,6 +812,7 @@ class Stars(MutableMapping):
         Raises:
           ListLengthException: If the length of the provided list does not match the number of Stars.
           IncompatibleListException: If the provided list is not compatible.
+
         """
         return self.b
 
@@ -820,13 +833,12 @@ class Stars(MutableMapping):
             if _np.shape(value) != self.shape:
                 raise ListLengthException(f"Difference of {_np.shape(value)} and {self.shape}.")
         except (TypeError, AttributeError):
-            raise IncompatibleListException()
+            raise IncompatibleListException
         self._v = _tools.verify_unit(value, self.units["velocity"])
 
     @property
     def velocity(self):
-        """
-        Set the velocities at infinity of the Stars, alias of `v` (default units: km/s).
+        """Set the velocities at infinity of the Stars, alias of `v` (default units: km/s).
 
         Args:
           value (list, ndarray, or Quantity): The new velocity values. Can be set with a list such that len(value) == len(Stars).
@@ -834,6 +846,7 @@ class Stars(MutableMapping):
         Raises:
           ListLengthException: If the length of the provided list does not match the number of Stars.
           IncompatibleListException: If the provided list is not compatible.
+
         """
         return self.v
 
@@ -854,13 +867,12 @@ class Stars(MutableMapping):
             if _np.shape(value) != self.shape:
                 raise ListLengthException(f"Difference of {_np.shape(value)} and {self.shape}.")
         except (TypeError, AttributeError):
-            raise IncompatibleListException()
+            raise IncompatibleListException
         self._inc = _tools.verify_unit(value, self.units["angle"])
 
     @property
     def inclination(self):
-        """
-        The inclinations of the Stars, alias of `inc` (default units: radians).
+        """The inclinations of the Stars, alias of `inc` (default units: radians).
 
         Args:
           value (list, ndarray, or Quantity): The new inclination values. Can be set with a list such that len(value) == len(Stars).
@@ -868,6 +880,7 @@ class Stars(MutableMapping):
         Raises:
           ListLengthException: If the length of the provided list does not match the number of Stars.
           IncompatibleListException: If the provided list is not compatible.
+
         """
         return self.inc
 
@@ -888,13 +901,12 @@ class Stars(MutableMapping):
             if _np.shape(value) != self.shape:
                 raise ListLengthException(f"Difference of {_np.shape(value)} and {self.shape}.")
         except (TypeError, AttributeError):
-            raise IncompatibleListException()
+            raise IncompatibleListException
         self._omega = _tools.verify_unit(value, self.units["angle"])
 
     @property
     def argument_periastron(self):
-        """
-        The argument of periastron of the Stars, alias of `omega` (default units: radians).
+        """The argument of periastron of the Stars, alias of `omega` (default units: radians).
 
         Args:
           value (list, ndarray, or Quantity): The new values for the argument of periastron. Can be set with a list such that len(value) == len(Stars).
@@ -902,6 +914,7 @@ class Stars(MutableMapping):
         Raises:
           ListLengthException: If the length of the provided list does not match the number of Stars.
           IncompatibleListException: If the provided list is not compatible.
+
         """
         return self.omega
 
@@ -922,13 +935,12 @@ class Stars(MutableMapping):
             if _np.shape(value) != self.shape:
                 raise ListLengthException(f"Difference of {_np.shape(value)} and {self.shape}.")
         except (TypeError, AttributeError):
-            raise IncompatibleListException()
+            raise IncompatibleListException
         self._Omega = _tools.verify_unit(value, self.units["angle"])
 
     @property
     def longitude_ascending_node(self):
-        """
-        The longitude of the ascending node of the Stars, alias of `Omega` (default units: radians).
+        """The longitude of the ascending node of the Stars, alias of `Omega` (default units: radians).
 
         Args:
           value (list, ndarray, or Quantity): The new longitude of the ascending node values. Can be set with a list such that len(value) == len(Stars).
@@ -936,6 +948,7 @@ class Stars(MutableMapping):
         Raises:
           ListLengthException: If the length of the provided list does not match the number of Stars.
           IncompatibleListException: If the provided list is not compatible.
+
         """
         return self.Omega
 
@@ -948,8 +961,7 @@ class Stars(MutableMapping):
 
     @property
     def impulse_gradient(self):
-        """
-        Calculate the impulse gradient for a flyby star.
+        r"""Calculate the impulse gradient for a flyby star.
 
         $$\\frac{2GM_\\star}{V_\\star b_\\star^2}$$
         """
@@ -958,8 +970,7 @@ class Stars(MutableMapping):
 
     @property
     def params(self):
-        """
-        A list of the parameters of the Stars (with units) in order of: Mass, m; Impact Parameter, b; Velocity, v; Inclination, inc; Argument of the Periastron, omega; and Longitude of the Ascending Node, Omega
+        """List of the parameters of the Stars (with units) in order of: Mass, m; Impact Parameter, b; Velocity, v; Inclination, inc; Argument of the Periastron, omega; and Longitude of the Ascending Node, Omega.
 
         `[m, b, v, inc, omega, Omega]`
         """
@@ -967,8 +978,7 @@ class Stars(MutableMapping):
 
     @property
     def param_values(self):
-        """
-        A list of the values of the parameters of the Stars in order of: Mass, m; Impact Parameter, b; Velocity, v; Inclination, inc; Argument of the Periastron, omega; and Longitude of the Ascending Node, Omega
+        """List of the values of the parameters of the Stars in order of: Mass, m; Impact Parameter, b; Velocity, v; Inclination, inc; Argument of the Periastron, omega; and Longitude of the Ascending Node, Omega.
 
         `[m.value, b.value, v.value, inc.value, omega.value, Omega.value]`
         """
@@ -985,8 +995,7 @@ class Stars(MutableMapping):
 
     @property
     def param_dict(self):
-        """
-        A dictionary of the values of the parameters of the Stars including: Mass, "m"; Impact Parameter, "b"; Velocity, "v"; Inclination, "inc"; Argument of the Periastron, "omega"; and Longitude of the Ascending Node, "Omega".
+        """A dictionary of the values of the parameters of the Stars including: Mass, "m"; Impact Parameter, "b"; Velocity, "v"; Inclination, "inc"; Argument of the Periastron, "omega"; and Longitude of the Ascending Node, "Omega".
 
         `{"m": stars.m, "b": stars.b, "v": stars.v, "inc": stars.inc, "omega": stars.omega, "Omega": stars.Omega}`
         """
@@ -1001,8 +1010,7 @@ class Stars(MutableMapping):
 
     @property
     def labels(self):
-        """
-        A list of labels for the parameters of the Stars in order of: Mass, m; Impact Parameter, b; Velocity, v; Inclination, inc; Argument of the Periastron, omega; and Longitude of the Ascending Node, Omega
+        """List of labels for the parameters of the Stars in order of: Mass, m; Impact Parameter, b; Velocity, v; Inclination, inc; Argument of the Periastron, omega; and Longitude of the Ascending Node, Omega.
 
         `["Mass", "Impact Parameter", "Velocity", "Inclination", "Argument of the Periastron", "Longitude of the Ascending Node"]`
         """
@@ -1016,14 +1024,14 @@ class Stars(MutableMapping):
         ]
 
     def eccentricity(self, sim):
-        """
-        The eccentricity of the Stars, alias for `e(sim)`.
+        """Eccentricity of the Stars, alias for `e(sim)`.
 
         Args:
           sim (Simulation): The REBOUND Simulation to use for calculating the eccentricity.
 
         Returns:
           eccentricity (ndarray): The eccentricity of the Stars.
+
         """
         return self.e(sim)
 
@@ -1036,14 +1044,14 @@ class Stars(MutableMapping):
         return _np.sqrt(1 + (numerator / mu) ** 2.0)
 
     def periastron(self, sim):
-        """
-        The periastron of the Stars, alias for `q(sim)`.
+        """Periastron of the Stars, alias for `q(sim)`.
 
         Args:
           sim (Simulation): The REBOUND Simulation to use for calculating the periastron.
 
         Returns:
           periastron (ndarray): The periastron of the Stars.
+
         """
         return self.q(sim)
 
@@ -1057,7 +1065,7 @@ class Stars(MutableMapping):
         return self.b * _np.sqrt((star_e - 1.0) / (star_e + 1.0))
 
     def copy(self):
-        """Returns a deep copy of the Stars."""
+        """Return a deep copy of the Stars."""
         return _deepcopy(self)
 
     def sort(self, key, sim=None, argsort=False):
@@ -1073,8 +1081,7 @@ class Stars(MutableMapping):
         return self.sortby(key, sim, argsort=True)
 
     def sortby(self, key, sim=None, argsort=False):
-        """
-        Sort the Stars in ascending order by a defining parameter.
+        """Sort the Stars in ascending order by a defining parameter.
 
         Args:
           key (str): The parameter to sort by. Options include: 'm' (mass), 'b' (impact parameter), 'v' (relative velocity at infinity), 'inc' (inclination), 'omega' (argument of the periastron), 'Omega' (longitude of the ascending node), 'q' (periapsis), 'e' (eccentricity). For 'q' and 'e', a REBOUND Simulation is required.
@@ -1114,8 +1121,8 @@ class Stars(MutableMapping):
           inds = [0, 4, 1, 3, 2]
           stars.sortby(inds)
           ```
-        """
 
+        """
         inds = _np.arange(len(self))
         if key == "m" or key == "mass":
             inds = _np.argsort(self.m)
@@ -1133,33 +1140,32 @@ class Stars(MutableMapping):
             if isinstance(sim, _rebound.Simulation):
                 inds = _np.argsort(self.q(sim))
             else:
-                raise InvalidParameterTypeException()
+                raise InvalidParameterTypeException
         elif key == "e" or key == "eccentricity":
             if isinstance(sim, _rebound.Simulation):
                 inds = _np.argsort(self.e(sim))
             else:
-                raise InvalidParameterTypeException()
+                raise InvalidParameterTypeException
         elif _tools.isList(key):
             print(key)
             if len(key) != len(self):
                 raise ListLengthException(f"Difference of key: {len(key)} and stars: {len(self)}.")
             inds = _np.array(key)
         else:
-            raise InvalidValueForKeyException()
+            raise InvalidValueForKeyException
 
         if argsort:
             return inds
-        else:
-            self.m[:] = self.m[inds]
-            self.b[:] = self.b[inds]
-            self.v[:] = self.v[inds]
-            self.inc[:] = self.inc[inds]
-            self.omega[:] = self.omega[inds]
-            self.Omega[:] = self.Omega[inds]
+        self.m[:] = self.m[inds]
+        self.b[:] = self.b[inds]
+        self.v[:] = self.v[inds]
+        self.inc[:] = self.inc[inds]
+        self.omega[:] = self.omega[inds]
+        self.Omega[:] = self.Omega[inds]
+        return None
 
     def save(self, filename):
-        """
-        Save the current instance of the Stars class to a file using pickle.
+        """Save the current instance of the Stars class to a file using pickle.
 
         Args:
           filename (str): The name of the file to save the instance to. The file will be saved in binary format.
@@ -1172,16 +1178,16 @@ class Stars(MutableMapping):
           stars = se.random_stars(100)
           stars.save("open_cluster.stars")
           ```
+
         """
         if not isinstance(filename, (str, Path)):
             raise ValueError("Filename must be a string or Path.")
-        with open(filename, "wb") as pfile:
+        with Path(filename).open("wb") as pfile:
             _pickle.dump(self, pfile, protocol=_pickle.HIGHEST_PROTOCOL)
 
     @classmethod
     def _load(cls, filename):
-        """
-        Load an instance of the Stars class from a file using pickle.
+        """Load an instance of the Stars class from a file using pickle.
 
         Args:
           filename (str): The name of the file to load the instance from. The file should be in binary format, pickled.
@@ -1195,15 +1201,17 @@ class Stars(MutableMapping):
 
           stars = airball.Stars("open_cluster.stars")
           ```
+
         """
-        if not isinstance(filename, (str, Path)):
-            raise ValueError("Filename must be a string or Path.")
-        with open(filename, "rb") as pfile:
+        if not isinstance(filename, str):
+            message = "Filename must be a string."
+            raise TypeError(message)
+        with Path(filename).open("rb") as pfile:
             return _pickle.load(pfile)
 
-    def stats(self, returned=False):
-        """
-        Prints a summary of the current stats of the Stars object.
+    def stats(self, returned=False) -> str | None:
+        """Print a summary of the current stats of the Stars object.
+
         The stats are returned as a string if `returned=True`.
         """
         s = f"<{self.__module__}.{type(self).__name__} object at {hex(id(self))}, "
@@ -1218,8 +1226,8 @@ class Stars(MutableMapping):
         s += ">"
         if returned:
             return s
-        else:
-            print(s)
+        print(s)
+        return None
 
     def __str__(self):
         return self.stats(returned=True)
@@ -1244,16 +1252,15 @@ class Stars(MutableMapping):
                     UNIT_SYSTEM=self.units.UNIT_SYSTEM,
                 )
             # Otherwise return the requested Star.
-            else:
-                return Star(
-                    m=self.m[key],
-                    b=self.b[key],
-                    v=self.v[key],
-                    inc=self.inc[key],
-                    omega=self.omega[key],
-                    Omega=self.Omega[key],
-                    UNIT_SYSTEM=self.units.UNIT_SYSTEM,
-                )
+            return Star(
+                m=self.m[key],
+                b=self.b[key],
+                v=self.v[key],
+                inc=self.inc[key],
+                omega=self.omega[key],
+                Omega=self.Omega[key],
+                UNIT_SYSTEM=self.units.UNIT_SYSTEM,
+            )
 
         # Allows for boolean array masking and indexing using a subset of indices.
         if isinstance(key, _np.ndarray):
@@ -1270,14 +1277,14 @@ class Stars(MutableMapping):
         # Allow for speed efficient slicing by returning a new set of Stars which are a subset of the original object.
         if isinstance(key, slice):
             # Check for number of elements returned by the slice.
-            numEl = _tools.numberOfElementsReturnedBySlice(*key.indices(self.N))
+            num_elements = _tools.numberOfElementsReturnedBySlice(*key.indices(self.N))
             # If the slice requests the entire set, then simply return the set.
             # if key == slice(None, None, None): return self #  !!! **Note: this is a reference to the same object.** !!!
             # If there are no elements requested, return the empty set.
-            if numEl == 0:
+            if num_elements == 0:
                 return Stars(m=[], b=[], v=[], size=0)
             # If only one element is requested, return a set of Stars with only one Star.
-            elif numEl == 1:
+            if num_elements == 1:
                 return Stars(
                     m=self.m[key],
                     b=self.b[key],
@@ -1289,16 +1296,15 @@ class Stars(MutableMapping):
                     size=1,
                 )
             # Otherwise return a subset of the Stars defined by the slice.
-            else:
-                return Stars(
-                    m=self.m[key],
-                    b=self.b[key],
-                    v=self.v[key],
-                    inc=self.inc[key],
-                    omega=self.omega[key],
-                    Omega=self.Omega[key],
-                    UNIT_SYSTEM=self.units.UNIT_SYSTEM,
-                )
+            return Stars(
+                m=self.m[key],
+                b=self.b[key],
+                v=self.v[key],
+                inc=self.inc[key],
+                omega=self.omega[key],
+                Omega=self.Omega[key],
+                UNIT_SYSTEM=self.units.UNIT_SYSTEM,
+            )
 
         # Allow for Numpy style array indexing.
         if isinstance(key, tuple):
@@ -1309,15 +1315,15 @@ class Stars(MutableMapping):
             hasSlice = _tools.hasTrue([isinstance(k, slice) for k in key])
             if hasSlice:
                 # Check the number of elements requested by the slice.
-                numEl = [
+                num_elements = [
                     _tools.numberOfElementsReturnedBySlice(*k.indices(self.m.shape[i])) if isinstance(k, slice) else 1
                     for i, k in enumerate(key)
                 ]
                 # If there are no elements requested, return the empty set.
-                if numEl.count(0) > 0:
+                if num_elements.count(0) > 0:
                     return Stars(m=[], b=[], v=[], size=0)
                 # If multiple elements are requested, return a set of Stars.
-                elif _np.any(_np.array(numEl) > 1):
+                if _np.any(_np.array(num_elements) > 1):
                     return Stars(
                         m=self.m[key],
                         b=self.b[key],
@@ -1328,32 +1334,19 @@ class Stars(MutableMapping):
                         UNIT_SYSTEM=self.units.UNIT_SYSTEM,
                     )
                 # If only one element is requested, return a set of Stars with only one Star.
-                else:
-                    # Check to see if the single element is an scalar or an array with only one element.
-                    if self.m[key].isscalar:
-                        return Stars(
-                            m=self.m[key],
-                            b=self.b[key],
-                            v=self.v[key],
-                            inc=self.inc[key],
-                            omega=self.omega[key],
-                            Omega=self.Omega[key],
-                            size=1,
-                            UNIT_SYSTEM=self.units.UNIT_SYSTEM,
-                        )
-                    else:
-                        return Stars(
-                            m=self.m[key],
-                            b=self.b[key],
-                            v=self.v[key],
-                            inc=self.inc[key],
-                            omega=self.omega[key],
-                            Omega=self.Omega[key],
-                            UNIT_SYSTEM=self.units.UNIT_SYSTEM,
-                        )
-            # If there is no slice, the return the requested Star.
-            else:
-                return Star(
+                # Check to see if the single element is an scalar or an array with only one element.
+                if self.m[key].isscalar:
+                    return Stars(
+                        m=self.m[key],
+                        b=self.b[key],
+                        v=self.v[key],
+                        inc=self.inc[key],
+                        omega=self.omega[key],
+                        Omega=self.Omega[key],
+                        size=1,
+                        UNIT_SYSTEM=self.units.UNIT_SYSTEM,
+                    )
+                return Stars(
                     m=self.m[key],
                     b=self.b[key],
                     v=self.v[key],
@@ -1362,6 +1355,16 @@ class Stars(MutableMapping):
                     Omega=self.Omega[key],
                     UNIT_SYSTEM=self.units.UNIT_SYSTEM,
                 )
+            # If there is no slice, the return the requested Star.
+            return Star(
+                m=self.m[key],
+                b=self.b[key],
+                v=self.v[key],
+                inc=self.inc[key],
+                omega=self.omega[key],
+                Omega=self.Omega[key],
+                UNIT_SYSTEM=self.units.UNIT_SYSTEM,
+            )
 
         raise _tools.InvalidKeyException()
 
@@ -1377,7 +1380,7 @@ class Stars(MutableMapping):
                 self.Omega[key],
             ) = value.params
         else:
-            raise InvalidStarException()
+            raise InvalidStarException
 
     def __delitem__(self, key):
         raise ValueError("Cannot delete Star elements from Stars array.")
@@ -1415,12 +1418,11 @@ class Stars(MutableMapping):
             equal = True
             for attr in attrs:
                 equal_attribute = _np.all(getattr(self, attr) == getattr(other, attr))
-                if not equal_attribute:
-                    if _tools.isQuantity(getattr(self, attr)):
-                        equal_attribute = _np.all(getattr(self, attr).value == getattr(other, attr).value)
-                        equal_attribute = equal_attribute and _np.all(
-                            getattr(self, attr).unit.is_equivalent(getattr(other, attr).unit)
-                        )
+                if not equal_attribute and _tools.isQuantity(getattr(self, attr)):
+                    equal_attribute = _np.all(getattr(self, attr).value == getattr(other, attr).value)
+                    equal_attribute = equal_attribute and _np.all(
+                        getattr(self, attr).unit.is_equivalent(getattr(other, attr).unit)
+                    )
                 if not equal_attribute:
                     return False
                 equal = equal and equal_attribute
@@ -1443,32 +1445,30 @@ class Stars(MutableMapping):
         if isinstance(other, Stars):
             if self.N == 0 and other.N == 0:
                 return Stars()
-            else:
-                return Stars(
-                    m=_np.concatenate((self.m, other.m)),
-                    b=_np.concatenate((self.b, other.b)),
-                    v=_np.concatenate((self.v, other.v)),
-                    inc=_np.concatenate((self.inc, other.inc)),
-                    omega=_np.concatenate((self.omega, other.omega)),
-                    Omega=_np.concatenate((self.Omega, other.Omega)),
-                )
-        elif isinstance(other, Star):
+            return Stars(
+                m=_np.concatenate((self.m, other.m)),
+                b=_np.concatenate((self.b, other.b)),
+                v=_np.concatenate((self.v, other.v)),
+                inc=_np.concatenate((self.inc, other.inc)),
+                omega=_np.concatenate((self.omega, other.omega)),
+                Omega=_np.concatenate((self.Omega, other.Omega)),
+            )
+        if isinstance(other, Star):
             if self.N == 0 and other.N == 0:
                 return Stars()
-            else:
-                return Stars(
-                    m=_np.concatenate((self.m, [other.m])),
-                    b=_np.concatenate((self.b, [other.b])),
-                    v=_np.concatenate((self.v, [other.v])),
-                    inc=_np.concatenate((self.inc, [other.inc])),
-                    omega=_np.concatenate((self.omega, [other.omega])),
-                    Omega=_np.concatenate((self.Omega, [other.Omega])),
-                )
+            return Stars(
+                m=_np.concatenate((self.m, [other.m])),
+                b=_np.concatenate((self.b, [other.b])),
+                v=_np.concatenate((self.v, [other.v])),
+                inc=_np.concatenate((self.inc, [other.inc])),
+                omega=_np.concatenate((self.omega, [other.omega])),
+                Omega=_np.concatenate((self.Omega, [other.Omega])),
+            )
         return NotImplemented
 
 
 ################################
-###### Custom Exceptions #######
+# Custom Exceptions #######
 ################################
 
 

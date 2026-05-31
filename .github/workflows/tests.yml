@@ -23,7 +23,7 @@ jobs:
         python_version: ['3.10', '3.11', '3.12', '3.13', '3.14']
 
     env:
-      COVERAGE_FLAGS: "--cov=src/airball --cov-report=xml --cov-report=term-missing"
+      COVERAGE_FLAGS: "--cov=airball --cov-report=xml --cov-report=term-missing"
 
     steps:
       - uses: actions/checkout@v6

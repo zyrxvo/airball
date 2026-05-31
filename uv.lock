@@ -9,6 +9,7 @@ resolution-markers = [
 
 [[package]]
 name = "airball"
+version = "0.11.1"
 source = { editable = "." }
 dependencies = [
     { name = "astropy", version = "6.1.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -19,6 +20,7 @@ dependencies = [
     { name = "rebound" },
     { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scipy", version = "1.16.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
 ]
 
 [package.dev-dependencies]
@@ -54,6 +56,7 @@ requires-dist = [
     { name = "numpy" },
     { name = "rebound", specifier = ">=4.4.7" },
     { name = "scipy" },
+    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=1.1.0" },
 ]
 
 [package.metadata.requires-dev]
