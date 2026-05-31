@@ -10,6 +10,9 @@ htmlcov/
 .coverage
 .cache
 
+# Generated docs files
+docs/index.md
+
 # Example Data
 example-data/
 docs/examples/multiple_flyby_heartbeat.*

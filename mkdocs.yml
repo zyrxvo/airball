@@ -66,13 +66,27 @@ extra:
     - icon: fontawesome/brands/github
       link: https://github.com/zyrxvo/airball
 
+hooks:
+  - docs/hooks.py
+
+validation:
+  links:
+    # MkDocs cannot validate anchor links into notebook-generated pages
+    # (e.g. cross-references from core.py docstrings to sections of
+    # docs/examples/multiple-flybys.ipynb). Those two specific links
+    # are the only source of these warnings; all resolvable links have
+    # been fixed. Change to 'ignore' only if the warnings become noisy.
+    unrecognized_links: warn
+
 plugins:
   - search
-  - mkdocs-jupyter
+  - mkdocs-jupyter:
+      ignore: ["**/*.md"]
   - exclude:
       glob:
         - docs/examples/.ipynb_checkpoints/*
         - docs/examples/examples_data/*
+        - docs/examples/_notebook_utils.py
         - "*.c"
         - "*.h"
         - "*.o"
