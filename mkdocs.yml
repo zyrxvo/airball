@@ -71,7 +71,12 @@ hooks:
 
 validation:
   links:
-    unrecognized_links: ignore
+    # MkDocs cannot validate anchor links into notebook-generated pages
+    # (e.g. cross-references from core.py docstrings to sections of
+    # docs/examples/multiple-flybys.ipynb). Those two specific links
+    # are the only source of these warnings; all resolvable links have
+    # been fixed. Change to 'ignore' only if the warnings become noisy.
+    unrecognized_links: warn
 
 plugins:
   - search
@@ -94,5 +99,3 @@ plugins:
             show_root_heading: true
             heading_level: 4
             show_source: true
-            docstring_options:
-              warn_unknown_params: false

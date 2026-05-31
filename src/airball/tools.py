@@ -957,13 +957,13 @@ def isQuantity(var):
 
 
 def link_c_heartbeat_with_rebound_c_library(filename: str, file_contents: str) -> str:
-    """Prepare a C-Hearbeat function for use.
+    """Prepare a C-Heartbeat function for use.
 
     - Temporarily download the most recent version of REBOUND.
     - Checkout the version of REBOUND currently being used.
     - Compile the REBOUND library
     - Compile the C-Heartbeat function using the REBOUND header file.
-    - Link the REBOUND C-library generating a C-Hearbeat library.
+    - Link the REBOUND C-library generating a C-Heartbeat library.
     """
     ghash = _rebound.__githash__[:8]
     TMP_DIR = Path.cwd() / f"__rebound_{ghash}"

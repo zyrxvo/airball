@@ -1,3 +1,14 @@
+"""Shared utilities for the AIRBALL example notebooks.
+
+This module is imported by the notebooks in docs/examples/ and is intentionally
+excluded from the built documentation (see the 'exclude' plugin in mkdocs.yml).
+
+Important: notebooks must be run with their working directory set to
+docs/examples/ so that Path.cwd()-relative image paths resolve correctly both
+during local execution and MkDocs builds.  Do not import this module from
+outside the docs/examples/ directory.
+"""
+
 from pathlib import Path
 
 import matplotlib.pyplot as plt
