@@ -8,6 +8,10 @@ htmlcov/
 .venv/
 .ruff_cache
 .coverage
+.cache
+
+# Generated docs files
+docs/index.md
 
 # Example Data
 example-data/

@@ -1,0 +1,50 @@
+---
+name: "Documentation Issue"
+description: "Report missing, unclear, or incorrect documentation."
+title: "[DOCS] <short description>"
+labels: [documentation]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: "## Documentation Issue\nPlease fill out the following information."
+  - type: input
+    id: summary
+    attributes:
+      label: "Summary"
+      description: "A brief summary of the documentation issue."
+      placeholder: "e.g., Missing usage example for function X"
+    validations:
+      required: true
+  - type: textarea
+    id: location
+    attributes:
+      label: "Location"
+      description: "Where is the documentation issue? (file, section, etc.)"
+      placeholder: "e.g., README.md, API docs, ..."
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: "Details"
+      description: "Describe the issue in detail."
+      placeholder: "The documentation says ... but ..."
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: "Suggested Fix"
+      description: "How could the documentation be improved?"
+      placeholder: "Please update ..."
+    validations:
+      required: false
+  - type: textarea
+    id: additional
+    attributes:
+      label: "Additional Context"
+      description: "Add any other context, screenshots, or references here."
+      placeholder: "Any other details..."
+    validations:
+      required: false

@@ -1,6 +1,6 @@
 [project]
 name = "airball"
-version = "0.10.1"
+version = "0.11.1"
 description = "A package for running and managing flybys using REBOUND."
 readme = "README.md"
 authors = [
@@ -33,7 +33,9 @@ docs = [
     "mkdocs-material-extensions>=1.0.3",
     "mkdocstrings>=0.24.0",
     "mkdocstrings-python>=1.7.5",
-    "Markdown>=3.5.1"
+    "Markdown>=3.5.1",
+    "mkdocs-jupyter",
+    "mkdocs-exclude"
 ]
 testing = [
     "matplotlib>=3.9.4",
@@ -51,7 +53,6 @@ addopts = [
 ]
 testpaths = ["tests"]
 xfail_strict = "True"
-
 
 [tool.ruff]
 line-length = 128

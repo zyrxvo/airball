@@ -134,7 +134,7 @@ class StellarEnvironment:
             max_mass=self._upper_mass_limit,
             mass_function=mass_function,
             unit=self.units["mass"],
-            number_samples=number_imf_samples,
+            interpolating_points=number_imf_samples,
             seed=seed,
         )
         self._median_mass = self.IMF.median_mass
@@ -519,7 +519,7 @@ class StellarEnvironment:
                 value.max_mass,
                 value.imf,
                 value.unit,
-                value.number_samples,
+                value.interpolating_points,
                 value.seed,
             )
         else:
