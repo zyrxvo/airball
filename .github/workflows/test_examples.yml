@@ -11,8 +11,29 @@ env:
   UV_FROZEN: true
 
 jobs:
-  core-unit-tests:
+  generate-matrix:
     runs-on: ubuntu-latest
+    outputs:
+      notebooks: ${{ steps.find-notebooks.outputs.notebooks }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Find example notebooks
+        id: find-notebooks
+        run: |
+          notebooks=$(ls docs/examples/*.ipynb | xargs -n1 basename | jq -R . | jq -sc .)
+          echo "notebooks=$notebooks" >> $GITHUB_OUTPUT
+
+  run-notebook:
+    needs: generate-matrix
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        notebook: ${{ fromJson(needs.generate-matrix.outputs.notebooks) }}
+
+    name: ${{ matrix.notebook }}
 
     steps:
       - uses: actions/checkout@v6
@@ -26,5 +47,9 @@ jobs:
       - name: Install AIRBALL and dependencies
         run: uv sync
 
-      - name: Run Examples in Documentation
-        run: uv run pytest tests/test_examples.py -vv -s --run-slow
+      - name: Convert notebook to script
+        run: uv run python .github/workflows/scripts/convert_notebook.py docs/examples/${{ matrix.notebook }} docs/examples/notebook_script.py
+
+      - name: Run ${{ matrix.notebook }}
+        working-directory: docs/examples
+        run: uv run python notebook_script.py
