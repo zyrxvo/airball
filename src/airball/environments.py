@@ -672,6 +672,8 @@ class LocalNeighborhood(StellarEnvironment):
         local_power_law = power_law(-4.7, float(chabrier03(1)))
         return np.where(x > 1, local_power_law(x), chabrier03(x))
 
+    local_mass_function.unit = u.solMass  # ty:ignore[unresolved-attribute]
+
     def __init__(
         self,
         stellar_density=0.14 * u.stars / u.pc**3,
