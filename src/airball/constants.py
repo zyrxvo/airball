@@ -1,5 +1,5 @@
-from . import units as _u
+from airball import units as u
 
-pi = _u.twopi / 2.0
-twopi = _u.twopi
-G = 1 * (_u.au**3 / _u.solMass / _u.yr2pi**2)
+pi = u.twopi / 2.0
+twopi = u.twopi
+G = 1 * (u.au**3 / u.solMass / u.yr2pi**2)
