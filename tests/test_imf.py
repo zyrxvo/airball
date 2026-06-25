@@ -49,8 +49,8 @@ class TestIMFInit:
             interpolating_points=int(1e4),
             seed=42,
         )
-        assert my_imf.min_mass.value == pytest.approx(0.5, rel=0)
-        assert my_imf.max_mass.value == pytest.approx(50, rel=0)
+        assert my_imf.min_mass.value == 0.5
+        assert my_imf.max_mass.value == 50
         assert my_imf.interpolating_points == int(1e4)
         assert my_imf.seed == 42
         assert my_imf.unit == u.solMass
@@ -111,12 +111,12 @@ class TestIMFProperties:
     def test_min_mass_setter(self, default_imf: IMF):
         """Setting min_mass recalculates and updates correctly."""
         default_imf.min_mass = 0.5
-        assert default_imf.min_mass.value == pytest.approx(0.5, rel=0)
+        assert default_imf.min_mass.value == 0.5
 
     def test_min_mass_setter_quantity(self, default_imf: IMF):
         """Setting min_mass with Quantity works."""
         default_imf.min_mass = 0.5 * u.solMass
-        assert default_imf.min_mass.value == pytest.approx(0.5, rel=0)
+        assert default_imf.min_mass.value == 0.5
 
     def test_min_mass_setter_invalid(self, default_imf: IMF):
         """Setting min_mass <= 0 raises ValueError."""
@@ -126,7 +126,7 @@ class TestIMFProperties:
     def test_max_mass_setter(self, default_imf: IMF):
         """Setting max_mass recalculates and updates correctly."""
         default_imf.max_mass = 50
-        assert default_imf.max_mass.value == pytest.approx(50, rel=0)
+        assert default_imf.max_mass.value == 50
 
     def test_max_mass_setter_invalid(self, default_imf: IMF):
         """Setting max_mass <= min_mass raises ValueError."""
@@ -177,7 +177,7 @@ class TestIMFProperties:
         a1, a2 = alpha + 1, alpha + 2
         analytic_mean = (a1 / a2) * (m_max**a2 - m_min**a2) / (m_max**a1 - m_min**a1)
         my_imf = IMF(m_min, m_max, mass_function=imf.salpeter_1955())
-        assert my_imf.mean_mass.value == pytest.approx(analytic_mean, rel=0)
+        assert my_imf.mean_mass.value == pytest.approx(analytic_mean, rel=1e-12)
 
 
 # ── IMF Methods ───────────────────────────────────────────────────────────────
@@ -222,8 +222,8 @@ class TestIMFMethods:
 
     def test_cdf_boundary_values(self, default_imf: IMF):
         """CDF is 0 at min_mass and 1 at max_mass."""
-        assert default_imf.cdf(default_imf.min_mass.value) == pytest.approx(0.0, rel=0)
-        assert default_imf.cdf(default_imf.max_mass.value) == pytest.approx(1.0, rel=0)
+        assert default_imf.cdf(default_imf.min_mass.value) == 0.0
+        assert default_imf.cdf(default_imf.max_mass.value) == 1.0
 
     def test_cdf_monotonic(self, default_imf: IMF):
         """CDF is monotonically non-decreasing."""
@@ -251,8 +251,8 @@ class TestIMFMethods:
         """masses() returns correct number of geom-spaced values."""
         ms = default_imf.masses(100)
         assert len(ms) == 100
-        assert ms[0] == pytest.approx(0.1, rel=0)
-        assert ms[-1] == pytest.approx(100, rel=0)
+        assert ms[0] == 0.1
+        assert ms[-1] == 100
 
     def test_masses_no_endpoint(self, default_imf: IMF):
         """masses(endpoint=False) excludes max_mass."""
@@ -307,7 +307,7 @@ class TestIMFEquality:
         a = IMF(0.1, 100, seed=42)
         b = a.copy()
         b.min_mass = 0.5
-        assert a.min_mass.value == pytest.approx(0.1, rel=0)
+        assert a.min_mass.value == 0.1
 
     def test_repr_str(self):
         """repr/str returns a string (doesn't crash)."""
@@ -477,7 +477,7 @@ class TestSalpeter1955:
     def test_value_at_1_solar_mass(self):
         """ξ(1 M_☉) = ξ₀ = 0.03 by definition."""
         s = imf.salpeter_1955()
-        assert s(1.0) == pytest.approx(0.03, rel=0)
+        assert s(1.0) == 0.03
 
     def test_scaling(self):
         """ξ(m₂)/ξ(m₁) = (m₂/m₁)^(-2.35)."""
@@ -485,7 +485,7 @@ class TestSalpeter1955:
         m1, m2 = 2.0, 8.0
         expected_ratio = (m2 / m1) ** -2.35
         actual_ratio = s(m2) / s(m1)
-        assert actual_ratio == pytest.approx(expected_ratio, rel=0)
+        assert actual_ratio == pytest.approx(expected_ratio, rel=1e-14)
 
 
 # ── Kroupa, Tout & Gilmore (1993) ────────────────────────────────────────────
@@ -633,7 +633,7 @@ class TestGenericMassFunctions:
         m_right = 10 ** (mu + 0.2)
         xi_log_left = ln_mf(m_left) * m_left * np.log(10)
         xi_log_right = ln_mf(m_right) * m_right * np.log(10)
-        assert xi_log_left == pytest.approx(xi_log_right, rel=0)
+        assert xi_log_left == pytest.approx(xi_log_right, rel=1e-14)
 
     def test_loguniform_slope(self):
         """loguniform has slope -1 in log-log space (ξ ∝ 1/m)."""
@@ -649,8 +649,8 @@ class TestGenericMassFunctions:
         decade1 = my_imf.cdf(1.0) - my_imf.cdf(0.1)  # ty:ignore[invalid-argument-type]
         decade2 = my_imf.cdf(10.0) - my_imf.cdf(1.0)  # ty:ignore[invalid-argument-type]
         decade3 = my_imf.cdf(100.0) - my_imf.cdf(10.0)  # ty:ignore[invalid-argument-type]
-        assert decade1 == pytest.approx(decade2, rel=0)
-        assert decade2 == pytest.approx(decade3, rel=0)
+        assert decade1 == pytest.approx(decade2, rel=1e-11)
+        assert decade2 == pytest.approx(decade3, rel=1e-11)
 
 
 # ── PDF/CDF Integration Tests ────────────────────────────────────────────────
@@ -693,8 +693,8 @@ class TestIntegration:
     def test_cdf_spans_zero_to_one(self, mass_function):
         """CDF goes from 0 to 1 across the mass range."""
         my_imf = IMF(0.1, 100, mass_function=mass_function)
-        assert my_imf.cdf(0.1) == pytest.approx(0.0, abs=1e-14)  # ty:ignore[invalid-argument-type]
-        assert my_imf.cdf(100.0) == pytest.approx(1.0, abs=1e-14)  # ty:ignore[invalid-argument-type]
+        assert my_imf.cdf(0.1) == 0.0  # ty:ignore[invalid-argument-type]
+        assert my_imf.cdf(100.0) == 1.0  # ty:ignore[invalid-argument-type]
 
 
 # ── Sampling Distribution Tests ──────────────────────────────────────────────
@@ -722,7 +722,7 @@ class TestSamplingDistribution:
         m_min, m_max = 0.1, 100.0
         m_med_analytic = (0.5 * (m_max**a - m_min**a) + m_min**a) ** (1 / a)
         my_imf = IMF(m_min, m_max, mass_function=imf.salpeter_1955())
-        assert my_imf.median_mass.value == pytest.approx(m_med_analytic, rel=0)
+        assert my_imf.median_mass.value == pytest.approx(m_med_analytic, rel=1e-12)
 
     def test_default_imf_median_reasonable(self):
         """Default IMF [0.1, 100] median ≈ 0.2–0.4 M_☉ (literature value)."""
@@ -742,7 +742,7 @@ class TestUnitHandling:
         mf = imf.salpeter_1955()
         val_float = mf(2.0)
         val_qty = mf(2.0 * u.solMass)
-        assert val_float == pytest.approx(val_qty, rel=0)
+        assert val_float == pytest.approx(val_qty, rel=1e-14)
 
     def test_array_input(self):
         """Mass functions handle numpy arrays."""
