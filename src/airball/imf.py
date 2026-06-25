@@ -661,6 +661,7 @@ class IMF:
         # CDF values at grid points for building the inverse CDF.
         cdf_vals = (G(log_grid) - G(log_grid[0])) / self.normalization_factor
         cdf_vals[0], cdf_vals[-1] = 0.0, 1.0
+        self._log_grid = log_grid
         self._inv_cdf = PchipInterpolator(cdf_vals, log_grid, extrapolate=False)
 
     def cdf(self, x: u.Quantity | np.ndarray) -> np.ndarray:
@@ -708,15 +709,16 @@ class IMF:
 
     @property
     def mean_mass(self):
-        # E[m] = ∫ m * pdf(m) dm = ∫ m * g(t) dt in log-space
+        # E[m] = ∫ m * pdf(m) dm = ∫ m * g(t) dt in log-space, where t = ln(m)
+        log_grid = self._log_grid
         g_vals = (
             self.initial_mass_function(
-                np.exp(self._inv_cdf.x)  # the log-mass grid
+                np.exp(log_grid)  # the log-mass grid
             )
-            * np.exp(self._inv_cdf.x) ** 2
+            * np.exp(log_grid) ** 2
         )  # extra m factor for expectation
-        h_spline = PchipInterpolator(self._inv_cdf.x, g_vals / self.normalization_factor)
-        return h_spline.integrate(self._inv_cdf.x[0], self._inv_cdf.x[-1]) << self.unit
+        h_spline = PchipInterpolator(log_grid, g_vals / self.normalization_factor)
+        return h_spline.integrate(log_grid[0], log_grid[-1]) << self.unit
 
     @property
     def median_mass(self):
