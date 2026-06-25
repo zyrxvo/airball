@@ -48,7 +48,8 @@ jobs:
         run: uv sync
 
       - name: Convert notebook to script
-        run: uv run python .github/workflows/scripts/convert_notebook.py docs/examples/${{ matrix.notebook }} notebook_script.py
+        run: uv run python .github/workflows/scripts/convert_notebook.py docs/examples/${{ matrix.notebook }} docs/examples/notebook_script.py
 
       - name: Run ${{ matrix.notebook }}
+        working-directory: docs/examples
         run: uv run python notebook_script.py
