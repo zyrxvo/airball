@@ -4,7 +4,6 @@ from pathlib import Path
 
 import numpy as np
 import rebound
-from scipy.interpolate import interp1d
 from scipy.stats import expon, maxwell, uniform
 
 from airball import constants as c
@@ -78,12 +77,9 @@ class StellarEnvironment:
         interpolating_points=int(1e5),
     ):
         # Initialize StellarEnvironment from file.
-        if filename is not None and isinstance(filename, str):
-            try:
-                loaded = StellarEnvironment._load(filename)
-                self.__dict__ = loaded.__dict__
-            except:  # noqa: E722
-                raise Exception("Invalid filename.")
+        if filename is not None and isinstance(filename, (str, Path)):
+            loaded = StellarEnvironment._load(filename)
+            self.__dict__ = loaded.__dict__
             return
 
         # Check to see if an stars object unit is defined in the given UNIT_SYSTEM and if the user defined a different name for the objects.
@@ -338,7 +334,7 @@ class StellarEnvironment:
         for d in sorted(self.__dict__.items()):
             try:
                 data.append((d[0], tuple(d[1])))
-            except:  # noqa: E722
+            except Exception:
                 data.append(d)
         data = tuple(data)
         return hash(data)
@@ -436,8 +432,10 @@ class StellarEnvironment:
                 )
 
             bs = np.logspace(1, 6, 1000) << u.au
-            _g = interp1d(_f(bs), bs, fill_value="extrapolate")
-            self._maximum_impact_parameter = _g(1e-16) << self.units.length
+            f_vals = np.asarray(_f(bs))  # monotonically decreasing
+            bs_vals = bs.value  # plain float values in au
+            # Reverse both arrays so f_vals is ascending, as required by np.interp
+            self._maximum_impact_parameter = float(np.interp(1e-16, f_vals[::-1], bs_vals[::-1])) << self.units.length
 
     @property
     def density(self):
@@ -664,15 +662,20 @@ class LocalNeighborhood(StellarEnvironment):
 
     short_name = "Local"
 
-    def local_mass_function(x: float | np.ndarray):
+    _ch03 = chabrier_2003_single(1)
+
+    def local_mass_function(
+        x: float | np.ndarray,
+        _chabrier03=_ch03,
+        _lplaw=power_law(-4.7, float(_ch03(1))),
+    ) -> float | np.ndarray:
         """
         This defined using Equation (17) from [Chabrier (2003)](https://ui.adsabs.harvard.edu/abs/2003PASP..115..763C/abstract) for single stars when $m < 1$ and a power-law model from [Bovy (2017)](https://ui.adsabs.harvard.edu/abs/2017MNRAS.470.1360B/abstract) for stars $m \\ge 1$ to account for depleted stars due to stellar evolution.
         """
-        chabrier03 = chabrier_2003_single(1)  # 0.0567
-        local_power_law = power_law(-4.7, float(chabrier03(1)))
-        return np.where(x > 1, local_power_law(x), chabrier03(x))
+        return np.where(x > 1, _lplaw(x), _chabrier03(x))
 
-    local_mass_function.unit = u.solMass  # ty:ignore[unresolved-attribute]
+    del _ch03
+    local_mass_function.unit = u.solMass
 
     def __init__(
         self,
@@ -682,7 +685,7 @@ class LocalNeighborhood(StellarEnvironment):
         upper_mass_limit=8 * u.solMass,
         mass_function=local_mass_function,
         maximum_impact_parameter=10000 * u.au,
-        UNIT_SYSTEM=[],
+        UNIT_SYSTEM=None,
         units=None,
         name="Local Neighborhood",
         object_name=None,
@@ -735,7 +738,7 @@ class OpenCluster(StellarEnvironment):
         upper_mass_limit=100 * u.solMass,
         mass_function=None,
         maximum_impact_parameter=1000 * u.au,
-        UNIT_SYSTEM=[],
+        UNIT_SYSTEM=None,
         units=None,
         name="Open Cluster",
         object_name=None,
@@ -788,7 +791,7 @@ class GlobularCluster(StellarEnvironment):
         upper_mass_limit=1 * u.solMass,
         mass_function=None,
         maximum_impact_parameter=5000 * u.au,
-        UNIT_SYSTEM=[],
+        UNIT_SYSTEM=None,
         units=None,
         name="Globular Cluster",
         object_name=None,
@@ -841,7 +844,7 @@ class GalacticBulge(StellarEnvironment):
         upper_mass_limit=10 * u.solMass,
         mass_function=None,
         maximum_impact_parameter=50000 * u.au,
-        UNIT_SYSTEM=[],
+        UNIT_SYSTEM=None,
         units=None,
         name="Milky Way Bulge",
         object_name=None,
@@ -894,13 +897,14 @@ class GalacticCore(StellarEnvironment):
         upper_mass_limit=10 * u.solMass,
         mass_function=None,
         maximum_impact_parameter=50000 * u.au,
-        UNIT_SYSTEM=[u.yr],
+        UNIT_SYSTEM=None,
         units=None,
         name="Milky Way Core",
         object_name=None,
         seed=None,
         interpolating_points=int(1e5),
     ):
+        UNIT_SYSTEM = [u.yr] if UNIT_SYSTEM is None else UNIT_SYSTEM
         super().__init__(
             stellar_density=stellar_density,
             velocity_dispersion=velocity_dispersion,

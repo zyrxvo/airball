@@ -1,5 +1,3 @@
-import tempfile
-
 import numpy as np
 import pytest
 
@@ -18,23 +16,27 @@ def custom_env():
     )
 
 
-PRESETS = pytest.mark.parametrize(
-    "env",
-    [
-        airball.OpenCluster(),
-        airball.LocalNeighborhood(),
-        airball.GlobularCluster(),
-        airball.GalacticBulge(),
-        airball.GalacticCore(),
-        airball.StellarEnvironment(
-            stellar_density=10,
-            velocity_dispersion=20,
-            lower_mass_limit=0.08,
-            upper_mass_limit=8,
-            name="Test Environment",
+@pytest.fixture(
+    params=[
+        pytest.param(lambda: airball.OpenCluster(), id="OpenCluster"),
+        pytest.param(lambda: airball.LocalNeighborhood(), id="LocalNeighborhood"),
+        pytest.param(lambda: airball.GlobularCluster(), id="GlobularCluster"),
+        pytest.param(lambda: airball.GalacticBulge(), id="GalacticBulge"),
+        pytest.param(lambda: airball.GalacticCore(), id="GalacticCore"),
+        pytest.param(
+            lambda: airball.StellarEnvironment(
+                stellar_density=10,
+                velocity_dispersion=20,
+                lower_mass_limit=0.08,
+                upper_mass_limit=8,
+                name="Test Environment",
+            ),
+            id="StellarEnvironment",
         ),
-    ],
+    ]
 )
+def env(request):
+    return request.param()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -42,7 +44,6 @@ PRESETS = pytest.mark.parametrize(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-@PRESETS
 def test_preset_environment_initialization(env):
     assert env is not None
 
@@ -88,18 +89,15 @@ def test_initialization_with_units():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-@PRESETS
 def test_mass_limits_ordered(env):
     assert env.lower_mass_limit < env.upper_mass_limit
 
 
-@PRESETS
 def test_mass_statistics_within_limits(env):
     assert env.lower_mass_limit <= env.median_mass <= env.upper_mass_limit
     assert env.lower_mass_limit <= env.mean_mass <= env.upper_mass_limit
 
 
-@PRESETS
 def test_positive_properties(env):
     assert env.maximum_impact_parameter.value > 0
     assert env.encounter_rate.value > 0
@@ -112,20 +110,17 @@ def test_positive_properties(env):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-@PRESETS
 def test_random_star_returns_star(env):
     star = env.random_star()
     assert isinstance(star, airball.Star)
 
 
-@PRESETS
 def test_random_stars_returns_stars(env):
     stars = env.random_stars(size=5)
     assert isinstance(stars, airball.Stars)
     assert len(stars) == 5
 
 
-@PRESETS
 def test_random_stars_properties(env):
     stars = env.random_stars(size=100, seed=42)
     assert np.all(stars.m >= env.lower_mass_limit)
@@ -156,7 +151,6 @@ def test_random_stars_2d_shape():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-@PRESETS
 @pytest.mark.parametrize("size,expected_shape", [(10, (10,)), ((3, 5), (3, 5))])
 def test_encounter_times_shape(env, size, expected_shape):
     times = env.encounter_times(size)
@@ -164,13 +158,11 @@ def test_encounter_times_shape(env, size, expected_shape):
     assert np.all(times > 0 * u.yr)
 
 
-@PRESETS
 def test_cumulative_encounter_times_is_nondecreasing(env):
     times = env.cumulative_encounter_times(20)
     assert np.all(np.diff(times) >= 0 * u.yr)
 
 
-@PRESETS
 def test_time_to_next_encounter_is_positive(env):
     t = env.time_to_next_encounter()
     assert t.value > 0
@@ -194,10 +186,9 @@ def test_environments_with_different_densities_are_not_equal():
     assert env1 != env2
 
 
-def test_save_and_load_roundtrip():
+def test_save_and_load_roundtrip(tmp_path):
     env = airball.OpenCluster()
-    with tempfile.NamedTemporaryFile(suffix=".se", delete=False) as f:
-        filename = f.name
+    filename = tmp_path / "test.se"
     env.save(filename)
     loaded = airball.StellarEnvironment(filename=filename)
     assert loaded == env
