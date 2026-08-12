@@ -24,6 +24,7 @@ import rebound as _rebound
 
 from . import constants as _c
 from . import units as _u
+from .units import Quantity
 from .units import UnitSet as _UnitSet
 
 twopi = 2.0 * _np.pi
@@ -883,7 +884,7 @@ def q2b(mu, q, v, unit_set=_UnitSet()):
     return _np.sqrt(q**2 + (2 * mu * q) / (v**2))
 
 
-def encounter_rate(n, v, q, M, unit_set=_UnitSet()) -> float:
+def encounter_rate(n, v, q, M, unit_set=_UnitSet()) -> Quantity:
     r"""Return the expected flyby encounter rate within a stellar environment,  $\\Gamma = ⟨n sigma v⟩$.
 
     Args:

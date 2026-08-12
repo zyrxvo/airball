@@ -22,7 +22,6 @@ from scipy.special import jv as _jv
 from . import constants as _c
 from . import tools as _tools
 from . import units as _u
-from .core import _rotate_into_plane
 
 ############################################################
 # Energy Estimates ########################
@@ -96,7 +95,7 @@ def energy_change_adiabatic_estimate(sim, star, averaged=False, particle_index=1
     G = sim.G * units.length**3 / units.mass / units.time**2
 
     sim = sim.copy()
-    _rotate_into_plane(sim, plane=index)
+    _tools.rotate_into_plane(sim, plane=index)
     # add_star_to_sim(sim, star, hash='flybystar', rmax=0) # Initialize Star at perihelion
     sim.move_to_hel()
 
