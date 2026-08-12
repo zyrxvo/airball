@@ -325,7 +325,7 @@ class Star:
                 Omega=dic["_longitude_ascending_node"],
                 UNIT_SYSTEM=dic["units"],
             )
-        except:  # noqa: E722
+        except:  # ruff: ignore[bare-except]
             raise Exception("Invalid filename.")
         return new_star
 
@@ -372,7 +372,7 @@ class Star:
         for d in sorted(self.__dict__.items()):
             try:
                 data.append((d[0], tuple(d[1])))
-            except:  # noqa: E722
+            except:  # ruff: ignore[bare-except]
                 data.append(d)
         data = tuple(data)
         return hash(data)
@@ -467,7 +467,7 @@ class Stars(MutableMapping):
                 try:
                     loaded = Stars._load(filename)
                     self.__dict__ = loaded.__dict__
-                except:  # noqa: E722
+                except:  # ruff: ignore[bare-except]
                     raise Exception("Invalid filename.")
                 return
             # If filename is a Star object, then initialize Stars with the same parameters.
@@ -1435,7 +1435,7 @@ class Stars(MutableMapping):
         for d in sorted(self.__dict__.items()):
             try:
                 data.append((d[0], tuple(d[1])))
-            except:  # noqa: E722
+            except:  # ruff: ignore[bare-except]
                 data.append(d)
         data = tuple(data)
         return hash(data)

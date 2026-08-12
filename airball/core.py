@@ -109,7 +109,7 @@ def flybys(sims, stars, **kwargs):
         Nruns = len(sims)
         if Nruns != len(stars):
             raise Exception("Sims and stars are unequal lengths")
-    except:  # noqa: E722
+    except:  # ruff: ignore[bare-except]
         Nruns = len(stars)
         sims = [sims.copy() for _ in range(Nruns)]
 
@@ -289,7 +289,7 @@ def hybrid_flybys(sims, stars, **kwargs):
         Nruns = len(sims)
         if Nruns != len(stars):
             raise Exception("Sims and stars are unequal lengths")
-    except:  # noqa: E722
+    except:  # ruff: ignore[bare-except]
         Nruns = len(stars)
         sims = [sims.copy() for _ in range(Nruns)]
 

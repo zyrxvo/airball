@@ -87,7 +87,7 @@ class TestIMFInit:
 
     def test_callable_without_unit_warns(self):
         """A plain callable without .unit emits a warning."""
-        mf = lambda x: x**-2.35  # noqa: E731
+        mf = lambda x: x**-2.35  # ruff: ignore[lambda-assignment]
         with pytest.warns(UserWarning, match="no 'unit' attribute"):
             IMF(0.1, 100, mass_function=mf)
 
@@ -346,13 +346,13 @@ class TestMassFunctionProtocol:
 
     def test_lambda_with_unit_is_mass_function(self):
         """A lambda with a .unit attribute conforms to the protocol."""
-        mf = lambda x: x**-2  # noqa: E731
+        mf = lambda x: x**-2  # ruff: ignore[lambda-assignment]
         mf.unit = u.solMass  # ty:ignore[unresolved-attribute]
         assert isinstance(mf, imf.MassFunction)
 
     def test_lambda_without_unit_is_not(self):
         """A lambda without .unit does not conform."""
-        mf = lambda x: x**-2  # noqa: E731
+        mf = lambda x: x**-2  # ruff: ignore[lambda-assignment]
         assert not isinstance(mf, imf.MassFunction)
 
 

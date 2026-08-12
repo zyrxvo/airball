@@ -626,7 +626,7 @@ def hyperbolic_elements(sim, star, rmax, values_only=False):
     # Compute the semi-major axis of the flyby star
     a = -star.b / _np.sqrt(e**2.0 - 1.0)
     # Compute the semi-latus rectum of the hyperbolic orbit to get the true anomaly
-    l = semilatus_rectum(a=a, e=e)  # noqa: E741
+    l = semilatus_rectum(a=a, e=e)  # ruff: ignore[ambiguous-variable-name]
 
     rmax = verify_unit(rmax, _u.au)
     if star.N > 1 and not isList(rmax):

@@ -15,7 +15,7 @@
 import math
 
 import astropy.units as _u
-from astropy.units import *  # noqa: F403
+from astropy.units import *  # ruff: ignore[undefined-local-with-import-star]
 
 twopi = math.tau
 yrtwopi = _u.def_unit("yrtwopi", _u.yr / twopi, format={"latex": r"(yr/2\pi)"})
@@ -138,7 +138,7 @@ class UnitSet:
         for d in sorted(self.__dict__.items()):
             try:
                 data.append((d[0], tuple(d[1])))
-            except:  # noqa: E722
+            except:  # ruff: ignore[bare-except]
                 data.append(d)
         data = tuple(data)
         return hash(data)
