@@ -1,3 +1,17 @@
+# Copyright 2024 Garett Brown
+#
+# AIRBALL is free software: you can redistribute it and/or modify it under the terms of
+# the GNU General Public License as published by the Free Software Foundation, either
+# version 3 of the License, or (at your option) any later version.
+#
+# AIRBALL is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+# See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with airball.
+# If not, see http://www.gnu.org/licenses/.
+"""The Initial Mass Function (IMF) module handling stellar mass generation."""
+
 import functools
 import warnings
 from collections.abc import Callable
@@ -15,7 +29,7 @@ from airball import tools
 # region MassFunction Protocol
 @runtime_checkable
 class MassFunction(Protocol):
-    """A protocol for defining a mass function for use with the `IMF` class.
+    r"""A protocol for defining a mass function for use with the `IMF` class.
 
     The essence of the protocol is to define a callable object that also contains a `unit`
     attribute. Leniency by the `IMF` class is provided if the user does not want to define
@@ -50,13 +64,13 @@ class MassFunction(Protocol):
 
     unit: object
 
-    def __call__(self, x: float | np.ndarray | u.Quantity) -> float | np.ndarray: ...
+    def __call__(self, x: float | np.ndarray | u.Quantity) -> float | np.ndarray: ...  # ruff: ignore[undocumented-public-method]
 
 
 # region Available Mass Functions
 @dataclass(frozen=True)
 class chabrier_2003_single:
-    """[Chabrier (2003)](https://ui.adsabs.harvard.edu/abs/2003PASP..115..763C/abstract) IMF for single stars, valid for $m \\leq 1\\,M_{\\odot}$.
+    r"""[Chabrier (2003)](https://ui.adsabs.harvard.edu/abs/2003PASP..115..763C/abstract) IMF for single stars, valid for $m \\leq 1\\,M_{\\odot}$.
 
     The paper defines the IMF in log-space:
 
@@ -116,7 +130,7 @@ class chabrier_2003_single:
 
 @dataclass(frozen=True)
 class chabrier_2005_single:
-    """[Chabrier (2005)](https://ui.adsabs.harvard.edu/abs/2005ASSL..327...41C/abstract) IMF for single stars.
+    r"""[Chabrier (2005)](https://ui.adsabs.harvard.edu/abs/2005ASSL..327...41C/abstract) IMF for single stars.
 
     The paper defines the IMF in log-space with the same lognormal form as Chabrier (2003)
     but with revised constants:
@@ -170,7 +184,7 @@ class chabrier_2005_single:
 
 @dataclass(frozen=True)
 class salpeter_1955:
-    """[Salpeter (1955)](https://ui.adsabs.harvard.edu/abs/1955ApJ...121..161S/abstract) IMF for single stars.
+    r"""[Salpeter (1955)](https://ui.adsabs.harvard.edu/abs/1955ApJ...121..161S/abstract) IMF for single stars.
 
     The paper defines the IMF (in continuous form) as:
 
@@ -210,7 +224,7 @@ class salpeter_1955:
 
 @dataclass(frozen=True)
 class kroupa_1993:
-    """[Kroupa, Tout & Gilmore (1993)](https://ui.adsabs.harvard.edu/abs/1993MNRAS.262..545K/abstract) IMF for single stars.
+    r"""[Kroupa, Tout & Gilmore (1993)](https://ui.adsabs.harvard.edu/abs/1993MNRAS.262..545K/abstract) IMF for single stars.
 
     The IMF is a piecewise power law in linear mass:
 
@@ -263,7 +277,7 @@ class kroupa_1993:
     _airball_builtin: ClassVar[bool] = True
 
     def __post_init__(self):
-        # Convert Quantity inputs to float in self.unit
+        """Convert Quantity inputs to float in self.unit."""
         for name in ("m_1", "m_2", "m_3"):
             val = getattr(self, name)
             if isinstance(val, u.Quantity):
@@ -273,7 +287,6 @@ class kroupa_1993:
         A_3 = A_2 * self.m_3 ** (self.alpha_3 - self.alpha_2)
         object.__setattr__(self, "A_2", A_2)
         object.__setattr__(self, "A_3", A_3)
-        print(self.A_1, self.A_2, self.A_3)
 
     def __call__(self, x: float | np.ndarray | u.Quantity) -> float | np.ndarray:
         m = (x if isinstance(x, u.Quantity) else x * self.unit).to(self.unit)
@@ -291,7 +304,7 @@ class kroupa_1993:
 
 @dataclass(frozen=True)
 class default_mass_function:
-    """Default mass function for the `IMF` class.
+    r"""Default mass function for the `IMF` class.
 
     A piecewise function combining Chabrier (2003) for $m \\leq 1\\,M_{\\odot}$ and
     Salpeter (1955) for $m > 1\\,M_{\\odot}$, normalized for continuity at $1\\,M_{\\odot}$.
@@ -343,7 +356,7 @@ class default_mass_function:
 
 @dataclass(frozen=True)
 class uniform:
-    """[Uniform](https://en.wikipedia.org/wiki/Continuous_uniform_distribution) mass function.
+    r"""[Uniform](https://en.wikipedia.org/wiki/Continuous_uniform_distribution) mass function.
 
     A flat probability density — every mass in the IMF range is equally likely.
 
@@ -372,7 +385,7 @@ class uniform:
 
 @dataclass(frozen=True)
 class power_law:
-    """Generic [power law](https://en.wikipedia.org/wiki/Power_law) mass function.
+    r"""Generic [power law](https://en.wikipedia.org/wiki/Power_law) mass function.
 
     $$\\xi(m) = A \\left(\\frac{m}{M_\\odot}\\right)^{\\alpha}$$
 
@@ -408,7 +421,7 @@ class power_law:
 
 @dataclass(frozen=True)
 class broken_power_law:
-    """Generic [broken power law](https://en.wikipedia.org/wiki/Power_law#Broken_power_law) mass function.
+    r"""Generic [broken power law](https://en.wikipedia.org/wiki/Power_law#Broken_power_law) mass function.
 
     $$\\xi(m) = \\begin{cases} A \\left(\\frac{m}{M_\\odot}\\right)^{\\alpha} & m < m_0 \\\\ A \\left(\\frac{m_0}{M_\\odot}\\right)^{(\\alpha - \\beta)} \\left(\\frac{m}{M_\\odot}\\right)^{\\beta} & m \\geq m_0 \\end{cases}$$
 
@@ -457,7 +470,7 @@ class broken_power_law:
 
 @dataclass(frozen=True)
 class lognormal:
-    """Generic [lognormal](https://en.wikipedia.org/wiki/Log-normal_distribution) mass function, defined in linear mass space.
+    r"""Generic [lognormal](https://en.wikipedia.org/wiki/Log-normal_distribution) mass function, defined in linear mass space.
 
     This is the linear-space form of a lognormal (analogous to the Chabrier
     family), including the Jacobian from the log-space definition:
@@ -499,7 +512,7 @@ class lognormal:
 
 @dataclass(frozen=True)
 class loguniform:
-    """[Log-uniform](https://en.wikipedia.org/wiki/Reciprocal_distribution) mass function.
+    r"""[Log-uniform](https://en.wikipedia.org/wiki/Reciprocal_distribution) mass function.
 
     A distribution that is uniform in log space, equivalent to:
 
@@ -601,8 +614,9 @@ class IMF:
                     f"mass_function has no 'unit' attribute. Assuming IMF unit '{self.unit}'. "
                     "Define a unit on your mass function to silence this warning.",
                     UserWarning,
+                    stacklevel=2,
                 )
-                _mass_function = functools.wraps(mass_function)(lambda x: mass_function(x))
+                _mass_function = functools.wraps(mass_function)(lambda x: mass_function(x))  # ruff: ignore[unnecessary-lambda]
                 _mass_function.unit = unit  # ty:ignore[unresolved-attribute]
         elif mass_function is None:
             mass_function = default_mass_function()
@@ -626,7 +640,7 @@ class IMF:
         self._recalculate()
 
     def _recalculate(self):
-        """Initializes the inverse CDF for the IMF to facilitate efficient random mass sampling.
+        """Initialize the inverse CDF for the IMF to facilitate efficient random mass sampling.
 
         This method constructs a logarithmically spaced mass grid to accurately resolve multiple
         orders of magnitude. It applies a Jacobian transformation to map the mass density into
@@ -673,7 +687,7 @@ class IMF:
         return np.where(x < min_mass, 0.0, np.where(x > max_mass, 1.0, clipped))
 
     def pdf(self, x: u.Quantity | np.ndarray) -> np.ndarray:
-        """Normalized probability density function (PDF) of the IMF."""
+        """Return the normalized probability density function (PDF) of the IMF."""
         x: np.ndarray = np.asarray(x)
         min_mass: float = self.min_mass.value
         max_mass: float = self.max_mass.value
@@ -681,7 +695,7 @@ class IMF:
         return np.where((x >= min_mass) & (x <= max_mass), vals, 0.0)
 
     def random_mass(self, size: int | tuple[int, ...] = 1, **kwargs) -> u.Quantity | tuple[u.Quantity, ...]:
-        """Generates random mass values from the IMF.
+        """Generate random mass values from the IMF.
 
         Args:
           size (int or tuple): Number of mass values to generate. If size is a tuple, it is interpreted as array dimensions. Default: 1.
@@ -726,7 +740,7 @@ class IMF:
         return np.exp(self._inv_cdf(0.5)) << self.unit
 
     def masses(self, size, endpoint=True, unitless=True):
-        """Convenience function for generating an array of mass values logarithmically spanning the IMF range.
+        """Generate an array of mass values logarithmically spanning the IMF range.
 
         Args:
           size (int): Number of mass values to generate.
@@ -742,6 +756,7 @@ class IMF:
     @property
     def min_mass(self):
         """The minimum mass value of the IMF range.
+
         Recalculates the IMF properties when the `min_mass` value is updated.
 
         Args:
@@ -761,6 +776,7 @@ class IMF:
     @property
     def max_mass(self):
         """The maximum mass value of the IMF range.
+
         Recalculates the IMF properties when the `max_mass` value is updated.
 
         Args:
@@ -786,7 +802,7 @@ class IMF:
 
     @property
     def seed(self):
-        """The seed for the random number generator
+        """The seed for the random number generator.
 
         Args:
           value (int or None): New seed for the random number generator (int, or None to turn off).
@@ -824,7 +840,7 @@ class IMF:
         return self.pdf
 
     def imf(self, x):
-        """The initial mass function (IMF) of the IMF."""
+        """Return the initial mass function (IMF) of the IMF class."""
         return self.initial_mass_function(x)
 
     @property
@@ -832,7 +848,7 @@ class IMF:
         return self.imf
 
     def copy(self):
-        """Returns a deep copy of the IMF."""
+        """Return a deep copy of the IMF."""
         return deepcopy(self)
 
     _CONFIG_ATTRS = (
@@ -867,7 +883,7 @@ class IMF:
         return hash(tuple(vals))
 
     def summary(self, *, returned=False) -> str | None:
-        """Prints a compact summary of the current stats of the Stellar Environment object."""
+        """Print a compact summary of the current stats of the Stellar Environment object."""
         s = f"<{self.__module__}.{type(self).__name__} object at {hex(id(self))}"
         s += f", m= {self.min_mass.value:,.2f}-{self.max_mass.value:,.1f} {self.unit}"
         s += (
@@ -878,7 +894,8 @@ class IMF:
         s += ">"
         if returned:
             return s
-        print(s)
+        print(s)  # ruff: ignore[print]
+        return None
 
     def __str__(self):
         return self.summary(returned=True)

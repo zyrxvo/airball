@@ -29,15 +29,4 @@ jobs:
 
       - name: Compare versions
         run: |
-          uv run --python ${{ env.PYTHON_VERSION }} --with packaging python - <<EOF
-          import sys, tomllib
-          from pathlib import Path
-          from packaging.version import Version, parse
-          def get_version(branch: str) -> Version:
-              path = Path.cwd() / f"{branch}_branch" / "pyproject.toml"
-              return parse(tomllib.loads(path.read_text(encoding="utf-8"))["project"]["version"])
-          if (curr := get_version("current")) <= (dev := get_version("main")):
-              print(f"Error: current version {curr} must be greater than main version {dev}.")
-              print("Please bump the version by running 'uv version --bump patch' and pushing the changes.")
-              sys.exit(1)
-          EOF
+          uv run --python ${{ env.PYTHON_VERSION }} --with packaging python .github/workflows/scripts/version_check.py
