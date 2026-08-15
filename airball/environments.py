@@ -52,7 +52,7 @@ class StellarEnvironment:
       mass_function (callable, optional): A function that defines the mass distribution of stars. Default is None. If None, the mass function is defined by the Chabrier (2003) IMF for stars with mass < 1 solar mass and the Salpeter (1955) IMF for stars with mass >= 1 solar mass.
       maximum_impact_parameter (float, optional): The maximum impact parameter defining the outer limit of the sphere of influence around a stellar system. If not provided, AIRBALL attempts to estimate a reasonable one. Default is None. Default units are AU.
       name (str, optional): The name of the environment. Default is None.
-      UNIT_SYSTEM (list, optional): The unit system used in the environment. Default is an empty list. If not provided, the default unit system assigns 'length': AU, 'time': Myr, 'mass': solar mass, 'angle': radians, 'velocity': km/s, 'object': stars, and 'density': stars/pc^3.
+      unit_system (list, optional): The unit system used in the environment. Default is an empty list. If not provided, the default unit system assigns 'length': AU, 'time': Myr, 'mass': solar mass, 'angle': radians, 'velocity': km/s, 'object': stars, and 'density': stars/pc^3.
       units (airball.units.UnitSet, optional): The units used in the environment. Default is None.
       object_name (str, optional): The name of the object in the environment. Default is None.
       seed (int, optional): The seed fixing the random star generator. Default is None so it's always random.
@@ -83,13 +83,7 @@ class StellarEnvironment:
         lower_mass_limit=None,
         upper_mass_limit=None,
         mass_function=None,
-        maximum_impact_parameter=None,
-        name=None,
-        UNIT_SYSTEM=None,
-        units=None,
-        object_name=None,
-        seed=None,
-        interpolating_points=int(1e5),
+        **kwargs,
     ):
         # Initialize StellarEnvironment from file.
         if filename is not None and isinstance(filename, (str, Path)):
@@ -97,10 +91,19 @@ class StellarEnvironment:
             self.__dict__ = loaded.__dict__
             return
 
-        # Check to see if an stars object unit is defined in the given UNIT_SYSTEM and if the user defined a different name for the objects.
-        UNIT_SYSTEM = [] if UNIT_SYSTEM is None else UNIT_SYSTEM
-        self.units = units if isinstance(units, UnitSet) else UnitSet(UNIT_SYSTEM)
-        object_unit = [this for this in UNIT_SYSTEM if this.is_equivalent(u.stars)]
+        # Unpack the possible kwargs.
+        maximum_impact_parameter = kwargs.get("maximum_impact_parameter")
+        name = kwargs.get("name")
+        unit_system = kwargs.get("unit_system")
+        units = kwargs.get("units")
+        object_name = kwargs.get("object_name")
+        seed = kwargs.get("seed")
+        interpolating_points = int(kwargs.get("interpolating_points", 1e5))
+
+        # Check to see if an stars object unit is defined in the given unit_system and if the user defined a different name for the objects.
+        unit_system = [] if unit_system is None else unit_system
+        self.units = units if isinstance(units, UnitSet) else UnitSet(unit_system)
+        object_unit = [this for this in unit_system if this.is_equivalent(u.stars)]
         if object_unit == [] and object_name is not None:
             self.units.object = u.def_unit(object_name, u.stars)
         elif object_unit == [] and object_name is None:
@@ -222,10 +225,10 @@ class StellarEnvironment:
                 inc=inc,
                 omega=ω,
                 Omega=Ω,
-                UNIT_SYSTEM=self.UNIT_SYSTEM,
+                unit_system=self.unit_system,
                 environment=self,
             )
-        return Star(m, b[0], v[0], inc[0], ω[0], Ω[0], UNIT_SYSTEM=self.UNIT_SYSTEM)
+        return Star(m, b[0], v[0], inc[0], ω[0], Ω[0], unit_system=self.unit_system)
 
     def random_star(self, size=1, **kwargs) -> Star | Stars:
         # Alias for `random_stars`
@@ -367,16 +370,16 @@ class StellarEnvironment:
         self.units.object = u.def_unit(value, u.stars)
 
     @property
-    def UNIT_SYSTEM(self):
+    def unit_system(self):
         """Args:
         value (list of Units): A list of the units to use for the environment.
 
         """
-        return self.units.UNIT_SYSTEM
+        return self.units.unit_system
 
-    @UNIT_SYSTEM.setter
-    def UNIT_SYSTEM(self, UNIT_SYSTEM):
-        self.units.UNIT_SYSTEM = UNIT_SYSTEM
+    @unit_system.setter
+    def unit_system(self, unit_system):
+        self.units.unit_system = unit_system
 
     @property
     def median_mass(self):
@@ -676,7 +679,7 @@ class LocalNeighborhood(StellarEnvironment):
         upper_mass_limit=8 * u.solMass,
         mass_function=local_mass_function,
         maximum_impact_parameter=10000 * u.au,
-        UNIT_SYSTEM=None,
+        unit_system=None,
         units=None,
         name="Local Neighborhood",
         object_name=None,
@@ -690,7 +693,7 @@ class LocalNeighborhood(StellarEnvironment):
             upper_mass_limit=upper_mass_limit,
             mass_function=mass_function,
             maximum_impact_parameter=maximum_impact_parameter,
-            UNIT_SYSTEM=UNIT_SYSTEM,
+            unit_system=unit_system,
             units=units,
             name=name,
             object_name=object_name,
@@ -729,7 +732,7 @@ class OpenCluster(StellarEnvironment):
         upper_mass_limit=100 * u.solMass,
         mass_function=None,
         maximum_impact_parameter=1000 * u.au,
-        UNIT_SYSTEM=None,
+        unit_system=None,
         units=None,
         name="Open Cluster",
         object_name=None,
@@ -743,7 +746,7 @@ class OpenCluster(StellarEnvironment):
             upper_mass_limit=upper_mass_limit,
             mass_function=mass_function,
             maximum_impact_parameter=maximum_impact_parameter,
-            UNIT_SYSTEM=UNIT_SYSTEM,
+            unit_system=unit_system,
             units=units,
             name=name,
             object_name=object_name,
@@ -782,7 +785,7 @@ class GlobularCluster(StellarEnvironment):
         upper_mass_limit=1 * u.solMass,
         mass_function=None,
         maximum_impact_parameter=5000 * u.au,
-        UNIT_SYSTEM=None,
+        unit_system=None,
         units=None,
         name="Globular Cluster",
         object_name=None,
@@ -796,7 +799,7 @@ class GlobularCluster(StellarEnvironment):
             upper_mass_limit=upper_mass_limit,
             mass_function=mass_function,
             maximum_impact_parameter=maximum_impact_parameter,
-            UNIT_SYSTEM=UNIT_SYSTEM,
+            unit_system=unit_system,
             units=units,
             name=name,
             object_name=object_name,
@@ -835,7 +838,7 @@ class GalacticBulge(StellarEnvironment):
         upper_mass_limit=10 * u.solMass,
         mass_function=None,
         maximum_impact_parameter=50000 * u.au,
-        UNIT_SYSTEM=None,
+        unit_system=None,
         units=None,
         name="Milky Way Bulge",
         object_name=None,
@@ -849,7 +852,7 @@ class GalacticBulge(StellarEnvironment):
             upper_mass_limit=upper_mass_limit,
             mass_function=mass_function,
             maximum_impact_parameter=maximum_impact_parameter,
-            UNIT_SYSTEM=UNIT_SYSTEM,
+            unit_system=unit_system,
             units=units,
             name=name,
             object_name=object_name,
@@ -888,14 +891,14 @@ class GalacticCore(StellarEnvironment):
         upper_mass_limit=10 * u.solMass,
         mass_function=None,
         maximum_impact_parameter=50000 * u.au,
-        UNIT_SYSTEM=None,
+        unit_system=None,
         units=None,
         name="Milky Way Core",
         object_name=None,
         seed=None,
         interpolating_points=int(1e5),
     ):
-        UNIT_SYSTEM = [u.yr] if UNIT_SYSTEM is None else UNIT_SYSTEM
+        unit_system = [u.yr] if unit_system is None else unit_system
         super().__init__(
             stellar_density=stellar_density,
             velocity_dispersion=velocity_dispersion,
@@ -903,7 +906,7 @@ class GalacticCore(StellarEnvironment):
             upper_mass_limit=upper_mass_limit,
             mass_function=mass_function,
             maximum_impact_parameter=maximum_impact_parameter,
-            UNIT_SYSTEM=UNIT_SYSTEM,
+            unit_system=unit_system,
             units=units,
             name=name,
             object_name=object_name,

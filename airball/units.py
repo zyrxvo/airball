@@ -38,10 +38,10 @@ class UnitSet:
     Two UnitSets are considered equal if the string representations of the units in each UnitSets are identical.
 
     Args:
-      UNIT_SYSTEM (list): A list of Astropy Units describing the units of the system.
+      unit_system (list): A list of Astropy Units describing the units of the system.
 
     Attributes:
-      UNIT_SYSTEM (list): A list of Astropy Units describing the units of the system.
+      unit_system (list): A list of Astropy Units describing the units of the system.
       units (dict): A dictionary of Astropy Units describing the units of the system. Can also access the dictionary from the object itself.
       length (astropy.units.Unit): The unit of length.
       time (astropy.units.Unit): The unit of time.
@@ -65,7 +65,7 @@ class UnitSet:
 
     """
 
-    def __init__(self, UNIT_SYSTEM=[]) -> None:
+    def __init__(self, unit_system=[]) -> None:
         self._units = {
             "length": _u.au,
             "time": _u.Myr,
@@ -75,20 +75,22 @@ class UnitSet:
             "object": stars,
             "density": stars / _u.pc**3,
         }
-        if isinstance(UNIT_SYSTEM, list):
-            self.UNIT_SYSTEM = UNIT_SYSTEM
-        elif isinstance(UNIT_SYSTEM, UnitSet):
-            self.UNIT_SYSTEM = UNIT_SYSTEM.UNIT_SYSTEM
+        if isinstance(unit_system, list):
+            self.unit_system = unit_system
+        elif isinstance(unit_system, UnitSet):
+            self.unit_system = unit_system.unit_system
         else:
-            message: str = "UNIT_SYSTEM must be a list of Astropy Units."
+            message: str = "unit_system must be a list of Astropy Units."
             raise TypeError(message)
 
     @property
     def units(self):
+        """The dict of units for the system."""
         return self._units
 
     @property
-    def UNIT_SYSTEM(self):
+    def unit_system(self):
+        """The unit system used by Astropy.Units for decomposing."""
         return self._UNIT_SYSTEM
 
     def __getitem__(self, key):
@@ -152,7 +154,7 @@ class UnitSet:
 
     @length.setter
     def length(self, value):
-        self.UNIT_SYSTEM = [value]
+        self.unit_system = [value]
 
     @property
     def time(self):
@@ -160,7 +162,7 @@ class UnitSet:
 
     @time.setter
     def time(self, value):
-        self.UNIT_SYSTEM = [value]
+        self.unit_system = [value]
 
     @property
     def mass(self):
@@ -168,7 +170,7 @@ class UnitSet:
 
     @mass.setter
     def mass(self, value):
-        self.UNIT_SYSTEM = [value]
+        self.unit_system = [value]
 
     @property
     def angle(self):
@@ -176,7 +178,7 @@ class UnitSet:
 
     @angle.setter
     def angle(self, value):
-        self.UNIT_SYSTEM = [value]
+        self.unit_system = [value]
 
     @property
     def velocity(self):
@@ -184,7 +186,7 @@ class UnitSet:
 
     @velocity.setter
     def velocity(self, value):
-        self.UNIT_SYSTEM = [value]
+        self.unit_system = [value]
 
     @property
     def density(self):
@@ -192,7 +194,7 @@ class UnitSet:
 
     @density.setter
     def density(self, value):
-        self.UNIT_SYSTEM = [value]
+        self.unit_system = [value]
 
     @property
     def object(self):
@@ -200,33 +202,33 @@ class UnitSet:
 
     @object.setter
     def object(self, value):
-        self.UNIT_SYSTEM = [value]
+        self.unit_system = [value]
 
-    @UNIT_SYSTEM.setter
-    def UNIT_SYSTEM(self, UNIT_SYSTEM):
-        if UNIT_SYSTEM != []:
-            length_unit = [this for this in UNIT_SYSTEM if this.is_equivalent(_u.m)]
+    @unit_system.setter
+    def unit_system(self, unit_system):
+        if unit_system != []:
+            length_unit = [this for this in unit_system if this.is_equivalent(_u.m)]
             self._units["length"] = length_unit[0] if length_unit != [] else self._units["length"]
 
-            time_unit = [this for this in UNIT_SYSTEM if this.is_equivalent(_u.s)]
+            time_unit = [this for this in unit_system if this.is_equivalent(_u.s)]
             self._units["time"] = time_unit[0] if time_unit != [] else self._units["time"]
 
-            velocity_unit = [this for this in UNIT_SYSTEM if this.is_equivalent(_u.km / _u.s)]
+            velocity_unit = [this for this in unit_system if this.is_equivalent(_u.km / _u.s)]
             if velocity_unit == [] and time_unit != [] and length_unit != []:
                 velocity_unit = [length_unit[0] / time_unit[0]]
             self._units["velocity"] = velocity_unit[0] if velocity_unit != [] else self._units["velocity"]
 
-            mass_unit = [this for this in UNIT_SYSTEM if this.is_equivalent(_u.kg)]
+            mass_unit = [this for this in unit_system if this.is_equivalent(_u.kg)]
             self._units["mass"] = mass_unit[0] if mass_unit != [] else self._units["mass"]
 
-            angle_unit = [this for this in UNIT_SYSTEM if this.is_equivalent(_u.rad)]
+            angle_unit = [this for this in unit_system if this.is_equivalent(_u.rad)]
             self._units["angle"] = angle_unit[0] if angle_unit != [] else self._units["angle"]
 
-            object_unit = [this for this in UNIT_SYSTEM if this.is_equivalent(stars)]
+            object_unit = [this for this in unit_system if this.is_equivalent(stars)]
             self._units["object"] = object_unit[0] if object_unit != [] else stars
 
-            density_unit = [this for this in UNIT_SYSTEM if this.is_equivalent(stars / _u.m**3)]
-            density_unit2 = [this for this in UNIT_SYSTEM if this.is_equivalent(1 / _u.m**3)]
+            density_unit = [this for this in unit_system if this.is_equivalent(stars / _u.m**3)]
+            density_unit2 = [this for this in unit_system if this.is_equivalent(1 / _u.m**3)]
             if density_unit == [] and density_unit2 != []:
                 density_unit = [self._units["object"] * density_unit2[0]]
             elif density_unit == [] and object_unit != [] and length_unit != []:

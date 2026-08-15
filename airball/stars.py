@@ -41,7 +41,7 @@ class Star:
       inc (float, optional): The inclination of the star. Default units are in radians.
       omega (float, optional): The argument of the periastron of the star. Default units are in radians.
       Omega (float, optional): The longitude of the ascending node of the star. Default units are in radians.
-      UNIT_SYSTEM (list, optional): The unit system to use for the parameters. Default is [u.solMass, u.AU, u.km/u.s, u.rad].
+      unit_system (list, optional): The unit system to use for the parameters. Default is [u.solMass, u.AU, u.km/u.s, u.rad].
 
     Attributes:
       m (astropy.units.Quantity): The mass of the star. Default units are in solMass.
@@ -84,10 +84,10 @@ class Star:
         inc: float | _u.Quantity | str = "isotropic",
         omega: float | _u.Quantity | str = "isotropic",
         Omega: float | _u.Quantity | str = "isotropic",
-        UNIT_SYSTEM=[],
+        unit_system=[],
         **kwargs,
     ) -> None:
-        self.units = _u.UnitSet(UNIT_SYSTEM)
+        self.units = _u.UnitSet(unit_system)
 
         seed = kwargs.get("seed", _np.random.randint(0, (2**32 - 3)))
         if inc == "isotropic" or inc == None:
@@ -111,12 +111,12 @@ class Star:
         self.longitude_ascending_node = Omega
 
     @property
-    def UNIT_SYSTEM(self):
-        return self.units.UNIT_SYSTEM
+    def unit_system(self):
+        return self.units.unit_system
 
-    @UNIT_SYSTEM.setter
-    def UNIT_SYSTEM(self, UNIT_SYSTEM):
-        self.units.UNIT_SYSTEM = UNIT_SYSTEM
+    @unit_system.setter
+    def unit_system(self, unit_system):
+        self.units.unit_system = unit_system
 
     @property
     def N(self):
@@ -323,7 +323,7 @@ class Star:
                 inc=dic["_inclination"],
                 omega=dic["_argument_periastron"],
                 Omega=dic["_longitude_ascending_node"],
-                UNIT_SYSTEM=dic["units"],
+                unit_system=dic["units"],
             )
         except:  # ruff: ignore[bare-except]
             raise Exception("Invalid filename.")
@@ -390,7 +390,7 @@ class Stars(MutableMapping):
       inc (list, ndarray, or Quantity, optional): The inclinations of the stars. Default units are in radians.
       omega (list, ndarray, or Quantity, optional): The arguments of the periastron of the stars. Default units are in radians.
       Omega (list, ndarray, or Quantity, optional): The longitudes of the ascending node of the stars. Default units are in radians.
-      UNIT_SYSTEM (list, optional): The unit system to use for the parameters. Default is [u.solMass, u.AU, u.km/u.s, u.rad].
+      unit_system (list, optional): The unit system to use for the parameters. Default is [u.solMass, u.AU, u.km/u.s, u.rad].
       size (int, optional): The number of stars to generate. Default is None.
       environment (airball.Environment, optional): The environment to generate the stars in (if `size` > 1). `env` is an alias. Default is None.
       filename (str, optional): The name of the file to load the instance from. The file should be in binary format. Default is None.
@@ -453,8 +453,8 @@ class Stars(MutableMapping):
 
     def __init__(self, filename=None, **kwargs) -> None:
         try:
-            self.units = _u.UnitSet(kwargs["UNIT_SYSTEM"])
-            del kwargs["UNIT_SYSTEM"]
+            self.units = _u.UnitSet(kwargs["unit_system"])
+            del kwargs["unit_system"]
         except KeyError:
             try:
                 self.units = kwargs["units"]
@@ -1249,7 +1249,7 @@ class Stars(MutableMapping):
                     inc=self.inc[key],
                     omega=self.omega[key],
                     Omega=self.Omega[key],
-                    UNIT_SYSTEM=self.units.UNIT_SYSTEM,
+                    unit_system=self.units.unit_system,
                 )
             # Otherwise return the requested Star.
             return Star(
@@ -1259,7 +1259,7 @@ class Stars(MutableMapping):
                 inc=self.inc[key],
                 omega=self.omega[key],
                 Omega=self.Omega[key],
-                UNIT_SYSTEM=self.units.UNIT_SYSTEM,
+                unit_system=self.units.unit_system,
             )
 
         # Allows for boolean array masking and indexing using a subset of indices.
@@ -1271,7 +1271,7 @@ class Stars(MutableMapping):
                 inc=self.inc[key],
                 omega=self.omega[key],
                 Omega=self.Omega[key],
-                UNIT_SYSTEM=self.units.UNIT_SYSTEM,
+                unit_system=self.units.unit_system,
             )
 
         # Allow for speed efficient slicing by returning a new set of Stars which are a subset of the original object.
@@ -1292,7 +1292,7 @@ class Stars(MutableMapping):
                     inc=self.inc[key],
                     omega=self.omega[key],
                     Omega=self.Omega[key],
-                    UNIT_SYSTEM=self.units.UNIT_SYSTEM,
+                    unit_system=self.units.unit_system,
                     size=1,
                 )
             # Otherwise return a subset of the Stars defined by the slice.
@@ -1303,7 +1303,7 @@ class Stars(MutableMapping):
                 inc=self.inc[key],
                 omega=self.omega[key],
                 Omega=self.Omega[key],
-                UNIT_SYSTEM=self.units.UNIT_SYSTEM,
+                unit_system=self.units.unit_system,
             )
 
         # Allow for Numpy style array indexing.
@@ -1331,7 +1331,7 @@ class Stars(MutableMapping):
                         inc=self.inc[key],
                         omega=self.omega[key],
                         Omega=self.Omega[key],
-                        UNIT_SYSTEM=self.units.UNIT_SYSTEM,
+                        unit_system=self.units.unit_system,
                     )
                 # If only one element is requested, return a set of Stars with only one Star.
                 # Check to see if the single element is an scalar or an array with only one element.
@@ -1344,7 +1344,7 @@ class Stars(MutableMapping):
                         omega=self.omega[key],
                         Omega=self.Omega[key],
                         size=1,
-                        UNIT_SYSTEM=self.units.UNIT_SYSTEM,
+                        unit_system=self.units.unit_system,
                     )
                 return Stars(
                     m=self.m[key],
@@ -1353,7 +1353,7 @@ class Stars(MutableMapping):
                     inc=self.inc[key],
                     omega=self.omega[key],
                     Omega=self.Omega[key],
-                    UNIT_SYSTEM=self.units.UNIT_SYSTEM,
+                    unit_system=self.units.unit_system,
                 )
             # If there is no slice, the return the requested Star.
             return Star(
@@ -1363,7 +1363,7 @@ class Stars(MutableMapping):
                 inc=self.inc[key],
                 omega=self.omega[key],
                 Omega=self.Omega[key],
-                UNIT_SYSTEM=self.units.UNIT_SYSTEM,
+                unit_system=self.units.unit_system,
             )
 
         raise _tools.InvalidKeyException()
@@ -1394,7 +1394,7 @@ class Stars(MutableMapping):
                 inc=self.inc[i],
                 omega=self.omega[i],
                 Omega=self.Omega[i],
-                UNIT_SYSTEM=self.units.UNIT_SYSTEM,
+                unit_system=self.units.unit_system,
             )
 
     def __len__(self):

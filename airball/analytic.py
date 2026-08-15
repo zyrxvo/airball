@@ -242,7 +242,7 @@ def energy_change_close_encounter_estimate(sim, star, particle_index=1):
     vx, vy, vz = c["vx"], c["vy"], c["vz"]
     dat = _np.array([c["x"].value, c["y"].value, c["z"].value]).T << units.length
     x, y, z = _tools.unit_vector(dat).T
-    G = _c.G.decompose(units.UNIT_SYSTEM)  # Newton's Gravitational constant
+    G = _c.G.decompose(units.unit_system)  # Newton's Gravitational constant
 
     m1, m2 = (
         sim.particles[0].m * units.mass,
