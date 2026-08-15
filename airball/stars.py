@@ -599,7 +599,8 @@ class Stars(MutableMapping):
             elif k == "v":
                 self._v = quantity_value
             else:
-                raise _tools.InvalidKeyException()
+                msg = f"Invalid key: {k!r}"
+                raise KeyError(msg)
             # Double check for consistent shapes.
             if self._shape is not None:
                 if quantity_value.shape != self._shape:
@@ -727,7 +728,8 @@ class Stars(MutableMapping):
             elif k == "Omega":
                 self._Omega = quantity_value
             else:
-                raise _tools.InvalidKeyException()
+                msg = f"Invalid key: {k!r}"
+                raise KeyError(msg)
             # Double check for consistent shapes.
             if self.shape is not None:
                 if quantity_value.shape != self.shape:
@@ -1366,7 +1368,8 @@ class Stars(MutableMapping):
                 unit_system=self.units.unit_system,
             )
 
-        raise _tools.InvalidKeyException()
+        msg = f"Invalid key: {key!r}"
+        raise KeyError(msg)
 
     def __setitem__(self, key, value):
         star_type = Star, Stars

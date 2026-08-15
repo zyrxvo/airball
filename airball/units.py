@@ -12,10 +12,20 @@
 # If not, see http://www.gnu.org/licenses/.
 """Astropy Units for `airball`."""
 
+from __future__ import annotations
+
 import math
+from typing import TYPE_CHECKING
 
 import astropy.units as _u
-from astropy.units import *  # ruff: ignore[undefined-local-with-import-star]
+from astropy.units import *  # ruff: ignore[undefined-local-with-import-star]  # ty: ignore[invalid-declaration]
+from astropy.units.core import UnitBase
+
+if TYPE_CHECKING:
+    import builtins
+    from collections.abc import ItemsView, Iterator, KeysView, ValuesView
+
+    from astropy.units import Quantity
 
 twopi = math.tau
 yrtwopi = _u.def_unit("yrtwopi", _u.yr / twopi, format={"latex": r"(yr/2\pi)"})
@@ -25,9 +35,13 @@ _u.add_enabled_units([yr2pi, yrtwopi])
 _u.add_enabled_aliases({"msun": _u.solMass})
 
 
-def isUnit(var):
-    """Determine if an object is an Astropy Quantity. Used for Stellar Environment initializations."""
-    return isinstance(var, (_u.core.IrreducibleUnit, _u.core.CompositeUnit, _u.Unit))
+def is_unit(var: builtins.object) -> bool:
+    """Determine if an object is an Astropy Unit type."""
+    return isinstance(var, UnitBase)
+
+
+# Backwards compatibility alias.
+isUnit = is_unit  # ruff: ignore[mixed-case-variable-in-global-scope]
 
 
 class UnitSet:
@@ -41,32 +55,33 @@ class UnitSet:
       unit_system (list): A list of Astropy Units describing the units of the system.
 
     Attributes:
-      unit_system (list): A list of Astropy Units describing the units of the system.
-      units (dict): A dictionary of Astropy Units describing the units of the system. Can also access the dictionary from the object itself.
-      length (astropy.units.Unit): The unit of length.
-      time (astropy.units.Unit): The unit of time.
-      mass (astropy.units.Unit): The unit of mass.
-      angle (astropy.units.Unit): The unit of angle.
-      velocity (astropy.units.Unit): The unit of velocity in length/time.
-      density (astropy.units.Unit): The unit of density in object/length**3.
-      object (airball.units.Unit): The unit of an object (such as a star).
+      bases (list[UnitBase]): A list of Astropy Units describing the units of the system.
+      units (dict[str, UnitBase]): A dictionary of Astropy Units describing the units of the system. Can also access the dictionary from the object itself.
+      length (UnitBase): The unit of length.
+      time (UnitBase): The unit of time.
+      mass (UnitBase): The unit of mass.
+      angle (UnitBase): The unit of angle.
+      velocity (UnitBase): The unit of velocity in length/time.
+      density (UnitBase): The unit of density in object/length**3.
+      object (UnitBase): The unit of an object (such as a star).
 
     Example:
       ```python
       import airball
       import airball.units as u
 
-      us1 = airball.tools.UnitSet([u.pc, u.Myr])
-      us2 = airball.tools.UnitSet()
+      us1 = u.UnitSet([u.pc, u.Myr])
+      us2 = u.UnitSet()
       print(us1 == us2)  # False
       print(us1.velocity)  # pc/Myr
-      print(us2["velocity"])  # au/yr2pi
+      print(us2["velocity"])  # km/s
       ```
 
     """
 
-    def __init__(self, unit_system=[]) -> None:
-        self._units = {
+    def __init__(self, unit_system: UnitSet | list[UnitBase] | None = None) -> None:
+        # Set the default units.
+        self._units: dict[str, UnitBase] = {
             "length": _u.au,
             "time": _u.Myr,
             "mass": _u.solMass,
@@ -75,6 +90,8 @@ class UnitSet:
             "object": stars,
             "density": stars / _u.pc**3,
         }
+        if unit_system is None:
+            unit_system = []
         if isinstance(unit_system, list):
             self.unit_system = unit_system
         elif isinstance(unit_system, UnitSet):
@@ -83,174 +100,190 @@ class UnitSet:
             message: str = "unit_system must be a list of Astropy Units."
             raise TypeError(message)
 
+    def decompose(self, quantity: Quantity) -> Quantity:
+        """Decompose a `Quantity` with units into irreducible units."""
+        return quantity.decompose(self.bases)
+
     @property
-    def units(self):
-        """The dict of units for the system."""
+    def units(self) -> dict[str, UnitBase]:
+        """The dictionary of units for the system."""
         return self._units
 
     @property
-    def unit_system(self):
+    def unit_system(self) -> list[UnitBase]:
         """The unit system used by Astropy.Units for decomposing."""
-        return self._UNIT_SYSTEM
-
-    def __getitem__(self, key):
-        if isinstance(key, str):
-            return self.units[key]
-        raise InvalidKeyException
-
-    def __setitem__(self, key, value):
-        if isinstance(key, str):
-            if isUnit(value):
-                self.units[key] = value
-            else:
-                raise InvalidUnitException
-        else:
-            raise InvalidKeyException
-
-    def __str__(self):
-        s = "{"
-        for key in self.units:
-            s += f"{key}: {self.units[key].to_string()}, "
-        s = s[:-2] + "}"
-        return s
-
-    def __repr__(self):
-        s = "{"
-        for key in self.units:
-            s += f"{key}: {self.units[key].to_string()},\n"
-        s = s[:-2] + "}"
-        return s
-
-    def __iter__(self):
-        for k in self.units:
-            yield self.units[k]
-
-    def __eq__(self, other):
-        # Determines if the string representations of the units in each UnitSets are identical.
-        if isinstance(other, UnitSet):
-            result = True
-            for u1, u2 in zip(self, other, strict=False):
-                result = result and (u1.to_string() == u2.to_string())
-            return result
-        return NotImplemented
-
-    def __hash__(self):
-        # Overrides the default implementation
-        data = []
-        for d in sorted(self.__dict__.items()):
-            try:
-                data.append((d[0], tuple(d[1])))
-            except:  # ruff: ignore[bare-except]
-                data.append(d)
-        data = tuple(data)
-        return hash(data)
-
-    def values(self):
-        return self.units.values()
+        return self._bases
 
     @property
-    def length(self):
+    def bases(self) -> list[UnitBase]:
+        """The unit system used by Astropy.Units for decomposing."""
+        return self._bases
+
+    def __getitem__(self, key: str) -> UnitBase:
+        """Get a unit by its name."""
+        if isinstance(key, str):
+            return self.units[key]
+        msg = f"Key must be a string, got {type(key).__name__}"
+        raise TypeError(msg)
+
+    def __setitem__(self, key: str, value: UnitBase) -> None:
+        """Set a unit by its name."""
+        if not isinstance(key, str):
+            msg = f"Key must be a string, got {type(key).__name__}"
+            raise TypeError(msg)
+        if not isinstance(value, UnitBase):
+            msg = f"Value must be a valid Astropy Unit, got {type(value).__name__}"
+            raise TypeError(msg)
+        self.units[key] = value
+
+    def __str__(self) -> str:
+        """Return a human-readable string representation of the UnitSet."""
+        parts = [f"{key}: {self.units[key].to_string()}" for key in self.units]
+        return "{" + ", ".join(parts) + "}"
+
+    def __repr__(self) -> str:
+        """Return a detailed string representation of the UnitSet."""
+        return "{\n" + "".join([f"  {k}: {v.to_string()},\n" for k, v in self.items()]) + "}"
+
+    def __iter__(self) -> Iterator[UnitBase]:
+        """Iterate over the unit values in the UnitSet."""
+        yield from self.units.values()
+
+    def __eq__(self, other: builtins.object) -> bool:
+        """Check equality by comparing string representations of all units."""
+        if isinstance(other, UnitSet):
+            if len(self._units) != len(other._units):
+                return False
+            return all(u1.to_string() == u2.to_string() for u1, u2 in zip(self, other, strict=True))
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        """Return a hash of the UnitSet based on its attributes."""
+        return hash(tuple(u.to_string() for u in self))
+
+    def keys(self) -> KeysView[str]:
+        """Return the unit keys of the UnitSet."""
+        return self.units.keys()
+
+    def values(self) -> ValuesView[UnitBase]:
+        """Return the unit values of the UnitSet."""
+        return self.units.values()
+
+    def items(self) -> ItemsView[str, UnitBase]:
+        """Return the unit key-value pairs of the UnitSet."""
+        return self.units.items()
+
+    @property
+    def length(self) -> UnitBase:
+        """The unit of length."""
         return self._units["length"]
 
     @length.setter
-    def length(self, value):
+    def length(self, value: UnitBase) -> None:
+        """Set the unit of length and update dependent units."""
         self.unit_system = [value]
 
     @property
-    def time(self):
+    def time(self) -> UnitBase:
+        """The unit of time."""
         return self._units["time"]
 
     @time.setter
-    def time(self, value):
+    def time(self, value: UnitBase) -> None:
+        """Set the unit of time and update dependent units."""
         self.unit_system = [value]
 
     @property
-    def mass(self):
+    def mass(self) -> UnitBase:
+        """The unit of mass."""
         return self._units["mass"]
 
     @mass.setter
-    def mass(self, value):
+    def mass(self, value: UnitBase) -> None:
+        """Set the unit of mass."""
         self.unit_system = [value]
 
     @property
-    def angle(self):
+    def angle(self) -> UnitBase:
+        """The unit of angle."""
         return self._units["angle"]
 
     @angle.setter
-    def angle(self, value):
+    def angle(self, value: UnitBase) -> None:
+        """Set the unit of angle."""
         self.unit_system = [value]
 
     @property
-    def velocity(self):
+    def velocity(self) -> UnitBase:
+        """The unit of velocity."""
         return self._units["velocity"]
 
     @velocity.setter
-    def velocity(self, value):
+    def velocity(self, value: UnitBase) -> None:
+        """Set the unit of velocity."""
         self.unit_system = [value]
 
     @property
-    def density(self):
+    def density(self) -> UnitBase:
+        """The unit of number density."""
         return self._units["density"]
 
     @density.setter
-    def density(self, value):
+    def density(self, value: UnitBase) -> None:
+        """Set the unit of number density."""
         self.unit_system = [value]
 
     @property
-    def object(self):
+    def object(self) -> UnitBase:
+        """The unit of an object (e.g., stars)."""
         return self._units["object"]
 
-    @object.setter
-    def object(self, value):
+    @object.setter  # ruff: ignore[builtin-attribute-shadowing]
+    def object(self, value: UnitBase) -> None:
+        """Set the unit of an object (e.g., stars)."""
         self.unit_system = [value]
 
     @unit_system.setter
-    def unit_system(self, unit_system):
-        if unit_system != []:
-            length_unit = [this for this in unit_system if this.is_equivalent(_u.m)]
-            self._units["length"] = length_unit[0] if length_unit != [] else self._units["length"]
+    def unit_system(self, unit_system: list[UnitBase]) -> None:
+        """Set the unit system, inferring missing units from the provided ones."""
+        if not unit_system:
+            self._bases = list(self._units.values())
+            return
 
-            time_unit = [this for this in unit_system if this.is_equivalent(_u.s)]
-            self._units["time"] = time_unit[0] if time_unit != [] else self._units["time"]
+        def _find(ref: UnitBase) -> UnitBase | None:
+            return next((u for u in unit_system if u.is_equivalent(ref)), None)
 
-            velocity_unit = [this for this in unit_system if this.is_equivalent(_u.km / _u.s)]
-            if velocity_unit == [] and time_unit != [] and length_unit != []:
-                velocity_unit = [length_unit[0] / time_unit[0]]
-            self._units["velocity"] = velocity_unit[0] if velocity_unit != [] else self._units["velocity"]
+        # Assign any explicitly provided units.
+        for key, reference in [("length", _u.m), ("time", _u.s), ("mass", _u.kg), ("angle", _u.rad)]:
+            if found := _find(reference):
+                self._units[key] = found
 
-            mass_unit = [this for this in unit_system if this.is_equivalent(_u.kg)]
-            self._units["mass"] = mass_unit[0] if mass_unit != [] else self._units["mass"]
+        # Default to `stars` if no object unit is found.
+        self._units["object"] = _find(stars) or stars
 
-            angle_unit = [this for this in unit_system if this.is_equivalent(_u.rad)]
-            self._units["angle"] = angle_unit[0] if angle_unit != [] else self._units["angle"]
+        # Infer velocity from length/time if not explicitly provided.
+        velocity = _find(_u.km / _u.s)
+        if velocity or (_find(_u.m) and _find(_u.s)):
+            self._units["velocity"] = velocity or self._units["length"] / self._units["time"]
 
-            object_unit = [this for this in unit_system if this.is_equivalent(stars)]
-            self._units["object"] = object_unit[0] if object_unit != [] else stars
+        # Infer density from object/length^3 if not explicitly provided.
+        # Handles three cases:
+        #   1. A pure inverse-volume unit (e.g. 1/pc^3) was given — combine with object unit.
+        #   2. Object and length units were given — construct density from them.
+        #   3. Only object unit changed — preserve the existing density's length unit.
+        if density := _find(stars / _u.m**3):
+            self._units["density"] = density
+        elif inverse_volume := _find(1 / _u.m**3):
+            self._units["density"] = self._units["object"] * inverse_volume
+        elif _find(stars) and _find(_u.m):
+            self._units["density"] = self._units["object"] / self._units["length"] ** 3
+        elif _find(stars):
+            density_length = next(u for u in self._units["density"].bases if u.is_equivalent(_u.m))
+            self._units["density"] = self._units["object"] / density_length**3
 
-            density_unit = [this for this in unit_system if this.is_equivalent(stars / _u.m**3)]
-            density_unit2 = [this for this in unit_system if this.is_equivalent(1 / _u.m**3)]
-            if density_unit == [] and density_unit2 != []:
-                density_unit = [self._units["object"] * density_unit2[0]]
-            elif density_unit == [] and object_unit != [] and length_unit != []:
-                density_unit = [self._units["object"] / self._units["length"] ** 3]
-            elif density_unit == [] and density_unit2 == [] and object_unit != []:
-                density_length = next(this for this in self._units["density"].bases if this.is_equivalent(_u.m))
-                density_unit = [self._units["object"] / density_length**3]
-            self._units["density"] = density_unit[0] if density_unit != [] else self._units["density"]
-
-        self._UNIT_SYSTEM = list(self._units.values())
-
-
-############################################################
-# Exceptions ##########################
-############################################################
-
-
-class InvalidKeyException(Exception):
-    def __init__(self):
-        super().__init__("Invalid key type.")
+        self._bases = list(self._units.values())
 
 
-class InvalidUnitException(Exception):
-    def __init__(self):
-        super().__init__("Value is not a valid unit type.")
+# Backwards compatibility aliases.
+InvalidKeyException = TypeError
+InvalidUnitException = TypeError
