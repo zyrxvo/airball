@@ -79,6 +79,8 @@ class UnitSet:
 
     """
 
+    __slots__ = ("_bases", "_units")
+
     def __init__(self, unit_system: UnitSet | list[UnitBase] | None = None) -> None:
         # Set the default units.
         self._units: dict[str, UnitBase] = {
@@ -99,6 +101,10 @@ class UnitSet:
         else:
             message: str = "unit_system must be a list of Astropy Units."
             raise TypeError(message)
+
+    def find(self, unit: UnitBase) -> str | None:
+        """Return the category key for a unit, or None if not found."""
+        return next((k for k, v in self.items() if v.is_equivalent(unit)), None)
 
     def decompose(self, quantity: Quantity) -> Quantity:
         """Decompose a `Quantity` with units into irreducible units."""
@@ -131,6 +137,9 @@ class UnitSet:
         if not isinstance(key, str):
             msg = f"Key must be a string, got {type(key).__name__}"
             raise TypeError(msg)
+        if key not in self.units:
+            msg = f"Unknown unit key {key!r}, must be one of: {', '.join(self.units)}"
+            raise KeyError(msg)
         if not isinstance(value, UnitBase):
             msg = f"Value must be a valid Astropy Unit, got {type(value).__name__}"
             raise TypeError(msg)
@@ -145,21 +154,21 @@ class UnitSet:
         """Return a detailed string representation of the UnitSet."""
         return "{\n" + "".join([f"  {k}: {v.to_string()},\n" for k, v in self.items()]) + "}"
 
-    def __iter__(self) -> Iterator[UnitBase]:
-        """Iterate over the unit values in the UnitSet."""
-        yield from self.units.values()
+    def __iter__(self) -> Iterator[str]:
+        """Iterate over the unit keys in the UnitSet."""
+        yield from self.units
 
     def __eq__(self, other: builtins.object) -> bool:
         """Check equality by comparing string representations of all units."""
         if isinstance(other, UnitSet):
             if len(self._units) != len(other._units):
                 return False
-            return all(u1.to_string() == u2.to_string() for u1, u2 in zip(self, other, strict=True))
+            return all(u1.to_string() == u2.to_string() for u1, u2 in zip(self.values(), other.values(), strict=True))
         return NotImplemented
 
     def __hash__(self) -> int:
         """Return a hash of the UnitSet based on its attributes."""
-        return hash(tuple(u.to_string() for u in self))
+        return hash(tuple(u.to_string() for u in self.values()))
 
     def keys(self) -> KeysView[str]:
         """Return the unit keys of the UnitSet."""
@@ -244,11 +253,16 @@ class UnitSet:
         self.unit_system = [value]
 
     @unit_system.setter
-    def unit_system(self, unit_system: list[UnitBase]) -> None:
+    def unit_system(self, unit_system: list[UnitBase]) -> None:  # ruff: ignore[complex-structure]
         """Set the unit system, inferring missing units from the provided ones."""
         if not unit_system:
             self._bases = list(self._units.values())
             return
+
+        if not all(isinstance(item, UnitBase) for item in unit_system):
+            bad = next(item for item in unit_system if not isinstance(item, UnitBase))
+            msg = f"All items in unit_system must be Astropy Units, got {type(bad).__name__}: {bad!r}"
+            raise TypeError(msg)
 
         def _find(ref: UnitBase) -> UnitBase | None:
             return next((u for u in unit_system if u.is_equivalent(ref)), None)
