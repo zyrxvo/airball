@@ -14,18 +14,18 @@ jobs:
     runs-on: ubuntu-slim
     steps:
       - name: Checkout main branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: main
           path: main_branch
 
       - name: Checkout current branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: current_branch
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v9.0.0
 
       - name: Compare versions
         run: |

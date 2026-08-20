@@ -57,7 +57,7 @@ requires-dist = [
     { name = "astropy" },
     { name = "joblib" },
     { name = "numpy" },
-    { name = "rebound", specifier = ">=4.4.7" },
+    { name = "rebound", specifier = ">=4.4.7,<5.0.0" },
     { name = "scipy" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=1.1.0" },
 ]
