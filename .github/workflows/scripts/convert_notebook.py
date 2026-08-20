@@ -6,6 +6,7 @@ from pathlib import Path
 
 
 def convert(notebook_path: Path, output_path: Path) -> None:
+    """Convert a Jupyter notebook to an executable Python script."""
     contents = json.loads(notebook_path.read_text(encoding="utf-8"))
     notebook_dir = notebook_path.parent.resolve()
 
@@ -25,7 +26,7 @@ def convert(notebook_path: Path, output_path: Path) -> None:
             code = [line for line in cell["source"] if line and line[0] not in {"%", "!"}]
             if len(code) > 0 and '#include "rebound.h"' in code[0]:
                 continue
-            executable.extend(code + ["\n"])
+            executable.extend([*code, "\n"])
     executable.extend(
         [
             "patch_cwd.stop()\n",

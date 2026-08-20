@@ -1,30 +1,30 @@
 [project]
 name = "airball"
-dynamic = ["version"]
+version = "0.12.0"
 description = "A package for running and managing flybys using REBOUND."
 readme = "README.md"
-authors = [
-    { name = "Garett Brown", email = "astro@gbrown.ca" }
-]
+authors = [{ name = "Garett Brown", email = "astro@gbrown.ca" }]
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
 dependencies = [
     "numpy",
     "scipy",
-    "rebound>=4.4.7",
+    "rebound>=4.4.7,<5.0.0",
     "astropy",
     "joblib",
+    "tomli>=1.1.0; python_version < '3.11'",
 ]
 
 [dependency-groups]
 dev = [
-    "ruff>=0.11.5",
+    "ruff>=0.16.2",
     "pytest >=8.0",
     "pytest-cov >=6.0",
     "pre-commit >=4.0",
     "jedi-language-server>=0.45.1",
     "matplotlib>=3.9.4",
     "ipykernel>=6.31.0",
+    "ty>=0.0.70",
 ]
 docs = [
     "mkdocs>=1.5.2",
@@ -34,7 +34,7 @@ docs = [
     "mkdocstrings-python>=1.7.5",
     "Markdown>=3.5.1",
     "mkdocs-jupyter",
-    "mkdocs-exclude"
+    "mkdocs-exclude",
 ]
 testing = [
     "matplotlib>=3.9.4",
@@ -46,11 +46,8 @@ testing = [
 [tool.uv]
 default-groups = ["dev", "docs", "testing"]
 
-
 [tool.pytest.ini_options]
-addopts = [
-    "--import-mode=importlib",
-]
+addopts = ["--import-mode=importlib", "--cov-report=term-missing"]
 testpaths = ["tests"]
 xfail_strict = "True"
 
@@ -60,19 +57,102 @@ line-length = 128
 [tool.ruff.format]
 docstring-code-format = true
 
+[tool.ruff.lint]
+preview = true
+select = [
+    "A",
+    "AIR",
+    "ARG",
+    "ASYNC",
+    "B",
+    "BLE",
+    "COM",
+    "C4",
+    "C90",
+    "D",
+    "DTZ",
+    "E",
+    "EM",
+    "ERA",
+    "EXE",
+    "F",
+    "FAST",
+    "FIX",
+    "FLY",
+    "FURB",
+    "G",
+    "I",
+    "ICN",
+    "INP",
+    "INT",
+    "LOG",
+    "N",
+    "NPY",
+    "PD",
+    "PERF",
+    "PGH",
+    "PIE",
+    "PL",
+    "PTH",
+    "PYI",
+    "PT",
+    "Q",
+    "RSE",
+    "RET",
+    "RUF",
+    "S",
+    "SIM",
+    "SLF",
+    "T10",
+    "T20",
+    "TC",
+    "TID",
+    "TRY",
+    "UP",
+    "W",
+    "YTT",
+]
+ignore = [
+    "PLR0904", # Temporarily ignore these,
+    "ANN",
+    "E501",
+    "COM812",  # Choose to ignore these
+    "D107",
+    "D203",
+    "D213",
+    "D417",
+    "N806",
+    "RUF067",
+    "S404",
+    "S311",
+    "S603",
+]
+
+[tool.ruff.lint.pylint]
+max-locals = 35
+max-args = 10
+
+[tool.ruff.lint.flake8-annotations]
+mypy-init-return = true
+
+[tool.ruff.lint.per-file-ignores]
+"airball/imf.py" = ["invalid-class-name"]
+"tests/*" = [
+    "implicit-namespace-package",
+    "SLF001",
+    "ANN201",
+    "S101",
+    "PLR6301",
+]
+".github/workflows/scripts/*" = ["print", "implicit-namespace-package"]
+
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.sdist]
-exclude = [
-  "/.*/",
-  "/docs/",
-  "/tests/",
-]
+exclude = ["/.*/", "/docs/", "/tests/"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/airball"]
-
-[tool.hatch.version]
-path = "src/airball/__init__.py"
+packages = ["airball"]

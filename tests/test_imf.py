@@ -1,5 +1,4 @@
-"""
-Tests for the airball.imf module.
+"""Tests for the airball.imf module.
 
 Organized into two main sections:
   A) Functionality tests — validate the implementation and behavior of the module.
@@ -9,8 +8,8 @@ Organized into two main sections:
 import numpy as np
 import pytest
 
-import airball.imf as imf
 import airball.units as u
+from airball import imf
 from airball.imf import IMF
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -88,7 +87,7 @@ class TestIMFInit:
 
     def test_callable_without_unit_warns(self):
         """A plain callable without .unit emits a warning."""
-        mf = lambda x: x**-2.35  # noqa: E731
+        mf = lambda x: x**-2.35  # ruff: ignore[lambda-assignment]
         with pytest.warns(UserWarning, match="no 'unit' attribute"):
             IMF(0.1, 100, mass_function=mf)
 
@@ -347,13 +346,13 @@ class TestMassFunctionProtocol:
 
     def test_lambda_with_unit_is_mass_function(self):
         """A lambda with a .unit attribute conforms to the protocol."""
-        mf = lambda x: x**-2  # noqa: E731
+        mf = lambda x: x**-2  # ruff: ignore[lambda-assignment]
         mf.unit = u.solMass  # ty:ignore[unresolved-attribute]
         assert isinstance(mf, imf.MassFunction)
 
     def test_lambda_without_unit_is_not(self):
         """A lambda without .unit does not conform."""
-        mf = lambda x: x**-2  # noqa: E731
+        mf = lambda x: x**-2  # ruff: ignore[lambda-assignment]
         assert not isinstance(mf, imf.MassFunction)
 
 
@@ -618,14 +617,14 @@ class TestGenericMassFunctions:
         np.testing.assert_allclose(slopes_hi, -2.35, rtol=1e-6)
 
     def test_lognormal_matches_chabrier(self):
-        """lognormal with Chabrier params is identical to chabrier_2003_single."""
+        """Lognormal with Chabrier params is identical to chabrier_2003_single."""
         c03 = imf.chabrier_2003_single()
         ln_mf = imf.lognormal(mu=np.log10(0.079), sigma=0.69, A=0.158)
         x = np.geomspace(0.05, 1.0, 100)
         np.testing.assert_allclose(ln_mf(x), c03(x), rtol=1e-14)
 
     def test_lognormal_symmetry_in_log_space(self):
-        """lognormal is symmetric around μ in log₁₀(m) space."""
+        """Lognormal is symmetric around μ in log₁₀(m) space."""
         mu = np.log10(0.3)
         ln_mf = imf.lognormal(mu=mu, sigma=0.5)
         # ξ(log m) = ξ(m) * m * ln(10) should be symmetric
@@ -636,14 +635,14 @@ class TestGenericMassFunctions:
         assert xi_log_left == pytest.approx(xi_log_right, rel=1e-14)
 
     def test_loguniform_slope(self):
-        """loguniform has slope -1 in log-log space (ξ ∝ 1/m)."""
+        """Loguniform has slope -1 in log-log space (ξ ∝ 1/m)."""
         lu = imf.loguniform()
         m = np.array([0.1, 1.0, 10.0, 100.0])
         slopes = np.diff(np.log10(lu(m))) / np.diff(np.log10(m))
         np.testing.assert_allclose(slopes, -1.0, rtol=1e-14)
 
     def test_loguniform_equal_probability_per_decade(self):
-        """loguniform gives equal probability per decade when integrated."""
+        """Loguniform gives equal probability per decade when integrated."""
         my_imf = IMF(0.1, 100, mass_function=imf.loguniform())
         # CDF(1) - CDF(0.1) should equal CDF(10) - CDF(1)
         decade1 = my_imf.cdf(1.0) - my_imf.cdf(0.1)  # ty:ignore[invalid-argument-type]

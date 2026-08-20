@@ -1,14 +1,11 @@
+import numpy as np
 import pytest
 import rebound
+
 import airball
 import airball.units as u
-import numpy as np
 
-################################################
-################################################
-##########  INITIALIZATION TESTS  ##############
-################################################
-################################################
+# INITIALIZATION TESTS
 
 
 def test_add_star():
@@ -45,11 +42,7 @@ def test_remove_star():
         airball.core.remove_star_from_sim(sim, "star")
 
 
-################################################
-################################################
-#############  FLYBY TESTS  ####################
-################################################
-################################################
+# FLYBY TESTS
 
 
 def test_basic_flyby():

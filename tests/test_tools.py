@@ -1,6 +1,7 @@
+import numpy as np
+
 import airball
 import airball.units as u
-import numpy as np
 
 
 def test_isList():
